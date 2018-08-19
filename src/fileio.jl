@@ -378,3 +378,8 @@ function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64}
 
 end
 """
+function readnetcdf(filename::String)
+    
+end
+
+
