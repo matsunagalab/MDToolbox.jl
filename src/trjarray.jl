@@ -5,9 +5,9 @@ import Base: convert, copy, length, show, getindex, start, next, done, isempty,
 
 abstract type AbstractTrajectory end
 
-struct TrajArray{T, N, A <: AbstractArray{T, N}} <: AbstractTrajectory
+struct TrjArray{T, N, A <: AbstractArray{T, N}} <: AbstractTrajectory
 
-    traj::A
+    trj::A
 
     chainname::Vector{String}
     chainid::Vector{Int}
@@ -28,21 +28,24 @@ struct TrajArray{T, N, A <: AbstractArray{T, N}} <: AbstractTrajectory
 
     meta::Any
 
-    function TrajArray{T, N, A}(
-            traj::A, 
+    function TrjArray{T, N, A}(
+            trj::A, 
             chainname::Vector{String}, 
             chainid::Vector{Int}, 
             resname::Vector{String}, 
             resid::Vector{Int}, 
             atomname::Vector{String}, 
-            atomid::Vector{Int}, 
+            atomid::Vector{Int},
+            # mass::Vector{Float64},
+            # charge::Vector{Float64},
+            # bond::
             meta::Any; 
             ischecked = false) where {T, N, A <: AbstractArray{T, N}}
 
-        nrow, ncol = (size(traj, 1), size(traj, 2))
+        nrow, ncol = (size(trj, 1), size(trj, 2))
         natom = Int(ncol/3)
 
-        ischecked && return new(traj, atomname, atomid, meta)
+        ischecked && return new(trj, atomname, atomid, meta)
 
         natom != length(chainname) && throw(DimensionMismatch("chainname must match width of trajectory"))
         natom != length(chainid) && throw(DimensionMismatch("chainid must match width of trajectory"))
@@ -51,18 +54,18 @@ struct TrajArray{T, N, A <: AbstractArray{T, N}} <: AbstractTrajectory
         natom != length(atomname) && throw(DimensionMismatch("atomname must match width of trajectory"))
         natom != length(atomid) && throw(DimensionMismatch("atomid must match width of trajectory"))
 
-        return new(traj, chainname, chainid, resname, resid, atomname, atomid, meta)
+        return new(trj, chainname, chainid, resname, resid, atomname, atomid, meta)
     end
 end
 
 ###### outer constructor ########
 
-TrajArray(traj::AbstractArray{T, N},
-          chainname::Vector{S}=fill("ChainName", Int(size(traj,2)/3)), chainid::Vector{I}=collect(1:Int(size(traj,2)/3)),
-          resname::Vector{S}=fill("ResName", Int(size(traj,2)/3)), resid::Vector{I}=collect(1:Int(size(traj,2)/3)),
-          atomname::Vector{S}=fill("AtomName", Int(size(traj,2)/3)), atomid::Vector{I}=collect(1:Int(size(traj,2)/3)),
+TrjArray(trj::AbstractArray{T, N},
+          chainname::Vector{S}=fill("ChainName", Int(size(trj,2)/3)), chainid::Vector{I}=collect(1:Int(size(trj,2)/3)),
+          resname::Vector{S}=fill("ResName", Int(size(trj,2)/3)), resid::Vector{I}=collect(1:Int(size(trj,2)/3)),
+          atomname::Vector{S}=fill("AtomName", Int(size(trj,2)/3)), atomid::Vector{I}=collect(1:Int(size(trj,2)/3)),
           m::Any=nothing; args...) where {T, N, S <: AbstractString, I <: Int} =
-              TrajArray{T, N, typeof(traj)}(traj,
+              TrjArray{T, N, typeof(trj)}(trj,
                                             map(String, chainname), map(Int64, chainid),
                                             map(String, resname), map(Int64, resid),
                                             map(String, atomname), map(Int64, atomid),
@@ -107,10 +110,10 @@ calculate the paging
     ret
 end
 
-function show(io::IO, ta::TrajArray{T}) where {T}
+function show(io::IO, ta::TrjArray{T}) where {T}
 
     # summary line
-    nrow, ncol = (size(ta.traj, 1), size(ta.traj, 2))
+    nrow, ncol = (size(ta.trj, 1), size(ta.trj, 2))
     @printf(io, "%dx%d %s\n", nrow, ncol, typeof(ta))
 
     # calculate column withs
@@ -122,9 +125,9 @@ function show(io::IO, ta::TrajArray{T}) where {T}
     if nrow > (drow - res_row)
         tophalf = 1:(half_row + add_row)
         bothalf = (nrow - half_row + 1):nrow
-        strs = _showval.(@view ta.traj[[tophalf; bothalf], :])
+        strs = _showval.(@view ta.trj[[tophalf; bothalf], :])
     else
-        strs = _showval.(ta.traj)
+        strs = _showval.(ta.trj)
     end
     strs = strs[:, 1:3:end] .* " " .* strs[:, 2:3:end] .* " " .* strs[:, 3:3:end]
 
@@ -225,12 +228,80 @@ end
 
 ###### getindex #################
 
-# range of rows
-function getindex(ta::TrajArray, r::UnitRange{Int})
-    TrajArray(ta.traj[r, :],
+function to3(index::AbstractVector{S}) where {S <: Integer}
+    index3 = zeros(eltype(index), length(index)*3)
+    index3[1:3:end] = 3 .* (index .- 1) .+ 1
+    index3[2:3:end] = 3 .* (index .- 1) .+ 2
+    index3[3:3:end] = 3 .* (index .- 1) .+ 3
+    index3
+end
+
+function to3(index::AbstractVector{S}) where {S <: Bool}
+    index3 = zeros(Bool, length(index)*3)
+    index3[1:3:end] = index
+    index3[2:3:end] = index
+    index3[3:3:end] = index
+    index3
+end
+
+function to3(index::Integer)
+    index3 = zeros(eltype(index), 3)
+    index3[1] = 3 * (index - 1) + 1
+    index3[2] = 3 * (index - 1) + 2
+    index3[3] = 3 * (index - 1) + 3
+    index3
+end
+
+function to3(index::Bool)
+    index3 = zeros(Bool, 3)
+    index3[1] = index
+    index3[2] = index
+    index3[3] = index
+    index3
+end
+
+# all element indexing
+getindex(ta::TrjArray, ::Colon) = ta
+getindex(ta::TrjArray, ::Colon, ::Colon) = ta
+
+# single row
+function getindex(ta::TrjArray, n::Int)
+    # avoid conversion to column vector
+    TrjArray(ta.trj[n:n, :],
               ta.chainname, ta.chainid,
               ta.resname, ta.resid,
               ta.atomname, ta.atomid,
               ta.meta)
 end
+getindex(ta::TrjArray, n::Int, ::Colon) = getindex(ta, n)
+
+# range of rows
+function getindex(ta::TrjArray, r::UnitRange{Int})
+    TrjArray(ta.trj[r, :],
+              ta.chainname, ta.chainid,
+              ta.resname, ta.resid,
+              ta.atomname, ta.atomid,
+              ta.meta)
+end
+getindex(ta::TrjArray, r::UnitRange{Int}, ::Colon) = getindex(ta, r)
+
+# array of rows
+function getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Integer}
+    TrjArray(ta.trj[a, :],
+              ta.chainname, ta.chainid,
+              ta.resname, ta.resid,
+              ta.atomname, ta.atomid,
+              ta.meta)
+end
+getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Integer} = getindex(ta, a)
+
+# array of rows
+function getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Bool}
+    TrjArray(ta.trj[a, :],
+              ta.chainname, ta.chainid,
+              ta.resname, ta.resid,
+              ta.atomname, ta.atomid,
+              ta.meta)
+end
+getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Bool} = getindex(ta, a)
 

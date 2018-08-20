@@ -5,11 +5,11 @@ using FFTW
 using Printf
 
 # package code goes here
-export TrajArray, AbstractTrajectory
+export TrjArray, AbstractTrajectory
 export readdcd
 #export readdcd, writedcd, to3, calcbond
 
-include("trajarray.jl")
+include("trjarray.jl")
 include("fileio.jl")
 #include("structure.jl")
 
