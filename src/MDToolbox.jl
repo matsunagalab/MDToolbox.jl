@@ -5,7 +5,7 @@ using FFTW
 using Printf
 
 # package code goes here
-export TrjArray, AbstractTrajectory
+export AbstractTrajectory, TrjArray, to3
 export readdcd
 #export readdcd, writedcd, to3, calcbond
 

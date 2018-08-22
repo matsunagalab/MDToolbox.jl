@@ -14,11 +14,11 @@ which has 'nframe' rows and '3*natom' columns.
 Each row of 'trj' has the XYZ coordinates of atoms in order 
 [x(1) y(1) z(1) x(2) y(2) z(2) ... x(natom) y(natom) z(natom)].
 """
-function readdcd(filename::String, index_atom=[])
+function readdcd(filename::String, index_atom=nothing)
 
     header_ischarmm_4dims = false
-    trj = []
-    boxsize = []
+    trj = nothing
+    boxsize = nothing
     
     open(filename, "r") do io
         seekend(io)
@@ -145,18 +145,16 @@ function readdcd(filename::String, index_atom=[])
         nframe = Int64(floor(nframe))
 
         if typeof(index_atom) == Array{Bool, 1}
-            index_atom = findall(index_atom)
-        end
-
-        if isempty(index_atom)
-            index_atom = collect(1:header_natom)
+            index_atom2 = findall(index_atom)
+        elseif index_atom == nothing
+            index_atom2 = collect(1:header_natom)
         end
 
         # if ~exist('index', 'var') || isempty(index)
         #     index = 1:header_natom;
         # end
 
-        trj = zeros(Float64, (nframe, length(index_atom)*3))
+        trj = zeros(Float64, (nframe, length(index_atom2)*3))
         boxsize = zeros(Float64, (nframe, 3))
 
         # read next frames
@@ -198,14 +196,15 @@ function readdcd(filename::String, index_atom=[])
             if header_ischarmm_extrablock == true
                 boxsize[iframe, :] = dummy[[1 3 6]];
             end
-            trj[iframe, 1:3:end] = convert(Array{Float64, 1}, crd_x[index_atom]);
-            trj[iframe, 2:3:end] = convert(Array{Float64, 1}, crd_y[index_atom]);
-            trj[iframe, 3:3:end] = convert(Array{Float64, 1}, crd_z[index_atom]);
+            trj[iframe, 1:3:end] = convert(Array{Float64, 1}, crd_x[index_atom2]);
+            trj[iframe, 2:3:end] = convert(Array{Float64, 1}, crd_y[index_atom2]);
+            trj[iframe, 3:3:end] = convert(Array{Float64, 1}, crd_z[index_atom2]);
         end
 
     end
 
-    trj, boxsize
+    #trj, boxsize
+    TrjArray(trj, boxsize=boxsize)
 
 end
 
