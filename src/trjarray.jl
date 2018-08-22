@@ -5,7 +5,9 @@ abstract type AbstractTrajectory end
 
 struct TrjArray <: AbstractTrajectory
 
-    trj::Union{Matrix{Float64}, Nothing}
+    x::Union{Matrix{Float64}, Nothing}
+    y::Union{Matrix{Float64}, Nothing}
+    z::Union{Matrix{Float64}, Nothing}
 
     chainname::Union{Vector{String}, Nothing}
     chainid::Union{Vector{Int64}, Nothing}
@@ -27,7 +29,9 @@ struct TrjArray <: AbstractTrajectory
     meta::Any
 
     function TrjArray(
-            trj::Union{Matrix{Float64}, Nothing}, 
+            x::Union{Matrix{Float64}, Nothing}, 
+            y::Union{Matrix{Float64}, Nothing}, 
+            z::Union{Matrix{Float64}, Nothing}, 
             chainname::Union{Vector{String}, Nothing}, 
             chainid::Union{Vector{Int64}, Nothing}, 
             resname::Union{Vector{String}, Nothing}, 
@@ -46,10 +50,22 @@ struct TrjArray <: AbstractTrajectory
         # natom != length(chainname) && throw(DimensionMismatch("chainname must match width of trajectory"))
         # natom != length(chainid) && throw(DimensionMismatch("chainid must match width of trajectory"))
 
-        if trj != nothing 
-            trj2 = map(Float64, trj)
+        if x != nothing 
+            x2 = map(Float64, x)
         else
-            trj2 = nothing
+            x2 = nothing
+        end
+
+        if y != nothing 
+            y2 = map(Float64, y)
+        else
+            y2 = nothing
+        end
+
+        if z != nothing 
+            z2 = map(Float64, z)
+        else
+            z2 = nothing
         end
 
         if chainname != nothing 
@@ -94,13 +110,15 @@ struct TrjArray <: AbstractTrajectory
             boxsize2 = nothing
         end
 
-        return new(trj2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, boxsize2, meta)
+        return new(x2, y2, z2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, boxsize2, meta)
     end
 end
 
 ###### outer constructor ########
 
-TrjArray(trj::Matrix{T}; 
+TrjArray(x::Matrix{T},
+         y::Matrix{T},
+         z::Matrix{T}; 
          chainname = nothing, 
          chainid = nothing, 
          resname = nothing, 
@@ -109,10 +127,10 @@ TrjArray(trj::Matrix{T};
          atomid = nothing, 
          boxsize = nothing, 
          meta = nothing) where {T <: Real} =
-             TrjArray(trj, chainname, chainid, resname, resid, atomname, atomid, boxsize, meta)
+             TrjArray(x, y, z, chainname, chainid, resname, resid, atomname, atomid, boxsize, meta)
 
-TrjArray(trj::Matrix{T}, ta::TrjArray) where {T <: Real} =
-             TrjArray(trj,
+TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
+             TrjArray(x, y, z, 
                       ta.chainname,
                       ta.chainid,
                       ta.resname,
@@ -129,19 +147,19 @@ getindex(ta::TrjArray, ::Colon) = ta
 getindex(ta::TrjArray, ::Colon, ::Colon) = ta
 
 # single row
-getindex(ta::TrjArray, n::Int) = TrjArray(ta.trj[n:n, :], ta)
+getindex(ta::TrjArray, n::Int) = TrjArray(ta.x[n:n, :], ta.y[n:n, :], ta.z[n:n, :], ta)
 getindex(ta::TrjArray, n::Int, ::Colon) = getindex(ta, n)
 
 # range of rows
-getindex(ta::TrjArray, r::UnitRange{Int}) = TrjArray(ta.trj[r, :], ta)
+getindex(ta::TrjArray, r::UnitRange{Int}) = TrjArray(ta.x[r, :], ta.y[r, :], ta.z[r, :], ta)
 getindex(ta::TrjArray, r::UnitRange{Int}, ::Colon) = getindex(ta, r)
 
 # array of rows
-getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Integer} = TrjArray(ta.trj[a, :], ta)
+getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Integer} = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
 getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Integer} = getindex(ta, a)
 
 # array of rows
-getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Bool} = TrjArray(ta.trj[a, :], ta)
+getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Bool} = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
 getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Bool} = getindex(ta, a)
 
 # indexing to xyz indexing
@@ -185,22 +203,9 @@ end
 # array
 # unitrange
 
-# xyz coordinates
-function getindex(ta::TrjArray, xyz::Symbol)
-    if xyz == :x
-        return ta.trj[:, 1:3:end]
-    end
-    if xyz == :y
-        return ta.trj[:, 2:3:end]
-    end
-    if xyz == :z
-        return ta.trj[:, 3:3:end]
-    end
-end
-
 # end keyword
-endof(ta::TrjArray) = ta.trj == nothing ? nothing : size(ta.trj, 1)
-eachindex(ta::TrjArray) = Base.OneTo(size(ta.trj, 1))
+endof(ta::TrjArray) = ta.x == nothing ? nothing : size(ta.x, 1)
+eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
 ###### show #####################
 
@@ -304,9 +309,16 @@ function print_matrix_xyz(io::IO,
     icount = 0
     for (k, j) = enumerate(cols)
         k > length(columnwidth) && break
-        prettysx = Printf.@sprintf " %8.2f %8.2f %8.2f" X[i,j] Y[i,j] Z[i,j]
+        # if X[i,j] < 10^6 && X[i,j] > -10^5
+        #     print_x = Printf.@sprintf " %8.2f" X[i,j]
+        # else
+        #     print_x = Printf.@sprintf " %8.2e" X[i,j]
+        # end
+        print_x = Printf.@sprintf " %8.2f" X[i,j]
+        print_y = Printf.@sprintf " %8.2f" Y[i,j]
+        print_z = Printf.@sprintf " %8.2f" Z[i,j]
         icount += 1
-        print(io, prettysx, sep)
+        print(io, print_x, print_y, print_z, sep)
         #if k < length(columnwidth); print(io, sep); end
     end
 end
@@ -339,12 +351,12 @@ function show(io::IO, ta::TrjArray)
     hmod = 5
 
     # summary line
-    nrow, ncol = (size(ta.trj, 1), size(ta.trj, 2))
+    nrow, ncol = (size(ta.x, 1), size(ta.x, 2))
     @printf(io, "%dx%d %s\n", nrow, ncol, typeof(ta))
 
-    X = ta[:x]
-    Y = ta[:y]
-    Z = ta[:z]
+    X = ta.x
+    Y = ta.y
+    Z = ta.z
 
     sz = displaysize(io)
     screenheight, screenwidth = sz[1] - 4, sz[2]
@@ -480,7 +492,7 @@ end
 function show_old(io::IO, ta::TrjArray)
 
     # summary line
-    nrow, ncol = (size(ta.trj, 1), size(ta.trj, 2))
+    nrow, ncol = (size(ta.x, 1), size(ta.x, 2))
     @printf(io, "%dx%d %s\n", nrow, ncol, typeof(ta))
 
     # calculate column withs
@@ -492,9 +504,9 @@ function show_old(io::IO, ta::TrjArray)
     if nrow > (drow - res_row)
         tophalf = 1:(half_row + add_row)
         bothalf = (nrow - half_row + 1):nrow
-        strs = _showval.(@view ta.trj[[tophalf; bothalf], :])
+        strs = _showval.(@view ta.x[[tophalf; bothalf], :])
     else
-        strs = _showval.(ta.trj)
+        strs = _showval.(ta.x)
     end
     strs = strs[:, 1:3:end] .* " " .* strs[:, 2:3:end] .* " " .* strs[:, 3:3:end]
 
