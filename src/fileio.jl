@@ -1,23 +1,12 @@
 """
 read xplor or charmm (namd) format dcd file
-
-Syntax
-trj = readdcd(filename);
-trj = readdcd(filename, index_atom);
-[trj, boxsize] = readdcd(filename, index_atom);
-[trj, boxsize, header] = readdcd(filename, index_atom);
-[trj, ~, header] = readdcd(filename, index_atom);
-
-Description
-The XYZ coordinates of atoms are read into 'trj' variable
-which has 'nframe' rows and '3*natom' columns.
-Each row of 'trj' has the XYZ coordinates of atoms in order 
-[x(1) y(1) z(1) x(2) y(2) z(2) ... x(natom) y(natom) z(natom)].
 """
-function readdcd(filename::String, index_atom=nothing)
+function readdcd(filename::String; index_atom=nothing)
 
     header_ischarmm_4dims = false
-    trj = nothing
+    x = nothing
+    y = nothing
+    z = nothing
     boxsize = nothing
     
     open(filename, "r") do io
@@ -154,7 +143,9 @@ function readdcd(filename::String, index_atom=nothing)
         #     index = 1:header_natom;
         # end
 
-        trj = zeros(Float64, (nframe, length(index_atom2)*3))
+        x = zeros(Float64, (nframe, length(index_atom2)))
+        y = zeros(Float64, (nframe, length(index_atom2)))
+        z = zeros(Float64, (nframe, length(index_atom2)))
         boxsize = zeros(Float64, (nframe, 3))
 
         # read next frames
@@ -196,52 +187,21 @@ function readdcd(filename::String, index_atom=nothing)
             if header_ischarmm_extrablock == true
                 boxsize[iframe, :] = dummy[[1 3 6]];
             end
-            trj[iframe, 1:3:end] = convert(Array{Float64, 1}, crd_x[index_atom2]);
-            trj[iframe, 2:3:end] = convert(Array{Float64, 1}, crd_y[index_atom2]);
-            trj[iframe, 3:3:end] = convert(Array{Float64, 1}, crd_z[index_atom2]);
+            x[iframe, :] = convert(Array{Float64, 1}, crd_x[index_atom2]);
+            y[iframe, :] = convert(Array{Float64, 1}, crd_y[index_atom2]);
+            z[iframe, :] = convert(Array{Float64, 1}, crd_z[index_atom2]);
         end
 
     end
 
-    #trj, boxsize
-    TrjArray(trj, boxsize=boxsize)
+    #x, y, z, boxsize
+    TrjArray(x, y, z, boxsize=boxsize)
 
 end
 
 
 """
-% write xplor or charmm (namd) format dcd file
-%
-%% Syntax
-%# writedcd(filename, trj);
-%# writedcd(filename, trj, box);
-%# writedcd(filename, trj, box, header);
-%# writedcd(filename, trj, [], header);
-%
-%% Description
-% This code outputs input trajectory into a dcd file. 
-% If header information is not given, 
-% default values used appropriately. 
-%
-% * filename  - output dcd trajectory filename
-% * trj       - trajectory [nframe x natom3 double]
-% * box       - box size [nframe x 3 double]
-% * header    - structure variable, which has header information 
-%               [structure]
-%
-%% Example
-%# trj = readdcd('ak.dcd');
-%# trj = trj(:, 1:3:end) + 1.5;
-%# writedcd('ak_translated.dcd', trj);
-%
-%% See also
-% readdcd
-%
-%% References for dcd format
-% MolFile Plugin http://www.ks.uiuc.edu/Research/vmd/plugins/molfile/dcdplugin.html
-% CafeMol Manual http://www.cafemol.org/doc.php
-% EGO_VIII Manual http://www.lrz.de/~heller/ego/manual/node93.html
-%
+write xplor or charmm (namd) format dcd file
 
 function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64})
 
