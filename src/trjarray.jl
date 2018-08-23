@@ -5,6 +5,9 @@ abstract type AbstractTrajectory end
 
 struct TrjArray <: AbstractTrajectory
 
+    #TODO: support for x, y, z = nothing, nothing, nothing
+    #TODO: natom, nframe
+    #TODO: revert to parametric type
     x::Union{Matrix{Float64}, Nothing}
     y::Union{Matrix{Float64}, Nothing}
     z::Union{Matrix{Float64}, Nothing}
@@ -19,8 +22,8 @@ struct TrjArray <: AbstractTrajectory
     atomid::Union{Vector{Int64}, Nothing}
 
     boxsize::Union{Matrix{Float64}, Nothing}
-    # mass::Union{Vector{Float64}, Nothing}
-    # charge::Union{Vector{Float64}, Nothing}
+    mass::Union{Vector{Float64}, Nothing}
+    charge::Union{Vector{Float64}, Nothing}
 
     # bond::Union{Matrix{Int64}, Nothing}
     # angle::Union{Matrix{Int64}, Nothing}
@@ -39,6 +42,8 @@ struct TrjArray <: AbstractTrajectory
             atomname::Union{Vector{String}, Nothing}, 
             atomid::Union{Vector{Int64}, Nothing}, 
             boxsize::Union{Matrix{Float64}, Nothing}, 
+            mass::Union{Matrix{Float64}, Nothing}, 
+            charge::Union{Matrix{Float64}, Nothing}, 
             meta::Any) 
 
         # nrow, ncol = (size(trj, 1), size(trj, 2))
@@ -69,7 +74,7 @@ struct TrjArray <: AbstractTrajectory
         end
 
         if chainname != nothing 
-            chainname2 = map(string, chainname)
+            chainname2 = map(strip, map(string, chainname))
         else
             chainname2 = nothing
         end
@@ -81,7 +86,7 @@ struct TrjArray <: AbstractTrajectory
         end
 
         if resname != nothing 
-            resname2 = map(string, resname)
+            resname2 = map(strip, map(string, resname))
         else
             resname2 = nothing
         end
@@ -93,7 +98,7 @@ struct TrjArray <: AbstractTrajectory
         end
 
         if atomname != nothing 
-            atomname2 = map(string, atomname)
+            atomname2 = map(strip, map(string, atomname))
         else
             atomname2 = nothing
         end
@@ -110,7 +115,19 @@ struct TrjArray <: AbstractTrajectory
             boxsize2 = nothing
         end
 
-        return new(x2, y2, z2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, boxsize2, meta)
+        if mass != nothing 
+            mass2 = map(Float64, mass)
+        else
+            mass2 = nothing
+        end
+
+        if charge != nothing 
+            charge2 = map(Float64, charge)
+        else
+            charge2 = nothing
+        end
+
+        return new(x2, y2, z2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, boxsize2, mass2, charge2, meta)
     end
 end
 
@@ -126,8 +143,10 @@ TrjArray(x::Matrix{T},
          atomname = nothing, 
          atomid = nothing, 
          boxsize = nothing, 
+         mass = nothing, 
+         charge = nothing, 
          meta = nothing) where {T <: Real} =
-             TrjArray(x, y, z, chainname, chainid, resname, resid, atomname, atomid, boxsize, meta)
+             TrjArray(x, y, z, chainname, chainid, resname, resid, atomname, atomid, boxsize, mass, charge, meta)
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
              TrjArray(x, y, z, 
@@ -138,6 +157,8 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Rea
                       ta.atomname,
                       ta.atomid,
                       ta.boxsize,
+                      ta.mass,
+                      ta.charge,
                       ta.meta)
 
 ###### getindex #################
@@ -154,103 +175,169 @@ getindex(ta::TrjArray, n::Int, ::Colon) = getindex(ta, n)
 getindex(ta::TrjArray, r::UnitRange{Int}) = TrjArray(ta.x[r, :], ta.y[r, :], ta.z[r, :], ta)
 getindex(ta::TrjArray, r::UnitRange{Int}, ::Colon) = getindex(ta, r)
 
-# array of rows
+# array of rows (integer)
 getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Integer} = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
 getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Integer} = getindex(ta, a)
 
-# array of rows
-getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Bool} = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
-getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Bool} = getindex(ta, a)
+# array of rows (bool)
+#getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Bool} = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
+#getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Bool} = getindex(ta, a)
+getindex(ta::TrjArray, a::AbstractVector{Bool}) = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
+getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
 
-# indexing to xyz indexing
-function to3(index::AbstractVector{S}) where {S <: Integer}
-    index3 = zeros(eltype(index), length(index)*3)
-    index3[1:3:end] = 3 .* (index .- 1) .+ 1
-    index3[2:3:end] = 3 .* (index .- 1) .+ 2
-    index3[3:3:end] = 3 .* (index .- 1) .+ 3
-    index3
-end
+# single column
+getindex(ta::TrjArray, ::Colon, n::Int) = TrjArray(ta.x[:, n:n], ta.y[:, n:n], ta.z[:, n:n],
+             chainname = ta.chainname == nothing ? nothing : ta.chainname[n:n], 
+             chainid = ta.chainid == nothing ? nothing : ta.chainid[n:n], 
+             resname = ta.resname == nothing ? nothing : ta.resname[n:n], 
+             resid = ta.resid == nothing ? nothing : ta.resid[n:n], 
+             atomname = ta.atomname == nothing ? nothing : ta.atomname[n:n], 
+             atomid = ta.atomid == nothing ? nothing : ta.atomid[n:n], 
+             boxsize = ta.boxsize, 
+             mass = ta.mass == nothing ? nothing : ta.mass[n:n], 
+             charge = ta.charge == nothing ? nothing : ta.charge[n:n], 
+             meta = ta.meta)
 
-function to3(index::AbstractVector{S}) where {S <: Bool}
-    index3 = zeros(Bool, length(index)*3)
-    index3[1:3:end] = index
-    index3[2:3:end] = index
-    index3[3:3:end] = index
-    index3
-end
+# range of columns
+getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(ta.x[:, r], ta.y[:, r], ta.z[:, r],
+             chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
+             chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
+             resname = ta.resname == nothing ? nothing : ta.resname[r], 
+             resid = ta.resid == nothing ? nothing : ta.resid[r], 
+             atomname = ta.atomname == nothing ? nothing : ta.atomname[r], 
+             atomid = ta.atomid == nothing ? nothing : ta.atomid[r], 
+             boxsize = ta.boxsize, 
+             mass = ta.mass == nothing ? nothing : ta.mass[r], 
+             charge = ta.charge == nothing ? nothing : ta.charge[r], 
+             meta = ta.meta)
 
-function to3(index::Integer)
-    index3 = zeros(eltype(index), 3)
-    index3[1] = 3 * (index - 1) + 1
-    index3[2] = 3 * (index - 1) + 2
-    index3[3] = 3 * (index - 1) + 3
-    index3
-end
+# array of columns (integer)
+getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(ta.x[:, r], ta.y[:, r], ta.z[:, r],
+             chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
+             chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
+             resname = ta.resname == nothing ? nothing : ta.resname[r], 
+             resid = ta.resid == nothing ? nothing : ta.resid[r], 
+             atomname = ta.atomname == nothing ? nothing : ta.atomname[r], 
+             atomid = ta.atomid == nothing ? nothing : ta.atomid[r], 
+             boxsize = ta.boxsize, 
+             mass = ta.mass == nothing ? nothing : ta.mass[r], 
+             charge = ta.charge == nothing ? nothing : ta.charge[r], 
+             meta = ta.meta)
 
-function to3(index::Bool)
-    index3 = zeros(Bool, 3)
-    index3[1] = index
-    index3[2] = index
-    index3[3] = index
-    index3
-end
+# array of rows (bool)
+getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(ta.x[:, r], ta.y[:, r], ta.z[:, r],
+             chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
+             chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
+             resname = ta.resname == nothing ? nothing : ta.resname[r], 
+             resid = ta.resid == nothing ? nothing : ta.resid[r], 
+             atomname = ta.atomname == nothing ? nothing : ta.atomname[r], 
+             atomid = ta.atomid == nothing ? nothing : ta.atomid[r], 
+             boxsize = ta.boxsize, 
+             mass = ta.mass == nothing ? nothing : ta.mass[r], 
+             charge = ta.charge == nothing ? nothing : ta.charge[r], 
+             meta = ta.meta)
 
-# 3 columns
-# integer
-# bool
+# combinations
+##..............
 
-# multiple columns
-# array
-# unitrange
-
-# end keyword
+###### end keyword #################
 endof(ta::TrjArray) = ta.x == nothing ? nothing : size(ta.x, 1)
 eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
-###### show #####################
-
-const undef_ref_alignment = (3,3)
-
-"""
-`alignment(X, rows, cols, cols_if_complete, cols_otherwise, sep)` returns the
-alignment for specified parts of array `X`, returning the (left,right) info.
-It will look in X's `rows`, `cols` (both lists of indices)
-and figure out what's needed to be fully aligned, for example looking all
-the way down a column and finding out the maximum size of each element.
-Parameter `sep::Integer` is number of spaces to put between elements.
-`cols_if_complete` and `cols_otherwise` indicate screen width to use.
-Alignment is reported as a vector of (left,right) tuples, one for each
-column going across the screen.
-"""
-function alignment(io::IO, X::AbstractVecOrMat,
-        rows::AbstractVector, cols::AbstractVector,
-        cols_if_complete::Integer, cols_otherwise::Integer, sep::Integer)
-    a = Tuple{Int, Int}[]
-    for j in cols # need to go down each column one at a time
-        l = r = 0
-        for i in rows # plumb down and see what largest element sizes are
-            if isassigned(X,i,j)
-                aij = Base.alignment(io, X[i,j])
+###### atom selection #################
+function unfold(A)
+    V = []
+    if typeof(A) <: AbstractString
+        push!(V, A)
+    else
+        for x in A
+            if x === A
+                push!(V, x)
             else
-                aij = undef_ref_alignment
+                append!(V, unfold(x))
             end
-            l = max(l, aij[1]) # left characters
-            r = max(r, aij[2]) # right characters
-        end
-        push!(a, (l, r)) # one tuple per column of X, pruned to screen width
-        if length(a) > 1 && sum(map(sum,a)) + sep*length(a) >= cols_if_complete
-            pop!(a) # remove this latest tuple if we're already beyond screen width
-            break
         end
     end
-    if 1 < length(a) < length(axes(X,2))
-        while sum(map(sum,a)) + sep*length(a) >= cols_otherwise
-            pop!(a)
-        end
-    end
-    return a
+    V
 end
 
+function match_query(id_array, query)
+    natom = length(id_array)
+    index = fill(false, natom)
+    if id_array == Nothing
+        return index
+    elseif typeof(id_array[1]) == String
+        query = split(query)
+    else
+        query = Meta.eval(Meta.parse(replace("[" * query * "]", r"(\d)\s" => s"\1, ")))
+    end
+    query = unique(unfold(query))
+    for q in query
+        index = index .| (id_array .== q) # Vector{Bool} .| BitArray{1}
+    end
+    index
+end
+
+function replace_ex!(ex::Expr)
+    for (i, arg) in enumerate(ex.args)
+        if arg == :(match_query)
+            ex.args[i] = :($match_query)
+        end
+        if isa(arg, Expr)
+            replace_ex!(arg)
+        end
+    end
+    ex
+end
+
+function getindex(ta::TrjArray, ::Colon, s::AbstractString)
+    s_init = s
+    s = strip(s)
+    s = replace(s, "chainid" => "match_query($(ta.chainid), \" ")
+    s = replace(s, "chainname" => "match_query($(ta.chainname), \" ")
+    s = replace(s, "resid" => "match_query($(ta.resid), \" ")
+    s = replace(s, "resname" => "match_query($(ta.resname), \" ")
+    s = replace(s, "atomid" => "match_query($(ta.atomid), \" ")
+    s = replace(s, "atomname" => "match_query($(ta.atomname), \" ")
+
+    s = replace(s, r"\)(\s+)and" => "\" ) ) .& ")
+    s = replace(s, r"([^\)])(\s+)and" => s"\1 \" ) .& ")
+
+    s = replace(s, r"\)(\s+)or" => "\" ) ) .| ")
+    s = replace(s, r"([^\)])(\s+)or" => s"\1 \" ) .| ")
+
+    if s[end] == ')'
+        s = s[1:end-1] * " \" ) )"
+    elseif s[end-length("all")+1:end] != "all" && s[end-length("backbone")+1:end] != "backbone"
+        s = s * " \" )"
+    end
+    println(s)
+    ex = Meta.parse(s)
+    replace_ex!(ex)
+    index = Meta.eval(ex)
+    println(index')
+    ta[:, index]
+end
+
+# combinations
+##..............
+
+###### accessors to field values #################
+
+###### iterator #################
+
+###### merge #################
+
+# vertical merge
+# horizontal merge
+
+###### conversion #################
+
+# conversion(Float64, ta:TrjArray)
+
+###### mathematical operations #################
+
+###### show #####################
 
 function alignment_xyz(io::IO, X::AbstractVecOrMat,
         rows::AbstractVector, cols::AbstractVector,
@@ -274,39 +361,10 @@ function alignment_xyz(io::IO, X::AbstractVecOrMat,
 end
 
 
-"""
-`print_matrix_row(io, X, A, i, cols, sep)` produces the aligned output for
-a single matrix row X[i, cols] where the desired list of columns is given.
-The corresponding alignment A is used, and the separation between elements
-is specified as string sep.
-`print_matrix_row` will also respect compact output for elements.
-"""
-function print_matrix_row(io::IO,
-        X::AbstractVecOrMat, A::Vector,
-        i::Integer, cols::AbstractVector, sep::AbstractString)
-    for (k, j) = enumerate(cols)
-        k > length(A) && break
-        if isassigned(X,Int(i),Int(j)) # isassigned accepts only `Int` indices
-            x = X[i,j]
-            a = Base.alignment(io, x)
-            sx = sprint(show, x, context=:compact => true, sizehint=0)
-        else
-            a = undef_ref_alignment
-            sx = undef_ref_str
-        end
-        l = repeat(" ", A[k][1]-a[1]) # pad on left and right as needed
-        r = repeat(" ", A[k][2]-a[2])
-        prettysx = Base.replace_in_print_matrix(X, i, j, sx)
-        print(io, l, prettysx, r)
-        if k < length(A); print(io, sep); end
-    end
-end
-
 function print_matrix_xyz(io::IO,
         X::AbstractVecOrMat, Y::AbstractVecOrMat, Z::AbstractVecOrMat,
         columnwidth::Vector,
         i::Integer, cols::AbstractVector, sep::AbstractString)
-    icount = 0
     for (k, j) = enumerate(cols)
         k > length(columnwidth) && break
         # if X[i,j] < 10^6 && X[i,j] > -10^5
@@ -317,18 +375,42 @@ function print_matrix_xyz(io::IO,
         print_x = Printf.@sprintf " %8.2f" X[i,j]
         print_y = Printf.@sprintf " %8.2f" Y[i,j]
         print_z = Printf.@sprintf " %8.2f" Z[i,j]
-        icount += 1
-        print(io, print_x, print_y, print_z, sep)
+        print(io, print_x, print_y, print_z, sep) # 27 characters + sep
         #if k < length(columnwidth); print(io, sep); end
     end
 end
 
+function string_column(x, y, j)
+    if x == nothing
+        string_x = ""
+    else
+        string_x = string(x[j])
+    end
+    if y == nothing
+        string_y = ""
+    else
+        string_y = string(y[j])
+    end
+    s = " " * string_x * string_y
+    if length(s) > 24
+        s = " " * s[1:24] * "~" * " "
+    else
+        s = rpad(s, 27)
+    end
+    s
+end
 
-"""
-`print_matrix_vdots` is used to show a series of vertical ellipsis instead
-of a bunch of rows for long matrices. Not only is the string vdots shown
-but it also repeated every M elements if desired.
-"""
+function print_column(io::IO,
+                      x, y, columnwidth::Vector, cols::AbstractVector,
+                      sep::AbstractString)
+    for (k, j) = enumerate(cols)
+        k > length(columnwidth) && break
+        s = string_column(x, y, j)
+        print(io, s, sep) # 27 characters + sep
+    end
+end
+
+
 function print_matrix_vdots(io::IO, vdots::AbstractString,
         A::Vector, sep::AbstractString)
     for k = 1:length(A)
@@ -362,6 +444,18 @@ function show(io::IO, ta::TrjArray)
     screenheight, screenwidth = sz[1] - 4, sz[2]
     screenwidth -= length(pre)
 
+    if ta.chainid != nothing || ta.chainname != nothing
+        screenheight -= 1
+    end
+
+    if ta.resid != nothing || ta.resname != nothing
+        screenheight -= 1
+    end
+
+    if ta.chainid != nothing || ta.chainname != nothing
+        screenheight -= 1
+    end
+
     @assert textwidth(hdots) == textwidth(ddots)
     
     rowsA, colsA = UnitRange(axes(X,1)), UnitRange(axes(X,2))
@@ -384,6 +478,56 @@ function show(io::IO, ta::TrjArray)
     columnwidth = alignment_xyz(io, X, rowsA, colsA, screenwidth, screenwidth, length(sep))
 
     # Nine-slicing is accomplished using print_matrix_row repeatedly
+    if n <= length(columnwidth) # rows and cols fit so just print whole matrix in one piece
+        if ta.chainid != nothing || ta.chainname != nothing
+            print(io, pre)
+            print_column(io, ta.chainid, ta.chainname, columnwidth, colsA, sep)
+            println(io)
+        end
+        if ta.resid != nothing || ta.resname != nothing
+            print(io, pre)
+            print_column(io, ta.resid, ta.resname, columnwidth, colsA, sep)
+            println(io)
+        end
+        if ta.atomid != nothing || ta.atomname != nothing
+            print(io, pre)
+            print_column(io, ta.atomid, ta.atomname, columnwidth, colsA, sep)
+            println(io)
+        end
+    else # rows fit down screen but cols don't, so need horizontal ellipsis
+        c = div(screenwidth-length(hdots)+1,2)+1  # what goes to right of ellipsis
+        Rcolumnwidth = reverse(alignment_xyz(io, X, rowsA, reverse(colsA), c, c, length(sep))) # alignments for right
+        c = screenwidth - sum(map(sum,Rcolumnwidth)) - (length(Rcolumnwidth)-1)*length(sep) - length(hdots)
+        Lcolumwidth = alignment_xyz(io, X, rowsA, colsA, c, c, length(sep)) # alignments for left of ellipsis
+        if ta.chainid != nothing || ta.chainname != nothing
+            print(io, pre)
+            #print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
+            print_column(io, ta.chainid, ta.chainname, Lcolumwidth, colsA[1:length(Lcolumwidth)], sep)
+            print(io, hdots)
+            #print_matrix_xyz(io, X, Y, Z, Rcolumnwidth, i, (n - length(Rcolumnwidth)) .+ colsA, sep)
+            print_column(io, ta.chainid, ta.chainname, Rcolumnwidth, (n - length(Rcolumnwidth)) .+ colsA, sep)
+            println(io)
+        end
+        if ta.resid != nothing || ta.resname != nothing
+            print(io, pre)
+            #print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
+            print_column(io, ta.resid, ta.resname, Lcolumwidth, colsA[1:length(Lcolumwidth)], sep)
+            print(io, hdots)
+            #print_matrix_xyz(io, X, Y, Z, Rcolumnwidth, i, (n - length(Rcolumnwidth)) .+ colsA, sep)
+            print_column(io, ta.resid, ta.resname, Rcolumnwidth, (n - length(Rcolumnwidth)) .+ colsA, sep)
+            println(io)
+        end
+        if ta.atomid != nothing || ta.atomname != nothing
+            print(io, pre)
+            #print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
+            print_column(io, ta.atomid, ta.atomname, Lcolumwidth, colsA[1:length(Lcolumwidth)], sep)
+            print(io, hdots)
+            #print_matrix_xyz(io, X, Y, Z, Rcolumnwidth, i, (n - length(Rcolumnwidth)) .+ colsA, sep)
+            print_column(io, ta.atomid, ta.atomname, Rcolumnwidth, (n - length(Rcolumnwidth)) .+ colsA, sep)
+            println(io)
+        end
+    end
+    
     if m <= screenheight # rows fit vertically on screen
         if n <= length(columnwidth) # rows and cols fit so just print whole matrix in one piece
             for i in rowsA
@@ -408,7 +552,6 @@ function show(io::IO, ta::TrjArray)
         if n <= length(columnwidth) # rows don't fit, cols do, so only vertical ellipsis
             for i in rowsA
                 print(io, pre)
-                #print_matrix_row(io, X, A, i, colsA, sep)
                 print_matrix_xyz(io, X, Y, Z, columnwidth, i, colsA, sep)
                 if i != rowsA[end] || i == rowsA[halfheight]; println(io); end
                 if i == rowsA[halfheight]
@@ -419,19 +562,13 @@ function show(io::IO, ta::TrjArray)
             end
         else # neither rows nor cols fit, so use all 3 kinds of dots
             c = div(screenwidth-length(hdots)+1,2)+1
-            #Ralign = reverse(alignment(io, X, rowsA, reverse(colsA), c, c, length(sep)))
             Rcolumnwidth = reverse(alignment_xyz(io, X, rowsA, reverse(colsA), c, c, length(sep)))
-            #c = screenwidth - sum(map(sum,Ralign)) - (length(Ralign)-1)*length(sep) - length(hdots)
             c = screenwidth - sum(map(sum,Rcolumnwidth)) - (length(Rcolumnwidth)-1)*length(sep) - length(hdots)
-            #Lalign = alignment(io, X, rowsA, colsA, c, c, length(sep))
             Lcolumwidth = alignment_xyz(io, X, rowsA, colsA, c, c, length(sep))
-            #r = mod((length(Rcolumnwidth)-n+1),vmod) # where to put dots on right half
             for i in rowsA
                 print(io, pre)
-                #print_matrix_row(io, X,Lalign,i,colsA[1:length(Lalign)],sep)
                 print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
                 print(io, (i - first(rowsA)) % hmod == 0 ? hdots : repeat(" ", length(hdots)))
-                #print_matrix_row(io, X,Ralign,i,(n-length(Ralign)).+colsA,sep)
                 print_matrix_xyz(io, X, Y, Z, Rcolumnwidth, i, (n-length(Rcolumnwidth)).+colsA, sep)
                 if i != rowsA[end] || i == rowsA[halfheight]; println(io); end
                 if i == rowsA[halfheight]
@@ -449,43 +586,6 @@ function show(io::IO, ta::TrjArray)
             print(io, post)
         end
     end
-end
-
-
-MISSING = "NaN"
-
-@inline _showval(v::Any) = repr(v)
-@inline _showval(v::Real) = string(v)
-@inline _showval(v::AbstractFloat) =
-    #ifelse(isnan(v), MISSING, string(round(v, digits=DECIMALS)))
-    ifelse(isnan(v), MISSING, @sprintf "%8.3g" v)
-
-"""
-calculate the paging
-
-```
-> using MarketData
-> AAPL  # this function will return `UnitRange{Int64}[1:9, 10:12]`
-```
-"""
-@inline function _showpages(dcol::Int, colwidth::Array{Int})
-    ret = UnitRange{Int}[]
-    c = dcol - 4
-    last_i = 1
-    for i in eachindex(colwidth)
-        w = colwidth[i] + 3
-        if c - w < 0
-            push!(ret, last_i:i-1)
-            # next page
-            c = dcol - 4 - w
-            last_i = i
-        elseif i == length(colwidth)
-            push!(ret, last_i:i)
-        else
-            c -= w
-        end
-    end
-    ret
 end
 
 
