@@ -8,38 +8,24 @@ struct TrjArray <: AbstractTrajectory
     #TODO: support for x, y, z = nothing, nothing, nothing
     #TODO: natom, nframe
     #TODO: revert to parametric type
-    x::Union{Matrix{Float64}, Nothing}
-    y::Union{Matrix{Float64}, Nothing}
-    z::Union{Matrix{Float64}, Nothing}
-    chainname::Union{Vector{String}, Nothing}
-    chainid::Union{Vector{Int64}, Nothing}
-    resname::Union{Vector{String}, Nothing}
-    resid::Union{Vector{Int64}, Nothing}
-    atomname::Union{Vector{String}, Nothing}
-    atomid::Union{Vector{Int64}, Nothing}
-    boxsize::Union{Matrix{Float64}, Nothing}
-    mass::Union{Vector{Float64}, Nothing}
-    charge::Union{Vector{Float64}, Nothing}
-    # bond::Union{Matrix{Int64}, Nothing}
-    # angle::Union{Matrix{Int64}, Nothing}
-    # dihedral::Union{Matrix{Int64}, Nothing}
+    x::Matrix{Float64}
+    y::Matrix{Float64}
+    z::Matrix{Float64}
+    chainname::Vector{String}
+    chainid::Vector{Int64}
+    resname::Vector{String}
+    resid::Vector{Int64}
+    atomname::Vector{String}
+    atomid::Vector{Int64}
+    boxsize::Matrix{Float64}
+    mass::Vector{Float64}
+    charge::Vector{Float64}
+    # bond::Matrix{Int64}
+    # angle::Matrix{Int64}
+    # dihedral::Matrix{Int64}
     meta::Any
 
-    function TrjArray(
-            x::Union{Matrix{T}, Nothing}, 
-            y::Union{Matrix{T}, Nothing}, 
-            z::Union{Matrix{T}, Nothing}, 
-            chainname::Union{Vector{S}, Nothing}, 
-            chainid::Union{Vector{I}, Nothing}, 
-            resname::Union{Vector{S}, Nothing}, 
-            resid::Union{Vector{I}, Nothing}, 
-            atomname::Union{Vector{S}, Nothing}, 
-            atomid::Union{Vector{I}, Nothing}, 
-            boxsize::Union{Matrix{F}, Nothing}, 
-            mass::Union{Matrix{F}, Nothing}, 
-            charge::Union{Matrix{F}, Nothing}, 
-            meta::Any) where {T <: Real, S <: AbstractString, I <: Integer, F <: Real}
-
+    function TrjArray(x, y, z, chainname, chainid, resname, resid, atomname, atomid, boxsize, mass, charge, meta)
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
         #@show natom
@@ -47,18 +33,18 @@ struct TrjArray <: AbstractTrajectory
         # natom != length(chainname) && throw(DimensionMismatch("chainname must match width of trajectory"))
         # natom != length(chainid) && throw(DimensionMismatch("chainid must match width of trajectory"))
 
-        x2 = x == nothing ? nothing : map(Float64, x)
-        y2 = y == nothing ? nothing : map(Float64, y)
-        z2 = z == nothing ? nothing : map(Float64, z)
-        chainname2 = chainname == nothing ? nothing : map(strip, map(string, chainname))
-        chainid2 = chainid == nothing ? nothing : map(Int64, chainid)
-        resname2 = resname == nothing ? nothing : map(strip, map(string, resname))
-        resid2 = resid == nothing ? nothing : map(Int64, resid)
-        atomname2 = atomname == nothing ? nothing : map(strip, map(string, atomname))
-        atomid2 = atomid == nothing ? nothing : map(Int64, atomid)
-        boxsize2 = boxsize == nothing ? nothing : map(Float64, boxsize)
-        mass2 = mass == nothing ? nothing : map(Float64, mass)
-        charge2 = charge == nothing ? nothing : map(Float64, charge)
+        x2 = isempty(x) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, x)
+        y2 = isempty(y) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, y)
+        z2 = isempty(z) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, z)
+        chainname2 = isempty(chainname) ? Array{String, 1}(undef, 0) : map(strip, map(string, chainname))
+        chainid2 = isempty(chainid) ? Array{Int64, 1}(undef, 0) : map(Int64, chainid)
+        resname2 = isempty(resname) ? Array{String, 1}(undef, 0) : map(strip, map(string, resname))
+        resid2 = isempty(resid) ? Array{Int64, 1}(undef, 0) : map(Int64, resid)
+        atomname2 = isempty(atomname) ? Array{String, 1}(undef, 0) : map(strip, map(string, atomname))
+        atomid2 = isempty(atomid) ? Array{Int64, 1}(undef, 0) : map(Int64, atomid)
+        boxsize2 = isempty(boxsize) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, boxsize)
+        mass2 = isempty(mass) ? Array{Float64, 1}(undef, 0) : map(Float64, mass)
+        charge2 = isempty(charge) ? Array{Float64, 1}(undef, 0) : map(Float64, charge)
 
         return new(x2, y2, z2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, boxsize2, mass2, charge2, meta)
     end
@@ -66,32 +52,20 @@ end
 
 ###### outer constructors ########
 
-TrjArray(;x = x::Matrix{T},
-         y = y::Matrix{T},
-         z = z::Matrix{T}, 
-         chainname = nothing, 
-         chainid = nothing, 
-         resname = nothing, 
-         resid = nothing, 
-         atomname = nothing, 
-         atomid = nothing, 
-         boxsize = nothing, 
-         mass = nothing, 
-         charge = nothing, 
-         meta = nothing) where {T <: Real} =
+TrjArray(;x = [], y = [], z = [], 
+         chainname = [], chainid = [], 
+         resname = [], resid = [], 
+         atomname = [], atomid = [], 
+         boxsize = [], mass = [], charge = [], 
+         meta = []) = 
              TrjArray(x, y, z, chainname, chainid, resname, resid, atomname, atomid, boxsize, mass, charge, meta)
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
              TrjArray(x = x, y = y, z = z, 
-                      chainname = ta.chainname,
-                      chainid = ta.chainid,
-                      resname = ta.resname,
-                      resid = ta.resid,
-                      atomname = ta.atomname,
-                      atomid = ta.atomid,
-                      boxsize = ta.boxsize,
-                      mass = ta.mass,
-                      charge = ta.charge,
+                      chainname = ta.chainname, chainid = ta.chainid,
+                      resname = ta.resname, resid = ta.resid,
+                      atomname = ta.atomname, atomid = ta.atomid,
+                      boxsize = ta.boxsize, mass = ta.mass, charge = ta.charge,
                       meta = ta.meta)
 
 ###### getindex #################
@@ -120,54 +94,54 @@ getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
 
 # single column
 getindex(ta::TrjArray, ::Colon, n::Int) = TrjArray(x = ta.x[:, n:n], y = ta.y[:, n:n], z = ta.z[:, n:n],
-             chainname = ta.chainname == nothing ? nothing : ta.chainname[n:n], 
-             chainid = ta.chainid == nothing ? nothing : ta.chainid[n:n], 
-             resname = ta.resname == nothing ? nothing : ta.resname[n:n], 
-             resid = ta.resid == nothing ? nothing : ta.resid[n:n], 
-             atomname = ta.atomname == nothing ? nothing : ta.atomname[n:n], 
-             atomid = ta.atomid == nothing ? nothing : ta.atomid[n:n], 
+             chainname = isempty(ta.chainname) ? [] : ta.chainname[n:n], 
+             chainid = isempty(ta.chainid) ? [] : ta.chainid[n:n], 
+             resname = isempty(ta.resname) ? [] : ta.resname[n:n], 
+             resid = isempty(ta.resid) ? [] : ta.resid[n:n], 
+             atomname = isempty(ta.atomname) ? [] : ta.atomname[n:n], 
+             atomid = isempty(ta.atomid) ? [] : ta.atomid[n:n], 
              boxsize = ta.boxsize, 
-             mass = ta.mass == nothing ? nothing : ta.mass[n:n], 
-             charge = ta.charge == nothing ? nothing : ta.charge[n:n], 
+             mass = isempty(ta.mass) ? [] : ta.mass[n:n], 
+             charge = isempty(ta.charge) ? [] : ta.charge[n:n], 
              meta = ta.meta)
 
 # range of columns
 getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(x = ta.x[:, r], y = ta.y[:, r], z = ta.z[:, r],
-             chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
-             chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
-             resname = ta.resname == nothing ? nothing : ta.resname[r], 
-             resid = ta.resid == nothing ? nothing : ta.resid[r], 
-             atomname = ta.atomname == nothing ? nothing : ta.atomname[r], 
-             atomid = ta.atomid == nothing ? nothing : ta.atomid[r], 
+             chainname = isempty(ta.chainname) ? [] : ta.chainname[r], 
+             chainid = isempty(ta.chainid) ? [] : ta.chainid[r], 
+             resname = isempty(ta.resname) ? [] : ta.resname[r], 
+             resid = isempty(ta.resid) ? [] : ta.resid[r], 
+             atomname = isempty(ta.atomname) ? [] : ta.atomname[r], 
+             atomid = isempty(ta.atomid) ? [] : ta.atomid[r], 
              boxsize = ta.boxsize, 
-             mass = ta.mass == nothing ? nothing : ta.mass[r], 
-             charge = ta.charge == nothing ? nothing : ta.charge[r], 
+             mass = isempty(ta.mass) ? [] : ta.mass[r], 
+             charge = isempty(ta.charge) ? [] : ta.charge[r], 
              meta = ta.meta)
 
 # array of columns (integer)
 getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(x = ta.x[:, r], y = ta.y[:, r], z = ta.z[:, r],
-             chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
-             chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
-             resname = ta.resname == nothing ? nothing : ta.resname[r], 
-             resid = ta.resid == nothing ? nothing : ta.resid[r], 
-             atomname = ta.atomname == nothing ? nothing : ta.atomname[r], 
-             atomid = ta.atomid == nothing ? nothing : ta.atomid[r], 
+             chainname = isempty(ta.chainname) ? [] : ta.chainname[r], 
+             chainid = isempty(ta.chainid) ? [] : ta.chainid[r], 
+             resname = isempty(ta.resname) ? [] : ta.resname[r], 
+             resid = isempty(ta.resid) ? [] : ta.resid[r], 
+             atomname = isempty(ta.atomname) ? [] : ta.atomname[r], 
+             atomid = isempty(ta.atomid) ? [] : ta.atomid[r], 
              boxsize = ta.boxsize, 
-             mass = ta.mass == nothing ? nothing : ta.mass[r], 
-             charge = ta.charge == nothing ? nothing : ta.charge[r], 
+             mass = isempty(ta.mass) ? [] : ta.mass[r], 
+             charge = isempty(ta.charge) ? [] : ta.charge[r], 
              meta = ta.meta)
 
 # array of rows (bool)
 getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(x = ta.x[:, r], y = ta.y[:, r], z = ta.z[:, r],
-             chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
-             chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
-             resname = ta.resname == nothing ? nothing : ta.resname[r], 
-             resid = ta.resid == nothing ? nothing : ta.resid[r], 
-             atomname = ta.atomname == nothing ? nothing : ta.atomname[r], 
-             atomid = ta.atomid == nothing ? nothing : ta.atomid[r], 
+             chainname = isempty(ta.chainname) ? [] : ta.chainname[r], 
+             chainid = isempty(ta.chainid) ? [] : ta.chainid[r], 
+             resname = isempty(ta.resname) ? [] : ta.resname[r], 
+             resid = isempty(ta.resid) ? [] : ta.resid[r], 
+             atomname = isempty(ta.atomname) ? [] : ta.atomname[r], 
+             atomid = isempty(ta.atomid) ? [] : ta.atomid[r], 
              boxsize = ta.boxsize, 
-             mass = ta.mass == nothing ? nothing : ta.mass[r], 
-             charge = ta.charge == nothing ? nothing : ta.charge[r], 
+             mass = isempty(ta.mass) ? [] : ta.mass[r], 
+             charge = isempty(ta.charge) ? [] : ta.charge[r], 
              meta = ta.meta)
 
 # combinations
@@ -194,7 +168,7 @@ end
 function match_query(some_array, query)
     natom = length(some_array)
     index = fill(false, natom)
-    if some_array == Nothing
+    if isempty(some_array)
         return index
     elseif typeof(some_array[1]) == String
         query = split(query)
@@ -262,7 +236,7 @@ getindex(ta::TrjArray, rows, s::AbstractString) = ta[rows, :][:, s]
 
 ###### end keyword #################
 
-endof(ta::TrjArray) = ta.x == nothing ? nothing : size(ta.x, 1)
+endof(ta::TrjArray) = isempty(ta.x) ? nothing : size(ta.x, 1)
 eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
 ###### iterator #################
@@ -318,12 +292,12 @@ function print_matrix_xyz(io::IO,
 end
 
 function string_column(x, y, j)
-    if x == nothing
+    if isempty(x)
         string_x = ""
     else
         string_x = string(x[j])
     end
-    if y == nothing
+    if isempty(y)
         string_y = ""
     else
         string_y = string(y[j])
@@ -381,15 +355,15 @@ function show(io::IO, ta::TrjArray)
     screenheight, screenwidth = sz[1] - 4, sz[2]
     screenwidth -= length(pre)
 
-    if ta.chainid != nothing || ta.chainname != nothing
+    if !isempty(ta.chainid) || !isempty(ta.chainname)
         screenheight -= 1
     end
 
-    if ta.resid != nothing || ta.resname != nothing
+    if !isempty(ta.resid) || !isempty(ta.resname)
         screenheight -= 1
     end
 
-    if ta.chainid != nothing || ta.chainname != nothing
+    if !isempty(ta.atomid) || !isempty(ta.atomname)
         screenheight -= 1
     end
 
@@ -416,17 +390,17 @@ function show(io::IO, ta::TrjArray)
 
     # Nine-slicing is accomplished using print_matrix_row repeatedly
     if n <= length(columnwidth) # rows and cols fit so just print whole matrix in one piece
-        if ta.chainid != nothing || ta.chainname != nothing
+        if !isempty(ta.chainid) || !isempty(ta.chainname)
             print(io, pre)
             print_column(io, ta.chainid, ta.chainname, columnwidth, colsA, sep)
             println(io)
         end
-        if ta.resid != nothing || ta.resname != nothing
+        if !isempty(ta.resid) || !isempty(ta.resname)
             print(io, pre)
             print_column(io, ta.resid, ta.resname, columnwidth, colsA, sep)
             println(io)
         end
-        if ta.atomid != nothing || ta.atomname != nothing
+        if !isempty(ta.atomid) || !isempty(ta.atomname)
             print(io, pre)
             print_column(io, ta.atomid, ta.atomname, columnwidth, colsA, sep)
             println(io)
@@ -436,7 +410,7 @@ function show(io::IO, ta::TrjArray)
         Rcolumnwidth = reverse(alignment_xyz(io, X, rowsA, reverse(colsA), c, c, length(sep))) # alignments for right
         c = screenwidth - sum(map(sum,Rcolumnwidth)) - (length(Rcolumnwidth)-1)*length(sep) - length(hdots)
         Lcolumwidth = alignment_xyz(io, X, rowsA, colsA, c, c, length(sep)) # alignments for left of ellipsis
-        if ta.chainid != nothing || ta.chainname != nothing
+        if !isempty(ta.chainid) || !isempty(ta.chainname)
             print(io, pre)
             #print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
             print_column(io, ta.chainid, ta.chainname, Lcolumwidth, colsA[1:length(Lcolumwidth)], sep)
@@ -445,7 +419,7 @@ function show(io::IO, ta::TrjArray)
             print_column(io, ta.chainid, ta.chainname, Rcolumnwidth, (n - length(Rcolumnwidth)) .+ colsA, sep)
             println(io)
         end
-        if ta.resid != nothing || ta.resname != nothing
+        if !isempty(ta.resid) || !isempty(ta.resname)
             print(io, pre)
             #print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
             print_column(io, ta.resid, ta.resname, Lcolumwidth, colsA[1:length(Lcolumwidth)], sep)
@@ -454,7 +428,7 @@ function show(io::IO, ta::TrjArray)
             print_column(io, ta.resid, ta.resname, Rcolumnwidth, (n - length(Rcolumnwidth)) .+ colsA, sep)
             println(io)
         end
-        if ta.atomid != nothing || ta.atomname != nothing
+        if !isempty(ta.atomid) || !isempty(ta.atomname)
             print(io, pre)
             #print_matrix_xyz(io, X, Y, Z, Lcolumwidth, i, colsA[1:length(Lcolumwidth)], sep)
             print_column(io, ta.atomid, ta.atomname, Lcolumwidth, colsA[1:length(Lcolumwidth)], sep)
