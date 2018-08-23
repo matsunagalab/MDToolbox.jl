@@ -2,7 +2,6 @@
 read xplor or charmm (namd) format dcd file
 """
 function readdcd(filename::String; index_atom=nothing)
-
     header_ischarmm_4dims = false
     x = nothing
     y = nothing
@@ -196,7 +195,6 @@ function readdcd(filename::String; index_atom=nothing)
 
     #x, y, z, boxsize
     TrjArray(x, y, z, boxsize=boxsize)
-
 end
 
 
@@ -339,6 +337,19 @@ end
 """
 function readnetcdf(filename::String)
     
+end
+
+function readpsf(filename::String)
+    chainid = nothing
+    chainname = nothing
+    resid  = nothing
+    resname = nothing
+    atomid = nothing
+    atomname = nothing
+
+    open(filename, "r") do io
+        
+    end
 end
 
 
