@@ -11,131 +11,64 @@ struct TrjArray <: AbstractTrajectory
     x::Union{Matrix{Float64}, Nothing}
     y::Union{Matrix{Float64}, Nothing}
     z::Union{Matrix{Float64}, Nothing}
-
     chainname::Union{Vector{String}, Nothing}
     chainid::Union{Vector{Int64}, Nothing}
-
     resname::Union{Vector{String}, Nothing}
     resid::Union{Vector{Int64}, Nothing}
-
     atomname::Union{Vector{String}, Nothing}
     atomid::Union{Vector{Int64}, Nothing}
-
     boxsize::Union{Matrix{Float64}, Nothing}
     mass::Union{Vector{Float64}, Nothing}
     charge::Union{Vector{Float64}, Nothing}
-
     # bond::Union{Matrix{Int64}, Nothing}
     # angle::Union{Matrix{Int64}, Nothing}
     # dihedral::Union{Matrix{Int64}, Nothing}
-
     meta::Any
 
     function TrjArray(
-            x::Union{Matrix{Float64}, Nothing}, 
-            y::Union{Matrix{Float64}, Nothing}, 
-            z::Union{Matrix{Float64}, Nothing}, 
-            chainname::Union{Vector{String}, Nothing}, 
-            chainid::Union{Vector{Int64}, Nothing}, 
-            resname::Union{Vector{String}, Nothing}, 
-            resid::Union{Vector{Int64}, Nothing}, 
-            atomname::Union{Vector{String}, Nothing}, 
-            atomid::Union{Vector{Int64}, Nothing}, 
-            boxsize::Union{Matrix{Float64}, Nothing}, 
-            mass::Union{Matrix{Float64}, Nothing}, 
-            charge::Union{Matrix{Float64}, Nothing}, 
-            meta::Any) 
+            x::Union{Matrix{T}, Nothing}, 
+            y::Union{Matrix{T}, Nothing}, 
+            z::Union{Matrix{T}, Nothing}, 
+            chainname::Union{Vector{S}, Nothing}, 
+            chainid::Union{Vector{I}, Nothing}, 
+            resname::Union{Vector{S}, Nothing}, 
+            resid::Union{Vector{I}, Nothing}, 
+            atomname::Union{Vector{S}, Nothing}, 
+            atomid::Union{Vector{I}, Nothing}, 
+            boxsize::Union{Matrix{F}, Nothing}, 
+            mass::Union{Matrix{F}, Nothing}, 
+            charge::Union{Matrix{F}, Nothing}, 
+            meta::Any) where {T <: Real, S <: AbstractString, I <: Integer, F <: Real}
 
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
         #@show natom
-
         # ischecked && return new(trj, atomname, atomid, meta)
-
         # natom != length(chainname) && throw(DimensionMismatch("chainname must match width of trajectory"))
         # natom != length(chainid) && throw(DimensionMismatch("chainid must match width of trajectory"))
 
-        if x != nothing 
-            x2 = map(Float64, x)
-        else
-            x2 = nothing
-        end
-
-        if y != nothing 
-            y2 = map(Float64, y)
-        else
-            y2 = nothing
-        end
-
-        if z != nothing 
-            z2 = map(Float64, z)
-        else
-            z2 = nothing
-        end
-
-        if chainname != nothing 
-            chainname2 = map(strip, map(string, chainname))
-        else
-            chainname2 = nothing
-        end
-
-        if chainid != nothing 
-            chainid2 = map(Int64, chainid)
-        else
-            chainid2 = nothing
-        end
-
-        if resname != nothing 
-            resname2 = map(strip, map(string, resname))
-        else
-            resname2 = nothing
-        end
-
-        if resid != nothing 
-            resid2 = map(Int64, resid)
-        else
-            resid2 = nothing
-        end
-
-        if atomname != nothing 
-            atomname2 = map(strip, map(string, atomname))
-        else
-            atomname2 = nothing
-        end
-
-        if atomid != nothing 
-            atomid2 = map(Int64, atomid)
-        else
-            atomid2 = nothing
-        end
-        
-        if boxsize != nothing 
-            boxsize2 = map(Float64, boxsize)
-        else
-            boxsize2 = nothing
-        end
-
-        if mass != nothing 
-            mass2 = map(Float64, mass)
-        else
-            mass2 = nothing
-        end
-
-        if charge != nothing 
-            charge2 = map(Float64, charge)
-        else
-            charge2 = nothing
-        end
+        x2 = x == nothing ? nothing : map(Float64, x)
+        y2 = y == nothing ? nothing : map(Float64, y)
+        z2 = z == nothing ? nothing : map(Float64, z)
+        chainname2 = chainname == nothing ? nothing : map(strip, map(string, chainname))
+        chainid2 = chainid == nothing ? nothing : map(Int64, chainid)
+        resname2 = resname == nothing ? nothing : map(strip, map(string, resname))
+        resid2 = resid == nothing ? nothing : map(Int64, resid)
+        atomname2 = atomname == nothing ? nothing : map(strip, map(string, atomname))
+        atomid2 = atomid == nothing ? nothing : map(Int64, atomid)
+        boxsize2 = boxsize == nothing ? nothing : map(Float64, boxsize)
+        mass2 = mass == nothing ? nothing : map(Float64, mass)
+        charge2 = charge == nothing ? nothing : map(Float64, charge)
 
         return new(x2, y2, z2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, boxsize2, mass2, charge2, meta)
     end
 end
 
-###### outer constructor ########
+###### outer constructors ########
 
-TrjArray(x::Matrix{T},
-         y::Matrix{T},
-         z::Matrix{T}; 
+TrjArray(;x = x::Matrix{T},
+         y = y::Matrix{T},
+         z = z::Matrix{T}, 
          chainname = nothing, 
          chainid = nothing, 
          resname = nothing, 
@@ -149,17 +82,17 @@ TrjArray(x::Matrix{T},
              TrjArray(x, y, z, chainname, chainid, resname, resid, atomname, atomid, boxsize, mass, charge, meta)
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
-             TrjArray(x, y, z, 
-                      ta.chainname,
-                      ta.chainid,
-                      ta.resname,
-                      ta.resid,
-                      ta.atomname,
-                      ta.atomid,
-                      ta.boxsize,
-                      ta.mass,
-                      ta.charge,
-                      ta.meta)
+             TrjArray(x = x, y = y, z = z, 
+                      chainname = ta.chainname,
+                      chainid = ta.chainid,
+                      resname = ta.resname,
+                      resid = ta.resid,
+                      atomname = ta.atomname,
+                      atomid = ta.atomid,
+                      boxsize = ta.boxsize,
+                      mass = ta.mass,
+                      charge = ta.charge,
+                      meta = ta.meta)
 
 ###### getindex #################
 
@@ -186,7 +119,7 @@ getindex(ta::TrjArray, a::AbstractVector{Bool}) = TrjArray(ta.x[a, :], ta.y[a, :
 getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
 
 # single column
-getindex(ta::TrjArray, ::Colon, n::Int) = TrjArray(ta.x[:, n:n], ta.y[:, n:n], ta.z[:, n:n],
+getindex(ta::TrjArray, ::Colon, n::Int) = TrjArray(x = ta.x[:, n:n], y = ta.y[:, n:n], z = ta.z[:, n:n],
              chainname = ta.chainname == nothing ? nothing : ta.chainname[n:n], 
              chainid = ta.chainid == nothing ? nothing : ta.chainid[n:n], 
              resname = ta.resname == nothing ? nothing : ta.resname[n:n], 
@@ -199,7 +132,7 @@ getindex(ta::TrjArray, ::Colon, n::Int) = TrjArray(ta.x[:, n:n], ta.y[:, n:n], t
              meta = ta.meta)
 
 # range of columns
-getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(ta.x[:, r], ta.y[:, r], ta.z[:, r],
+getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(x = ta.x[:, r], y = ta.y[:, r], z = ta.z[:, r],
              chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
              chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
              resname = ta.resname == nothing ? nothing : ta.resname[r], 
@@ -212,7 +145,7 @@ getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(ta.x[:, r], ta.y[:
              meta = ta.meta)
 
 # array of columns (integer)
-getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(ta.x[:, r], ta.y[:, r], ta.z[:, r],
+getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(x = ta.x[:, r], y = ta.y[:, r], z = ta.z[:, r],
              chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
              chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
              resname = ta.resname == nothing ? nothing : ta.resname[r], 
@@ -225,7 +158,7 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = Trj
              meta = ta.meta)
 
 # array of rows (bool)
-getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(ta.x[:, r], ta.y[:, r], ta.z[:, r],
+getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(x = ta.x[:, r], y = ta.y[:, r], z = ta.z[:, r],
              chainname = ta.chainname == nothing ? nothing : ta.chainname[r], 
              chainid = ta.chainid == nothing ? nothing : ta.chainid[r], 
              resname = ta.resname == nothing ? nothing : ta.resname[r], 
@@ -238,13 +171,10 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(ta.x[:, r], 
              meta = ta.meta)
 
 # combinations
-##..............
-
-###### end keyword #################
-endof(ta::TrjArray) = ta.x == nothing ? nothing : size(ta.x, 1)
-eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
+getindex(ta::TrjArray, rows, cols) = ta[rows, :][:, cols]
 
 ###### atom selection #################
+
 function unfold(A)
     V = []
     if typeof(A) <: AbstractString
@@ -261,19 +191,19 @@ function unfold(A)
     V
 end
 
-function match_query(id_array, query)
-    natom = length(id_array)
+function match_query(some_array, query)
+    natom = length(some_array)
     index = fill(false, natom)
-    if id_array == Nothing
+    if some_array == Nothing
         return index
-    elseif typeof(id_array[1]) == String
+    elseif typeof(some_array[1]) == String
         query = split(query)
     else
         query = Meta.eval(Meta.parse(replace("[" * query * "]", r"(\d)\s" => s"\1, ")))
     end
     query = unique(unfold(query))
     for q in query
-        index = index .| (id_array .== q) # Vector{Bool} .| BitArray{1}
+        index = index .| (some_array .== q) # conversion occurs because Vector{Bool} .| BitArray{1}
     end
     index
 end
@@ -302,7 +232,6 @@ function getindex(ta::TrjArray, s::AbstractString)
 
     s = replace(s, r"\)(\s+)and" => "\" ) ) .& ")
     s = replace(s, r"([^\)])(\s+)and" => s"\1 \" ) .& ")
-
     s = replace(s, r"\)(\s+)or" => "\" ) ) .| ")
     s = replace(s, r"([^\)])(\s+)or" => s"\1 \" ) .| ")
 
@@ -311,33 +240,38 @@ function getindex(ta::TrjArray, s::AbstractString)
     elseif s[end-length("all")+1:end] != "all" && s[end-length("backbone")+1:end] != "backbone"
         s = s * " \" )"
     end
-    println(s)
+
+    #println(s)
     ex = Meta.parse(s)
     replace_ex!(ex)
     index = Meta.eval(ex)
-    println(index')
+    #println(index')
     ta[:, index]
 end
 
-getindex(ta::TrjArray, ::Colon, s::AbstractString) = getindex(ta, s)
-
 # combinations
-##..............
+getindex(ta::TrjArray, ::Colon, s::AbstractString) = getindex(ta, s)
+getindex(ta::TrjArray, rows, s::AbstractString) = ta[rows, :][:, s]
 
 ###### accessors to field values #################
-
-###### iterator #################
 
 ###### merge #################
 
 # vertical merge
 # horizontal merge
 
+###### end keyword #################
+
+endof(ta::TrjArray) = ta.x == nothing ? nothing : size(ta.x, 1)
+eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
+
+###### iterator #################
+
 ###### conversion #################
 
 # conversion(Float64, ta:TrjArray)
 
-###### mathematical operations #################
+###### mathematical operators #################
 
 ###### show #####################
 
@@ -374,6 +308,7 @@ function print_matrix_xyz(io::IO,
         # else
         #     print_x = Printf.@sprintf " %8.2e" X[i,j]
         # end
+        # TODO: treatment for very large or small values
         print_x = Printf.@sprintf " %8.2f" X[i,j]
         print_y = Printf.@sprintf " %8.2f" Y[i,j]
         print_z = Printf.@sprintf " %8.2f" Z[i,j]
@@ -590,120 +525,4 @@ function show(io::IO, ta::TrjArray)
     end
 end
 
-
-function show_old(io::IO, ta::TrjArray)
-
-    # summary line
-    nrow, ncol = (size(ta.x, 1), size(ta.x, 2))
-    @printf(io, "%dx%d %s\n", nrow, ncol, typeof(ta))
-
-    # calculate column withs
-    drow, dcol = displaysize(io)
-    res_row    = 9  # number of reserved rows: summary line, lable line ... etc
-    half_row   = floor(Int, (drow - res_row) / 2)
-    add_row    = (drow - res_row) % 2
-
-    if nrow > (drow - res_row)
-        tophalf = 1:(half_row + add_row)
-        bothalf = (nrow - half_row + 1):nrow
-        strs = _showval.(@view ta.x[[tophalf; bothalf], :])
-    else
-        strs = _showval.(ta.x)
-    end
-    strs = strs[:, 1:3:end] .* " " .* strs[:, 2:3:end] .* " " .* strs[:, 3:3:end]
-
-    natom = Int(ncol/3)
-
-    colnames1 = Vector{String}(undef, natom)
-    for i in 1:natom
-        colnames1[i] = string(ta.chainid[i]) * " " * ta.chainname[i]
-    end
-
-    colnames2 = Vector{String}(undef, natom)
-    for i in 1:natom
-        colnames2[i] = string(ta.resid[i]) * " " * ta.resname[i]
-    end
-
-    colnames3 = Vector{String}(undef, natom)
-    for i in 1:natom
-        colnames3[i] = string(ta.atomid[i]) * " " * ta.atomname[i]
-    end
-
-    # NOTE: reshaping is a workaround in julia 0.6
-    #       in 0.7, it can be:
-    #         [textwidth.(colnames)'; textwidth.(strs); fill(5, ncol)']
-    colwidth = maximum([
-        reshape(textwidth.(colnames1), 1, :);
-        reshape(textwidth.(colnames2), 1, :);
-        reshape(textwidth.(colnames3), 1, :);
-        textwidth.(strs);
-        reshape(fill(5, natom), 1, :)], dims=1)
-
-    # paging
-    pages = _showpages(dcol, colwidth)
-
-    for p in pages
-        # row label line
-        ## e.g. | Open  | High  | Low   | Close  |
-        #print(io, "│", " "^(spacetime + 2))
-        for (name, w) in zip(colnames1[p], colwidth[p])
-            print(io, "│ ", rpad(name, w + 1))
-        end
-        println(io, "│")
-
-        for (name, w) in zip(colnames2[p], colwidth[p])
-            print(io, "│ ", rpad(name, w + 1))
-        end
-        println(io, "│")
-
-        for (name, w) in zip(colnames3[p], colwidth[p])
-            print(io, "│ ", rpad(name, w + 1))
-        end
-        println(io, "│")
-        ## e.g. ├───────┼───────┼───────┼────────┤
-        #print(io, "├", "─"^(spacetime + 2))
-        for w in colwidth[p]
-            print(io, "┼", "─"^(w + 2))
-        end
-        print(io, "┤")
-
-        # timestamp and values line
-        if nrow > (drow - res_row)
-            for i in tophalf
-                println(io)
-                #print(io, "│ ", ts[i], " ")
-                for j in p
-                    print(io, "│ ", rpad(strs[i, j], colwidth[j] + 1))
-                end
-                print(io, "│")
-            end
-
-            print(io, "\n   \u22EE")
-
-            for i in (length(bothalf) - 1):-1:0
-                i = size(strs, 1) - i
-                println(io)
-                #print(io, "│ ", ts[i], " ")
-                for j in p
-                    print(io, "│ ", rpad(strs[i, j], colwidth[j] + 1))
-                end
-                print(io, "│")
-            end
-
-        else
-            for i in 1:nrow
-                println(io)
-                #print(io, "│ ", ts[i], " ")
-                for j in p
-                    print(io, "│ ", rpad(strs[i, j], colwidth[j] + 1))
-                end
-                print(io, "│")
-            end
-        end
-
-        if length(pages) > 1 && p != pages[end]
-            print(io, "\n\n")
-        end
-    end  # for p in pages
-end
 
