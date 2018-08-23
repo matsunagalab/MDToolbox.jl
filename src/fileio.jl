@@ -1,12 +1,12 @@
 """
 read xplor or charmm (namd) format dcd file
 """
-function readdcd(filename::String; index_atom=nothing)
+function readdcd(filename::String; index=nothing)
     header_ischarmm_4dims = false
-    x = nothing
-    y = nothing
-    z = nothing
-    boxsize = nothing
+    x = []
+    y = []
+    z = []
+    boxsize = []
     
     open(filename, "r") do io
         seekend(io)
@@ -132,20 +132,18 @@ function readdcd(filename::String; index_atom=nothing)
         nframe = (file_size - header_size) / (extrablocksize + coordblocksize)
         nframe = Int64(floor(nframe))
 
-        if typeof(index_atom) == Array{Bool, 1}
-            index_atom2 = findall(index_atom)
-        elseif index_atom == nothing
-            index_atom2 = collect(1:header_natom)
+        if typeof(index) <: AbstractVector{Bool}
+            index2 = findall(index)
+        elseif index == nothing
+            index2 = collect(1:header_natom)
         end
 
-        # if ~exist('index', 'var') || isempty(index)
-        #     index = 1:header_natom;
-        # end
-
-        x = zeros(Float64, (nframe, length(index_atom2)))
-        y = zeros(Float64, (nframe, length(index_atom2)))
-        z = zeros(Float64, (nframe, length(index_atom2)))
-        boxsize = zeros(Float64, (nframe, 3))
+        x = zeros(Float64, (nframe, length(index2)))
+        y = zeros(Float64, (nframe, length(index2)))
+        z = zeros(Float64, (nframe, length(index2)))
+        if header_ischarmm_extrablock == true
+            boxsize = zeros(Float64, (nframe, 3))
+        end
 
         # read next frames
         dummy = Array{Float64, 1}(undef, 6)
@@ -153,48 +151,42 @@ function readdcd(filename::String; index_atom=nothing)
         crd_y = Array{Float32, 1}(undef, header_natom)
         crd_z = Array{Float32, 1}(undef, header_natom)
         for iframe in 1:nframe
-            #@show iframe
             # read charmm extrablock (unitcell info)
             if header_ischarmm_extrablock == true
                 blocksize_box = read(io, Int32)
                 read!(io, dummy)
                 blocksize_box = read(io, Int32)
             end
-
             # read x coordinates
             blocksize_x = read(io, Int32)
             read!(io, crd_x)
             blocksize_x = read(io, Int32)
-
             # read y coordinates 
             blocksize_y = read(io, Int32)
             read!(io, crd_y)
             blocksize_y = read(io, Int32)
-
             # read z coordinates 
             blocksize_z = read(io, Int32)
             read!(io, crd_z)
             blocksize_z = read(io, Int32)
-  
             # skip charmm 4dims extension
             if header_ischarmm_4dims == true
                 blocksize_4dims = read(io, Int32)
                 skip(io, blocksize_4dims)
                 blocksize_4dims = read(io, Int32)
             end
-
+            # get data
+            x[iframe, :] = crd_x[index2];
+            y[iframe, :] = crd_y[index2];
+            z[iframe, :] = crd_z[index2];
             if header_ischarmm_extrablock == true
                 boxsize[iframe, :] = dummy[[1 3 6]];
             end
-            x[iframe, :] = convert(Array{Float64, 1}, crd_x[index_atom2]);
-            y[iframe, :] = convert(Array{Float64, 1}, crd_y[index_atom2]);
-            z[iframe, :] = convert(Array{Float64, 1}, crd_z[index_atom2]);
         end
-
     end
 
     #x, y, z, boxsize
-    TrjArray(x, y, z, boxsize=boxsize)
+    TrjArray(x=x, y=y, z=z, boxsize=boxsize)
 end
 
 
@@ -340,16 +332,50 @@ function readnetcdf(filename::String)
 end
 
 function readpsf(filename::String)
-    chainid = nothing
-    chainname = nothing
-    resid  = nothing
-    resname = nothing
-    atomid = nothing
-    atomname = nothing
+    chainid = []
+    chainname = []
+    resid  = []
+    resname = []
+    atomid = []
+    atomname = []
 
-    open(filename, "r") do io
-        
+    isPSF = false
+    isEXT = false
+    isCMAP = false
+    isCHEQ = false
+
+    lines = open(filename, "r" ) do fp
+        readlines(fp)
     end
-end
 
+    # first line
+    line = lines[1]
+    line_size = length(line)
+    if line_size >= 3
+        if line[1:3] == "PSF"
+            isPSF = true
+        end
+    end
+    for i = 1:4:(line_size-3)
+        isPSF = line[i:i+3] == "PSF " ? true : isPSF
+        isEXT = line[i:i+3] == "EXT " ? true : isEXT
+        isCMAP = line[i:i+3] == "CMAP" ? true : isCMAP
+        line[i:i+3] == "CHEQ" ? true : isCHEQ
+    end
+    if !isPSF
+        print("Sorry, this seems not be a PSF file")
+        return false
+    end
+    if isEXT
+        #fmt_atom = "%10d %8s %8d %8s %8s %4s %14f%14f%8d%*[^\n]" #matlab
+        fmt_atom = "%10d %8s %8d %8s %8s %4s %14f%14f%8d %*f %*f" %octave
+        fmt_list = "%10d"
+    else
+        #fmt_atom = "%8d %4s %4d %4s %4s %4s %14f%14f%8d%*[^\n]" #matlab
+        fmt_atom = "%8d %4s %4d %4s %4s %4s %14f%14f%8d %*f %*f" #octave
+        fmt_list = "%8d"
+    end
+
+
+end
 

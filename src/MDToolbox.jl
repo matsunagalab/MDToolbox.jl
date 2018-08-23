@@ -6,7 +6,7 @@ using Printf
 
 # package code goes here
 export AbstractTrajectory, TrjArray, to3
-export readdcd
+export readdcd, readpsf
 #export readdcd, writedcd, to3, calcbond
 
 include("trjarray.jl")
