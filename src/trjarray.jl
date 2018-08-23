@@ -290,7 +290,7 @@ function replace_ex!(ex::Expr)
     ex
 end
 
-function getindex(ta::TrjArray, ::Colon, s::AbstractString)
+function getindex(ta::TrjArray, s::AbstractString)
     s_init = s
     s = strip(s)
     s = replace(s, "chainid" => "match_query($(ta.chainid), \" ")
@@ -318,6 +318,8 @@ function getindex(ta::TrjArray, ::Colon, s::AbstractString)
     println(index')
     ta[:, index]
 end
+
+getindex(ta::TrjArray, ::Colon, s::AbstractString) = getindex(ta, s)
 
 # combinations
 ##..............
