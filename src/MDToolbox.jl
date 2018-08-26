@@ -1,16 +1,21 @@
 module MDToolbox
 
 using NetCDF
-using FFTW
+#using FFTW
+
+# satndard library
 using Printf
+using Statistics
 
 # package code goes here
-export AbstractTrajectory, TrjArray, to3
+export AbstractTrajectory, TrjArray, select_atom
 export readdcd, readpsf
-#export readdcd, writedcd, to3, calcbond
+export centerofmass, distance
+
+#TODO: introduce physical constatns, such as K_B
 
 include("trjarray.jl")
 include("fileio.jl")
-#include("structure.jl")
+include("structure.jl")
 
 end # module
