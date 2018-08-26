@@ -1,5 +1,5 @@
 import Base: convert, copy, length, show, getindex, start, next, done, isempty,
-             endof, size, eachindex, ==, isequal, hash
+             endof, size, eachindex, ==, isequal, hash, vcat, hcat, merge, map
 
 abstract type AbstractTrajectory end
 
@@ -124,6 +124,14 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Rea
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
                       boxsize = ta.boxsize, mass = ta.mass, charge = ta.charge,
+                      meta = ta.meta)
+
+TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjArray) where {T <: Real} =
+             TrjArray(x = x, y = y, z = z, 
+                      chainname = ta.chainname, chainid = ta.chainid,
+                      resname = ta.resname, resid = ta.resid,
+                      atomname = ta.atomname, atomid = ta.atomid,
+                      boxsize = boxsize, mass = ta.mass, charge = ta.charge,
                       meta = ta.meta)
 
 ###### getindex #################
@@ -306,12 +314,55 @@ end
 getindex(ta::TrjArray, ::Colon, s::AbstractString) = getindex(ta, s)
 getindex(ta::TrjArray, rows, s::AbstractString) = ta[rows, :][:, s]
 
+###### equality #################
+==(x::TrjArray, y::TrjArray) = all(f -> getfield(x, f) == getfield(y, f), fieldnames(TrjArray))
+isequal(x::TrjArray, y::TrjArray) = all(f -> isequal(getfield(x, f), getfield(y, f)), fieldnames(TrjArray))
+
 ###### accessors to field values #################
 
-###### merge #################
+###### vcat, hcat, merge #################
+function vcat(ta_collection::TrjArray...)
+    natom = ta_collection[1].natom
+    for i = 2:length(ta_collection)
+        if natom != ta_collection[i].natom
+            throw(ArgumentError("number of atoms doesn't match"))
+        end
+    end
+    x, y, z, boxsize = ta_collection[1].x, ta_collection[1].y, ta_collection[1].z, ta_collection[1].boxsize
+    for i = 2:length(ta_collection)
+        if !isempty(ta_collection[i].x)
+            if isempty(x)
+                x = ta_collection[i].x
+            else
+                x = [x; ta_collection[i].x]
+            end
+        end
+        if !isempty(ta_collection[i].y)
+            if isempty(y)
+                y = ta_collection[i].y
+            else
+                y = [y; ta_collection[i].y]
+            end
+        end
+        if !isempty(ta_collection[i].z)
+            if isempty(z)
+                z = ta_collection[i].z
+            else
+                z = [z; ta_collection[i].z]
+            end
+        end
+        if !isempty(ta_collection[i].boxsize)
+            if isempty(boxsize)
+                boxsize = ta_collection[i].boxsize
+            else
+                boxsize = [boxsize; ta_collection[i].boxsize]
+            end
+        end
+    end
+    TrjArray(x, y, z, boxsize, ta_collection[1])
+end
 
-# vertical merge
-# horizontal merge
+###### size #################
 
 ###### end keyword #################
 
