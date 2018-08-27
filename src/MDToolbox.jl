@@ -6,11 +6,12 @@ using NetCDF
 # satndard library
 using Printf
 using Statistics
+using Base.Threads
 
 # package code goes here
 export AbstractTrajectory, TrjArray, select_atom
 export readdcd, readpsf
-export centerofmass, distance
+export centerofmass, superimpose, distance
 
 #TODO: introduce physical constatns, such as K_B
 
