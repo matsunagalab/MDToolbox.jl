@@ -36,7 +36,7 @@ struct TrjArray <: AbstractTrajectory
         # natom != length(chainname) && throw(DimensionMismatch("chainname must match width of trajectory"))
         # natom != length(chainid) && throw(DimensionMismatch("chainid must match width of trajectory"))
 
-        # nframe
+        # check size and define nframe
         nframe = 0
         if !isempty(x)
             nframe = size(x, 1)
@@ -48,7 +48,7 @@ struct TrjArray <: AbstractTrajectory
         end
         nframe = Int64(nframe)
 
-        # natom
+        # check size and define natom
         natom = 0
         mat_collection = [x, y, z]
         vec_collection = [chainname, chainid, resname, resid, atomname, atomid, mass, charge]
@@ -74,19 +74,19 @@ struct TrjArray <: AbstractTrajectory
         end
         natom = Int64(natom)
 
-        # check isempty and assert data types
-        x2 = isempty(x) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, x)
-        y2 = isempty(y) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, y)
-        z2 = isempty(z) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, z)
-        boxsize2 = isempty(boxsize) ? Array{Float64, 2}(undef, 0, 0) : map(Float64, boxsize)
-        chainname2 = isempty(chainname) ? Array{String, 1}(undef, 0) : map(strip, map(string, chainname))
-        chainid2 = isempty(chainid) ? Array{Int64, 1}(undef, 0) : map(Int64, chainid)
-        resname2 = isempty(resname) ? Array{String, 1}(undef, 0) : map(strip, map(string, resname))
-        resid2 = isempty(resid) ? Array{Int64, 1}(undef, 0) : map(Int64, resid)
-        atomname2 = isempty(atomname) ? Array{String, 1}(undef, 0) : map(strip, map(string, atomname))
-        atomid2 = isempty(atomid) ? Array{Int64, 1}(undef, 0) : map(Int64, atomid)
-        mass2 = isempty(mass) ? Array{Float64, 1}(undef, 0) : map(Float64, mass)
-        charge2 = isempty(charge) ? Array{Float64, 1}(undef, 0) : map(Float64, charge)
+        # check type
+        x2 = typeof(x) == Matrix{Float64} ? x : map(Float64, x)
+        y2 = typeof(x) == Matrix{Float64} ? y : map(Float64, y)
+        z2 = typeof(x) == Matrix{Float64} ? z : map(Float64, z)
+        boxsize2 = typeof(boxsize) == Matrix{Float64} ? boxsize : map(Float64, boxsize)
+        chainname2 = typeof(chainname) == Vector{String} ? chainname : map(strip, map(string, chainname))
+        chainid2 = typeof(chainid) == Vector{Int64} ? chainid : map(Int64, chainid)
+        resname2 = typeof(resname) == Vector{String} ? resname : map(strip, map(string, resname))
+        resid2 = typeof(resid) == Vector{Int64} ? resid : map(Int64, resid)
+        atomname2 = typeof(atomname) == Vector{String} ? atomname : map(strip, map(string, atomname))
+        atomid2 = typeof(atomid) == Vector{Int64} ? atomid : map(Int64, atomid)
+        mass2 = typeof(mass) == Vector{Float64} ? mass : map(Float64, mass)
+        charge2 = typeof(charge) == Vector{Float64} ? charge : map(Float64, charge)
 
         return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, meta, natom, nframe)
     end
@@ -94,12 +94,13 @@ end
 
 ###### outer constructors ########
 
-function TrjArray(;x = [], y = [], z = [], boxsize = [], 
-                  chainname = [], chainid = [], 
-                  resname = [], resid = [], 
-                  atomname = [], atomid = [], 
-                  mass = [], charge = [], 
-                  meta = [])
+function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 0, 0), z = Matrix{Float64}(undef, 0, 0),
+                  boxsize = Matrix{Float64}(undef, 0, 0), 
+                  chainname = Vector{String}(undef, 0), chainid = Vector{Int64}(undef, 0), 
+                  resname = Vector{String}(undef, 0), resid = Vector{Int64}(undef, 0), 
+                  atomname = Vector{String}(undef, 0), atomid = Vector{Int64}(undef, 0), 
+                  mass = Vector{Float64}(undef, 0), charge = Vector{Float64}(undef, 0), 
+                  meta = Any[])
     if typeof(x) <: AbstractVector
         x2 = reshape(x, length(x), 1)
     else
@@ -323,6 +324,7 @@ function select_atom(ta::TrjArray, s::AbstractString)
     #println(s)
     #println(index')
     index = Meta.eval(ex)
+    findall(index)
 end
 
 function getindex(ta::TrjArray, s::AbstractString)
