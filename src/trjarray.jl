@@ -395,7 +395,7 @@ eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
 # conversion(Float64, ta:TrjArray)
 
-###### mathematical operators #################
+###### mathematical operators, broadcast #################
 
 ###### show #####################
 
