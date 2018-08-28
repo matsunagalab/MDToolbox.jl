@@ -8,7 +8,7 @@ function centerofmass(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Ve
     nframe = ta.nframe
     natom = ta.natom
     if isweight
-        @assert isempty(ta.mass) == false
+        @assert length(ta.mass) == natom
         weight = ta.mass
     else
         weight = ones(Float64, natom)
@@ -227,18 +227,16 @@ superimpose ta::TrjArray to ref:TrjArray
 
 this code is licensed under the BSD license (Copyright 2009-2012 Pu Liu and Douglas L. Theobald), see LICENSE.md 
 """
-function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index=nothing, iscomremoved::Bool=false)::Tuple{Array{Float64,1},TrjArray}
+function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), iscomremoved::Bool=false)::Tuple{Array{Float64,1},TrjArray}
     nframe = ta.nframe
     natom = ta.natom
-    if index == nothing
-        index2 = cumsum(ones(Int64, natom))
-    elseif typeof(index) <: AbstractVector{Bool}
-        index2 = findall(index)
+    if isempty(index)
+        index2 = collect(1:natom)
     else
         index2 = index
     end
     if isweight
-        @assert isempty(ta.mass) == false
+        @assert length(ta.mass) == natom
         weight = ta.mass
     else
         weight = ones(Float64, natom)
@@ -254,32 +252,16 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index=not
         weight2 = reshape(weight[index2], length(index2))
         wsum_inv = 1.0 / sum(weight2)
     else
-        weight2 = reshape(weight[index2], 1, length(index2))
+        com = centerofmass(ta, isweight=isweight, index=index2)
+        ta_x = ta.x .- com.x
+        ta_y = ta.y .- com.y
+        ta_z = ta.z .- com.z
+        com = centerofmass(ref[1, :], isweight=isweight, index=index2)
+        ref_x = ref.x[1, :] .- com.x[1]
+        ref_y = ref.y[1, :] .- com.y[1]
+        ref_z = ref.z[1, :] .- com.z[1]
+        weight2 = reshape(weight[index2], length(index2))
         wsum_inv = 1.0 / sum(weight2)
-        ta_x = ta.x .- sum(view(ta.x, :, index2) .* weight2, dims=2) .* wsum_inv
-        ta_y = ta.y .- sum(view(ta.y, :, index2) .* weight2, dims=2) .* wsum_inv
-        ta_z = ta.z .- sum(view(ta.z, :, index2) .* weight2, dims=2) .* wsum_inv
-
-        weight2 = reshape(weight2, length(index2))
-        ref_x = ref.x[1, :]
-        ref_y = ref.y[1, :]
-        ref_z = ref.z[1, :]
-        ref_com_x = sum(view(ref_x, index2) .* weight2, dims=1) .* wsum_inv
-        ref_com_y = sum(view(ref_y, index2) .* weight2, dims=1) .* wsum_inv
-        ref_com_z = sum(view(ref_z, index2) .* weight2, dims=1) .* wsum_inv
-        ref_x = ref_x .- ref_com_x
-        ref_y = ref_y .- ref_com_y
-        ref_z = ref_z .- ref_com_z
-        # com = centerofmass(ta, isweight=isweight)
-        # ta_x = ta.x .- com.x
-        # ta_y = ta.y .- com.y
-        # ta_z = ta.y .- com.z
-        # com = centerofmass(ref, isweight=isweight)
-        # ref_x = ref.x[1, :] .- com.x[1, :]
-        # ref_y = ref.y[1, :] .- com.y[1, :]
-        # ref_z = ref.y[1, :] .- com.z[1, :]
-        # weight2 = reshape(weight[index2], length(index2))
-        # wsum_inv = 1.0 / sum(weight2)
     end
 
     x = Matrix{Float64}(undef, nframe, natom)
@@ -296,17 +278,16 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index=not
         E0 = innerproduct!(ref_x, ref_y, ref_z, frame_x, frame_y, frame_z, weight2, index2, A)
         r = fastCalcRMSDAndRotation!(A, E0, wsum_inv, rot, C)
         rmsd[iframe] = r
-        x[iframe, :] = rot[1] .* frame_x .+ rot[2] .* frame_y .+ rot[3]*frame_z
-        y[iframe, :] = rot[4] .* frame_x .+ rot[5] .* frame_y .+ rot[6]*frame_z
-        z[iframe, :] = rot[7] .* frame_x .+ rot[8] .* frame_y .+ rot[9]*frame_z
+        x[iframe, :] .= rot[1] .* frame_x .+ rot[2] .* frame_y .+ rot[3] .* frame_z
+        y[iframe, :] .= rot[4] .* frame_x .+ rot[5] .* frame_y .+ rot[6] .* frame_z
+        z[iframe, :] .= rot[7] .* frame_x .+ rot[8] .* frame_y .+ rot[9] .* frame_z
     end
     if !iscomremoved
-        x = x .+ ref_com_x
-        y = y .+ ref_com_y
-        z = z .+ ref_com_z
+        x = x .+ com.x[1]
+        y = y .+ com.y[1]
+        z = z .+ com.z[1]
     end
     ta_fit = TrjArray(x, y, z, ta)
-    #ta_fit = TrjArray(x=x, y=y, z=z)
     rmsd, ta_fit
 end
 
@@ -320,7 +301,7 @@ function calcrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vecto
     nframe = ta.nframe
     natom = ta.natom
     if isweight
-        @assert isempty(ta.mass) == false
+        @assert length(ta.mass) == natom
         weight = ta.mass
     else
         weight = ones(Float64, natom)
