@@ -7,66 +7,147 @@ calculate center of mass of given trajectory
 function centerofmass(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::TrjArray
     nframe = ta.nframe
     natom = ta.natom
-    if isweight
-        @assert length(ta.mass) == natom
-        weight = ta.mass
-    else
-        weight = ones(Float64, natom)
-    end
     if isempty(index)
-        index2 = collect(1:natom)
+        index = Colon()
+        natom_sub = natom
     else
-        index2 = index
+        index = index
+        natom_sub = length(index)
     end
-    natom_sub = length(index2)
     if natom_sub == 1
-        return TrjArray(x=ta.x, y=ta.y, z=ta.z)
+        return ta[:, index]
+    elseif isweight && length(ta.mass) == natom
+        weight = reshape(ta.mass, 1, natom_sub)
+        wsum_inv = 1.0 / sum(weight)
+        x = sum(weight .* view(ta.x, :, index), dims=2) .* wsum_inv
+        y = sum(weight .* view(ta.y, :, index), dims=2) .* wsum_inv
+        z = sum(weight .* view(ta.z, :, index), dims=2) .* wsum_inv
+        return TrjArray(x=x, y=y, z=z)
     else
-        weight2 = reshape(weight[index2], 1, natom_sub)
-        wsum_inv = 1.0 / sum(weight2)
-        x = sum(weight2 .* view(ta.x, :, index2), dims=2) .* wsum_inv
-        y = sum(weight2 .* view(ta.y, :, index2), dims=2) .* wsum_inv
-        z = sum(weight2 .* view(ta.z, :, index2), dims=2) .* wsum_inv
+        wsum_inv = 1.0 / Float64(natom_sub)
+        x = sum(view(ta.x, :, index), dims=2) .* wsum_inv
+        y = sum(view(ta.y, :, index), dims=2) .* wsum_inv
+        z = sum(view(ta.z, :, index), dims=2) .* wsum_inv
         return TrjArray(x=x, y=y, z=z)
     end
+end
+
+
+"""
+decenter
+
+remove center of mass
+"""
+function decenter(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray, TrjArray}
+    nframe = ta.nframe
+    natom = ta.natom
+    com = centerofmass(ta, isweight=isweight, index=index)
+    TrjArray(ta.x .- com.x, ta.y .- com.y, ta.z .- com.z, ta), com
 end
 
 
 ###### superimpose #################
 function innerproduct!(ref_x::Vector{Float64}, ref_y::Vector{Float64}, ref_z::Vector{Float64}, 
                        x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64}, 
-                       weight::Vector{Float64}, index::Vector{Int64}, A::Vector{Float64})
+                       index::Vector{Int64}, A::Vector{Float64}, isweight::Bool, ta::TrjArray)::Float64
     A[:] .= 0.0
     G1 = G2 = 0.0
-    for i in index
-        x1 = weight[i] * ref_x[i]
-        y1 = weight[i] * ref_y[i]
-        z1 = weight[i] * ref_z[i]
-
-        G1 += x1 * ref_x[i] + y1 * ref_y[i] + z1 * ref_z[i]
-
-        x2 = x[i]
-        y2 = y[i]
-        z2 = z[i]
-
-        G2 += weight[i] * (x2 * x2 + y2 * y2 + z2 * z2)
-
-        A[1] +=  (x1 * x2)
-        A[2] +=  (x1 * y2)
-        A[3] +=  (x1 * z2)
-
-        A[4] +=  (y1 * x2)
-        A[5] +=  (y1 * y2)
-        A[6] +=  (y1 * z2)
-
-        A[7] +=  (z1 * x2)
-        A[8] +=  (z1 * y2)
-        A[9] +=  (z1 * z2)
+    if isweight
+        for i in index
+            x1 = ta.mass[i] * ref_x[i]
+            y1 = ta.mass[i] * ref_y[i]
+            z1 = ta.mass[i] * ref_z[i]
+            G1 += x1 * ref_x[i] + y1 * ref_y[i] + z1 * ref_z[i]
+            x2 = x[i]
+            y2 = y[i]
+            z2 = z[i]
+            G2 += ta.mass[i] * (x2 * x2 + y2 * y2 + z2 * z2)
+            A[1] +=  (x1 * x2)
+            A[2] +=  (x1 * y2)
+            A[3] +=  (x1 * z2)
+            A[4] +=  (y1 * x2)
+            A[5] +=  (y1 * y2)
+            A[6] +=  (y1 * z2)
+            A[7] +=  (z1 * x2)
+            A[8] +=  (z1 * y2)
+            A[9] +=  (z1 * z2)
+        end
+    else
+        for i in index
+            x1 = ref_x[i]
+            y1 = ref_y[i]
+            z1 = ref_z[i]
+            G1 += x1 * ref_x[i] + y1 * ref_y[i] + z1 * ref_z[i]
+            x2 = x[i]
+            y2 = y[i]
+            z2 = z[i]
+            G2 += (x2 * x2 + y2 * y2 + z2 * z2)
+            A[1] +=  (x1 * x2)
+            A[2] +=  (x1 * y2)
+            A[3] +=  (x1 * z2)
+            A[4] +=  (y1 * x2)
+            A[5] +=  (y1 * y2)
+            A[6] +=  (y1 * z2)
+            A[7] +=  (z1 * x2)
+            A[8] +=  (z1 * y2)
+            A[9] +=  (z1 * z2)
+        end
     end
     return (G1 + G2) * 0.5
 end
 
-function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Float64, rot::Vector{Float64}, C::Vector{Float64})
+function innerproduct!(iframe::Int64, ref::TrjArray, ta::TrjArray, 
+                       index::Vector{Int64}, A::Vector{Float64}, isweight::Bool)::Float64
+    A[:] .= 0.0
+    G1 = G2 = 0.0
+    if isweight
+        for i in index
+            x1 = ta.mass[i] * ref.x[i]
+            y1 = ta.mass[i] * ref.y[i]
+            z1 = ta.mass[i] * ref.z[i]
+            G1 += x1 * ref.x[i] + y1 * ref.y[i] + z1 * ref.z[i]
+            x2 = ta.x[iframe, i]
+            y2 = ta.y[iframe, i]
+            z2 = ta.z[iframe, i]
+            G2 += ta.mass[i] * (x2 * x2 + y2 * y2 + z2 * z2)
+            A[1] +=  (x1 * x2)
+            A[2] +=  (x1 * y2)
+            A[3] +=  (x1 * z2)
+            A[4] +=  (y1 * x2)
+            A[5] +=  (y1 * y2)
+            A[6] +=  (y1 * z2)
+            A[7] +=  (z1 * x2)
+            A[8] +=  (z1 * y2)
+            A[9] +=  (z1 * z2)
+        end
+    else
+        for i in index
+            x1 = ref.x[i]
+            y1 = ref.y[i]
+            z1 = ref.z[i]
+            G1 += x1 * ref.x[i] + y1 * ref.y[i] + z1 * ref.z[i]
+            x2 = ta.x[iframe, i]
+            y2 = ta.y[iframe, i]
+            z2 = ta.z[iframe, i]
+            G2 += (x2 * x2 + y2 * y2 + z2 * z2)
+            A[1] +=  (x1 * x2)
+            A[2] +=  (x1 * y2)
+            A[3] +=  (x1 * z2)
+            A[4] +=  (y1 * x2)
+            A[5] +=  (y1 * y2)
+            A[6] +=  (y1 * z2)
+            A[7] +=  (z1 * x2)
+            A[8] +=  (z1 * y2)
+            A[9] +=  (z1 * z2)
+        end
+    end
+    return (G1 + G2) * 0.5
+end
+
+"""
+this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md 
+"""
+function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Float64, rot::Vector{Float64}, C::Vector{Float64})::Float64
     oldg = 0.0
     #C = zeros(Float64, 3)
     #rot = zeros(Float64, 9)
@@ -225,43 +306,38 @@ superimpose
 
 superimpose ta::TrjArray to ref:TrjArray
 
-this code is licensed under the BSD license (Copyright 2009-2012 Pu Liu and Douglas L. Theobald), see LICENSE.md 
+this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md 
 """
-function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), iscomremoved::Bool=false)::Tuple{Array{Float64,1},TrjArray}
+function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), isdecenter::Bool=false)::Tuple{Array{Float64,1},TrjArray}
     nframe = ta.nframe
     natom = ta.natom
+
     if isempty(index)
         index2 = collect(1:natom)
     else
         index2 = index
     end
-    if isweight
-        @assert length(ta.mass) == natom
+
+    if isweight && length(ref.mass) == natom && length(ta.mass) == natom
+        isweight2 = true
         weight = ta.mass
     else
-        weight = ones(Float64, natom)
+        isweight2 = false
     end
 
-    if iscomremoved
-        ta_x = ta.x
-        ta_y = ta.y
-        ta_z = ta.z
-        ref_x = ref.x[1, :]
-        ref_y = ref.y[1, :]
-        ref_z = ref.z[1, :]
+    if isweight2
         weight2 = reshape(weight[index2], length(index2))
         wsum_inv = 1.0 / sum(weight2)
     else
-        com = centerofmass(ta, isweight=isweight, index=index2)
-        ta_x = ta.x .- com.x
-        ta_y = ta.y .- com.y
-        ta_z = ta.z .- com.z
-        com = centerofmass(ref[1, :], isweight=isweight, index=index2)
-        ref_x = ref.x[1, :] .- com.x[1]
-        ref_y = ref.y[1, :] .- com.y[1]
-        ref_z = ref.z[1, :] .- com.z[1]
-        weight2 = reshape(weight[index2], length(index2))
-        wsum_inv = 1.0 / sum(weight2)
+        wsum_inv = 1.0 / Float64(length(index2))
+    end
+
+    if isdecenter
+        ta2 = copy(ta)
+        ref2 = ref[1, :]
+    else
+        ta2, = decenter(ta, isweight=isweight2, index=index)
+        ref2, com = decenter(ref[1, :], isweight=isweight2, index=index)
     end
 
     x = Matrix{Float64}(undef, nframe, natom)
@@ -272,20 +348,20 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
     rot = Vector{Float64}(undef, 9)
     C = Vector{Float64}(undef, 3)
     for iframe in 1:nframe
-        frame_x = ta_x[iframe, :]
-        frame_y = ta_y[iframe, :]
-        frame_z = ta_z[iframe, :]
-        E0 = innerproduct!(ref_x, ref_y, ref_z, frame_x, frame_y, frame_z, weight2, index2, A)
+        E0 = innerproduct!(iframe, ref2, ta2, index2, A, isweight2)
         r = fastCalcRMSDAndRotation!(A, E0, wsum_inv, rot, C)
         rmsd[iframe] = r
-        x[iframe, :] .= rot[1] .* frame_x .+ rot[2] .* frame_y .+ rot[3] .* frame_z
-        y[iframe, :] .= rot[4] .* frame_x .+ rot[5] .* frame_y .+ rot[6] .* frame_z
-        z[iframe, :] .= rot[7] .* frame_x .+ rot[8] .* frame_y .+ rot[9] .* frame_z
+        for iatom in 1:natom
+            @inbounds x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
+            @inbounds y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
+            @inbounds z[iframe, iatom] = rot[7] * ta2.x[iframe, iatom] + rot[8] * ta2.y[iframe, iatom] + rot[9] * ta2.z[iframe, iatom]
+        end
     end
-    if !iscomremoved
-        x = x .+ com.x[1]
-        y = y .+ com.y[1]
-        z = z .+ com.z[1]
+
+    if !isdecenter
+        x = x .+ com.x
+        y = y .+ com.y
+        z = z .+ com.z
     end
     ta_fit = TrjArray(x, y, z, ta)
     rmsd, ta_fit
@@ -300,8 +376,7 @@ root mean square deviation of ta::TrjArray from ref:TrjArray
 function calcrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
     nframe = ta.nframe
     natom = ta.natom
-    if isweight
-        @assert length(ta.mass) == natom
+    if isweight && length(ta.mass) == natom
         weight = ta.mass
     else
         weight = ones(Float64, natom)
@@ -332,22 +407,18 @@ calcdistance
 
 calculate distances between two atoms or groups of atoms
 """
-function calcbond(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
+function calcbond(ta::TrjArray, index1::Vector{Int64}=Vector{Int64}(undef, 0), index2::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
     # TODO: support for PBC
-    @assert ta1.nframe == ta2.nframe
-    nframe = ta1.nframe
-    com1 = centerofmass(ta1)
-    com2 = centerofmass(ta2)
-    dist = Vector{Float64}(undef, nframe)
-    @threads for iframe in 1:nframe
-        d = 0.0
-        d += (com1.x[iframe] - com2.x[iframe])^2
-        d += (com1.y[iframe] - com2.y[iframe])^2
-        d += (com1.z[iframe] - com2.z[iframe])^2
-        d = sqrt(d)
-        dist[iframe] = d
+    nframe = ta.nframe
+    if isempty(index1)
+        index1 = [1]
     end
-    dist
+    if isempty(index2)
+        index2 = [2]
+    end
+    com1 = centerofmass(ta, isweight=true, index=index1)
+    com2 = centerofmass(ta, isweight=true, index=index2)
+    dist = sqrt.((com1.x .- com2.x).^2 .+ (com1.y .- com2.y).^2 .+ (com1.z .- com2.z).^2)
+    reshape(dist, nframe)
 end
-
 

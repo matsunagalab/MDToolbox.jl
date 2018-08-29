@@ -332,6 +332,14 @@ getindex(ta::TrjArray, rows, s::AbstractString) = ta[rows, :][:, s]
 ==(x::TrjArray, y::TrjArray) = all(f -> getfield(x, f) == getfield(y, f), fieldnames(TrjArray))
 isequal(x::TrjArray, y::TrjArray) = all(f -> isequal(getfield(x, f), getfield(y, f)), fieldnames(TrjArray))
 
+###### copy ###############
+
+copy(ta::TrjArray)::TrjArray =
+    TrjArray(ta.x, ta.y, ta.z, ta.boxsize,
+             ta.chainname, ta.chainid,
+             ta.resname, ta.resid,
+             ta.atomname, ta.atomid, ta.mass, ta.charge)
+
 ###### accessors to field values #################
 
 ###### vcat, hcat, merge #################
