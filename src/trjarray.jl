@@ -279,13 +279,31 @@ function match_query(some_array, query)
     index
 end
 
-function replace_ex!(ex::Expr)
+function replace_ex!(ex::Expr, ta::TrjArray)
+    chainid = ta.chainid
+    chainname = ta.chainname
+    resid = ta.resid
+    resname = ta.resname
+    atomid = ta.atomid
+    atomname = ta.atomname
     for (i, arg) in enumerate(ex.args)
         if arg == :(match_query)
             ex.args[i] = :($match_query)
+        elseif arg == :(chainid)
+            ex.args[i] = :($chainid)
+        elseif arg == :(chainname)
+            ex.args[i] = :($chainname)
+        elseif arg == :(resid)
+            ex.args[i] = :($resid)
+        elseif arg == :(resname)
+            ex.args[i] = :($resname)
+        elseif arg == :(atomid)
+            ex.args[i] = :($atomid)
+        elseif arg == :(atomname)
+            ex.args[i] = :($atomname)
         end
         if isa(arg, Expr)
-            replace_ex!(arg)
+            replace_ex!(arg, ta)
         end
     end
     ex
@@ -293,12 +311,12 @@ end
 
 function select_atom(ta::TrjArray, s::AbstractString)
     s = strip(s)
-    s = replace(s, "chainid" => "match_query($(ta.chainid), \" ")
-    s = replace(s, "chainname" => "match_query($(ta.chainname), \" ")
-    s = replace(s, "resid" => "match_query($(ta.resid), \" ")
-    s = replace(s, "resname" => "match_query($(ta.resname), \" ")
-    s = replace(s, "atomid" => "match_query($(ta.atomid), \" ")
-    s = replace(s, "atomname" => "match_query($(ta.atomname), \" ")
+    s = replace(s, "chainid" => "match_query(chainid, \" ")
+    s = replace(s, "chainname" => "match_query(chainname, \" ")
+    s = replace(s, "resid" => "match_query(resid, \" ")
+    s = replace(s, "resname" => "match_query(resname, \" ")
+    s = replace(s, "atomid" => "match_query(atomid, \" ")
+    s = replace(s, "atomname" => "match_query(atomname, \" ")
 
     s = replace(s, r"\)(\s+)and" => "\" ) ) .& ")
     s = replace(s, r"([^\)])(\s+)and" => s"\1 \" ) .& ")
@@ -311,11 +329,15 @@ function select_atom(ta::TrjArray, s::AbstractString)
         s = s * " \" )"
     end
 
-    ex = Meta.parse(s)
-    replace_ex!(ex)
+    #resname = ta.resname
     #println(s)
-    #println(index')
+    ex = Meta.parse(s)
+    #Meta.dump(ex)
+    replace_ex!(ex, ta)
+    #Meta.dump(ex)
+    #println(s)
     index = Meta.eval(ex)
+    #println(index')
     findall(index)
 end
 
