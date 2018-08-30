@@ -7,12 +7,13 @@ function readdcd(filename::String; index=nothing)
     y = []
     z = []
     boxsize = []
-    
+
     open(filename, "r") do io
         seekend(io)
+
         file_size = position(io) # get file size in byte
         seekstart(io)
-        
+
         blocksize = read(io, Int32) # should be 84
 
         # header (4 chars) either "CORD" or "VELD"; position(io) == 4 bytes
@@ -62,7 +63,7 @@ function readdcd(filename::String; index=nothing)
             fseek(fid, 44)
             header_delta = read(io, Float64)
             seek(io, cof)
-        end  
+        end
 
         # check charmm extensions
         if header_ischarmm == true
@@ -83,7 +84,7 @@ function readdcd(filename::String; index=nothing)
             end
 
             seek(io, cof)
-        end  
+        end
 
         # blocksize1; position(io) == 88 bytes
         blocksize1 = read(io, Int32)
@@ -161,11 +162,11 @@ function readdcd(filename::String; index=nothing)
             blocksize_x = read(io, Int32)
             read!(io, crd_x)
             blocksize_x = read(io, Int32)
-            # read y coordinates 
+            # read y coordinates
             blocksize_y = read(io, Int32)
             read!(io, crd_y)
             blocksize_y = read(io, Int32)
-            # read z coordinates 
+            # read z coordinates
             blocksize_z = read(io, Int32)
             read!(io, crd_z)
             blocksize_z = read(io, Int32)
@@ -268,7 +269,7 @@ function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64}
     cleaner = onCleanup(@() fclose(fid));
 
     ## write block 1 (header)
-    fwrite(fid, header.blocksize1, 'int32');             
+    fwrite(fid, header.blocksize1, 'int32');
     fwrite(fid, header.hdr, 'uchar');
     fwrite(fid, header.nset, 'int32');
     fwrite(fid, header.istrt, 'int32');
@@ -291,7 +292,7 @@ function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64}
     fwrite(fid, header.blocksize1, 'int32');
 
     ## write block 2 (title)
-    fwrite(fid, header.blocksize2, 'int32'); 
+    fwrite(fid, header.blocksize2, 'int32');
     fwrite(fid, header.ntitle, 'int32');
     fwrite(fid, header.title(1, :), 'uchar');
     fwrite(fid, header.title(2, :), 'uchar');
@@ -311,7 +312,7 @@ function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64}
             fwrite(fid, dummy, 'float64');
             fwrite(fid, 48, 'int32');
         end
-  
+
         fwrite(fid, natom*4, 'int32');
         fwrite(fid, trj(iframe, 1:3:end), 'float32');
         fwrite(fid, natom*4, 'int32');
@@ -328,17 +329,22 @@ function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64}
 end
 """
 function readnetcdf(filename::String)
-    
+
+end
+
+function parse_line(line::String, index, mytype::DataType, default_value)
+    try
+        if mytype == String
+            return strip(string(line[index]))
+        else
+            return parse(mytype, line[index])
+        end
+    catch
+        return default_value
+    end
 end
 
 function readpsf(filename::String)
-    chainid = []
-    chainname = []
-    resid  = []
-    resname = []
-    atomid = []
-    atomname = []
-
     isPSF = false
     isEXT = false
     isCMAP = false
@@ -367,15 +373,52 @@ function readpsf(filename::String)
         return false
     end
     if isEXT
-        #fmt_atom = "%10d %8s %8d %8s %8s %4s %14f%14f%8d%*[^\n]" #matlab
-        fmt_atom = "%10d %8s %8d %8s %8s %4s %14f%14f%8d %*f %*f" %octave
-        fmt_list = "%10d"
+        #fmt_atom = "%10d| %8s| %8d| %8s| %8s| %4s| %14f|%14f|%8d %*f %*f" %octave
+        fmt_atom = [1:10, 12:19, 21:28, 30:37, 39:46, 48:51, 53:66, 67:80, 81:88]
+        #fmt_list = "%10d"
     else
-        #fmt_atom = "%8d %4s %4d %4s %4s %4s %14f%14f%8d%*[^\n]" #matlab
-        fmt_atom = "%8d %4s %4d %4s %4s %4s %14f%14f%8d %*f %*f" #octave
+        #fmt_atom = "%8d %4s %4d %4s| %4s| %4s| %14f%14f%8d %*f %*f" #octave
+        fmt_atom = [1:8, 10:13, 15:18, 20:23, 25:28, 30:33, 34:47, 48:61, 62:69]
+        #fmt_list = "%8d"
         fmt_list = "%8d"
     end
 
+    psf_title = Vector{String}(undef, 0)
+    psf_segment_name = Vector{String}(undef, 0)
+    psf_residue_name = Vector{String}(undef, 0)
+    psf_residue_id = Vector{Int64}(undef, 0)
+    psf_atom_name = Vector{String}(undef, 0)
+    psf_atom_type = Vector{String}(undef, 0)
+    psf_atom_id = Vector{Int64}(undef, 0)
+    psf_charge = Vector{Float64}(undef, 0)
+    psf_mass = Vector{Float64}(undef, 0)
 
+    i = 2
+    while i <= length(lines)
+        line = lines[i]; i += 1
+
+        if occursin(r".*\d.*!\w.*", line) && !occursin("NGRP", line)
+            line_splitted = split(line, "!")
+            num = parse(Int64, line_splitted[1])
+            if strip(line_splitted[end]) == "NATOM"
+                for ii = i:(i+num-1)
+                    line = lines[ii]
+                    push!(psf_atom_id, parse_line(line, fmt_atom[1], Int64, 0))
+                    push!(psf_segment_name, parse_line(line, fmt_atom[2], String, "None"))
+                    push!(psf_residue_id, parse_line(line, fmt_atom[3], Int64, 0))
+                    push!(psf_residue_name, parse_line(line, fmt_atom[4], String, "None"))
+                    push!(psf_atom_name, parse_line(line, fmt_atom[5], String, "None"))
+                    push!(psf_atom_type, parse_line(line, fmt_atom[6], String, "None"))
+                    push!(psf_charge, parse_line(line, fmt_atom[7], Float64, 0.0))
+                    push!(psf_mass, parse_line(line, fmt_atom[8], Float64, 0.0))
+                end
+                i += num
+            end
+        end
+    end
+    TrjArray(chainname=psf_segment_name,
+             resname=psf_residue_name, resid=psf_residue_id,
+             atomname=psf_atom_name, atomid=psf_atom_id,
+             mass=psf_mass, charge=psf_charge)
 end
 
