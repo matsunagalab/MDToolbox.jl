@@ -47,8 +47,8 @@ end
 
 
 ###### superimpose #################
-function innerproduct!(ref_x::Vector{Float64}, ref_y::Vector{Float64}, ref_z::Vector{Float64}, 
-                       x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64}, 
+function innerproduct!(ref_x::Vector{Float64}, ref_y::Vector{Float64}, ref_z::Vector{Float64},
+                       x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64},
                        index::Vector{Int64}, A::Vector{Float64}, isweight::Bool, ta::TrjArray)::Float64
     A[:] .= 0.0
     G1 = G2 = 0.0
@@ -96,7 +96,7 @@ function innerproduct!(ref_x::Vector{Float64}, ref_y::Vector{Float64}, ref_z::Ve
     return (G1 + G2) * 0.5
 end
 
-function innerproduct!(iframe::Int64, ref::TrjArray, ta::TrjArray, 
+function innerproduct!(iframe::Int64, ref::TrjArray, ta::TrjArray,
                        index::Vector{Int64}, A::Vector{Float64}, isweight::Bool)::Float64
     A[:] .= 0.0
     G1 = G2 = 0.0
@@ -145,7 +145,7 @@ function innerproduct!(iframe::Int64, ref::TrjArray, ta::TrjArray,
 end
 
 """
-this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md 
+this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
 function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Float64, rot::Vector{Float64}, C::Vector{Float64})::Float64
     oldg = 0.0
@@ -186,11 +186,11 @@ function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Flo
     SxxmSyy = Sxx - Syy
     Sxy2Sxz2Syx2Szx2 = Sxy2 + Sxz2 - Syx2 - Szx2
 
-    C[1] = Sxy2Sxz2Syx2Szx2 * Sxy2Sxz2Syx2Szx2 + 
-         (Sxx2Syy2Szz2Syz2Szy2 + SyzSzymSyySzz2) * (Sxx2Syy2Szz2Syz2Szy2 - SyzSzymSyySzz2) + 
-         (-(SxzpSzx)*(SyzmSzy)+(SxymSyx)*(SxxmSyy-Szz)) * (-(SxzmSzx)*(SyzpSzy)+(SxymSyx)*(SxxmSyy+Szz)) + 
-         (-(SxzpSzx)*(SyzpSzy)-(SxypSyx)*(SxxpSyy-Szz)) * (-(SxzmSzx)*(SyzmSzy)-(SxypSyx)*(SxxpSyy+Szz)) + 
-         (+(SxypSyx)*(SyzpSzy)+(SxzpSzx)*(SxxmSyy+Szz)) * (-(SxymSyx)*(SyzmSzy)+(SxzpSzx)*(SxxpSyy+Szz)) + 
+    C[1] = Sxy2Sxz2Syx2Szx2 * Sxy2Sxz2Syx2Szx2 +
+         (Sxx2Syy2Szz2Syz2Szy2 + SyzSzymSyySzz2) * (Sxx2Syy2Szz2Syz2Szy2 - SyzSzymSyySzz2) +
+         (-(SxzpSzx)*(SyzmSzy)+(SxymSyx)*(SxxmSyy-Szz)) * (-(SxzmSzx)*(SyzpSzy)+(SxymSyx)*(SxxmSyy+Szz)) +
+         (-(SxzpSzx)*(SyzpSzy)-(SxypSyx)*(SxxpSyy-Szz)) * (-(SxzmSzx)*(SyzmSzy)-(SxypSyx)*(SxxpSyy+Szz)) +
+         (+(SxypSyx)*(SyzpSzy)+(SxzpSzx)*(SxxmSyy+Szz)) * (-(SxymSyx)*(SyzmSzy)+(SxzpSzx)*(SxxpSyy+Szz)) +
          (+(SxypSyx)*(SyzmSzy)+(SxzmSzx)*(SxxmSyy-Szz)) * (-(SxymSyx)*(SyzpSzy)+(SxzmSzx)*(SxxpSyy-Szz))
 
     # Newton-Raphson
@@ -306,9 +306,9 @@ superimpose
 
 superimpose ta::TrjArray to ref:TrjArray
 
-this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md 
+this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
-function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), isdecenter::Bool=false)::Tuple{Array{Float64,1},TrjArray}
+function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), isdecenter::Bool=false)::TrjArray
     nframe = ta.nframe
     natom = ta.natom
 
@@ -364,7 +364,7 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
         z = z .+ com.z
     end
     ta_fit = TrjArray(x, y, z, ta)
-    rmsd, ta_fit
+    #rmsd, ta_fit
 end
 
 ###### rmsd #################
@@ -400,6 +400,31 @@ function calcrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vecto
     rmsd = reshape(d, nframe)
 end
 
+###### mean structure #################
+"""
+meanstructure
+
+compute average structure by iterative superimposes
+"""
+function meanstructure(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray,TrjArray}
+    nframe = ta.nframe
+    natom = ta.natom
+
+    ref = ta[1, :]
+    rmsd = [1.0]
+    tolerance = tolerance = 10^(-6)
+    while rmsd[1] > tolerance
+        ref_old = ref;
+        ta = superimpose(ref, ta, isweight=isweight, index=index)
+        ref = TrjArray(x=mean(ta.x, dims=1), y=mean(ta.y, dims=1), z=mean(ta.z, dims=1)) # TODO: mean(ta) should be available in the futre
+        rmsd = calcrmsd(ref_old, ref, isweight=isweight, index=index)
+        println("rmsd from the previous mean structure: ", rmsd[1])
+    end
+
+    mean_crd = ref
+    ta = superimpose(mean_crd, ta, isweight=isweight, index=index)
+    mean_crd, ta
+end
 
 ###### distance, angle, dihedral #################
 """
@@ -421,4 +446,3 @@ function calcbond(ta::TrjArray, index1::Vector{Int64}=Vector{Int64}(undef, 0), i
     dist = sqrt.((com1.x .- com2.x).^2 .+ (com1.y .- com2.y).^2 .+ (com1.z .- com2.z).^2)
     reshape(dist, nframe)
 end
-
