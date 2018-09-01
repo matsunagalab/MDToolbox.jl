@@ -137,6 +137,8 @@ function readdcd(filename::String; index=nothing)
             index2 = findall(index)
         elseif index == nothing
             index2 = collect(1:header_natom)
+        else
+            index2 = index
         end
 
         x = zeros(Float64, (nframe, length(index2)))
@@ -192,145 +194,72 @@ end
 
 
 """
-write xplor or charmm (namd) format dcd file
-
-function writedcd(filename::String, trj::Array{Float64}, boxsize::Array{Float64})
-
-    # ## check existing file
-    # if exist(filename, 'file')
-    #     filename_old = sprintf('%s.old', filename);
-    #     display(sprintf('existing file %s is moved to %s', filename, filename_old));
-    #     movefile(filename, filename_old);
-    # end
-
-    ## initialization
-    nframe, natom3 = size(trj);
-    natom = Int64(natom3/3);
-
-    if ~exist('header', 'var') || isempty(header)
-        % default header in xplor format
-        header.is_charmm = false;
-        header.is_charmm_extrablock = false;
-        header.is_charmm_4dims = false;
-        header.blocksize1 = 84;
-        header.hdr = 'CORD';
-        header.nset = size(trj, 1);
-        header.istrt = 0;
-        header.nsavc = 1;
-        header.nstep = 0;
-        header.null4 = zeros(4, 1);
-        header.nfreat = 0;
-        header.delta = 1.0;
-        header.null9 = zeros(9, 1);
-        header.version = 0;
-        header.blocksize2 = 164;
-        header.ntitle = 2;
-        title1 = sprintf('REMARKS FILENAME=%s CREATED BY MATLAB', filename);
-        for i = (numel(title1)+1):80
-            title1 = [title1 ' '];
-        end
-        title1 = title1(1:80);
-        title2 = sprintf('REMARKS DATE: %s CREATED BY USER: %s', datestr(now, 'mm/dd/yy'), getenv('USER'));
-        for i = (numel(title2)+1):80
-            title2 = [title2 ' '];
-        end
-        title2 = title2(1:80);
-        header.title = [title1; title2];
-        header.blocksize3 = 4;
-        header.natom = size(trj, 2) / 3;
-    end
-
-    if header.nset ~= size(trj, 1)
-        header.nset = size(trj, 1);
-    end
-
-    if exist('box', 'var') && ~isempty(box)
-        # charmm format
-        header.is_charmm = true;
-        header.is_charmm_extrablock = true;
-        if header.version == 0
-            header.version = 1; % is_charmm -> true
-        end
-        header.null9(1) = 1; % is_charmm_extrablock -> true
-    else
-        # xplor format
-        header.is_charmm = false;
-        header.is_charmm_extrablock = false;
-        header.is_charmm_4dims = false;
-        header.version = 0; % is_charmm -> false
-        header.null9(1) = 0; % is_charmm_extrablock -> false
-        header.null9(2) = 0; % is_charmm_4dims -> false
-    end
-
-    ## open file
-    assert(ischar(filename), 'Please specify valid filename for the first argument')
-    fid = fopen(filename, 'w');
-    assert(fid > 0, 'Could not open file.');
-    cleaner = onCleanup(@() fclose(fid));
-
-    ## write block 1 (header)
-    fwrite(fid, header.blocksize1, 'int32');
-    fwrite(fid, header.hdr, 'uchar');
-    fwrite(fid, header.nset, 'int32');
-    fwrite(fid, header.istrt, 'int32');
-    fwrite(fid, header.nsavc, 'int32');
-    fwrite(fid, header.nstep, 'int32');
-    fwrite(fid, header.null4, 'int32');
-    fwrite(fid, header.nfreat, 'int32');
-
-    if header.is_charmm
-        # charmm format
-        fwrite(fid, header.delta, 'float32');
-        fwrite(fid, header.null9, 'int32');
-    else
-        # xplor format
-        fwrite(fid, header.delta, 'float64');
-        fwrite(fid, header.null9(2:end), 'int32');
-    end
-
-    fwrite(fid, header.version, 'int32');
-    fwrite(fid, header.blocksize1, 'int32');
-
-    ## write block 2 (title)
-    fwrite(fid, header.blocksize2, 'int32');
-    fwrite(fid, header.ntitle, 'int32');
-    fwrite(fid, header.title(1, :), 'uchar');
-    fwrite(fid, header.title(2, :), 'uchar');
-    fwrite(fid, header.blocksize2, 'int32');
-
-    ## write block 3 (natom)
-    fwrite(fid, header.blocksize3, 'int32');
-    fwrite(fid, header.natom, 'int32');
-    fwrite(fid, header.blocksize3, 'int32');
-
-    ## write coordinates
-    dummy = zeros(1, 6);
-    for iframe = 1:nframe
-        if header.is_charmm_extrablock
-            fwrite(fid, 48, 'int32');
-            dummy(1, [1 3 6]) = box(iframe, :);
-            fwrite(fid, dummy, 'float64');
-            fwrite(fid, 48, 'int32');
-        end
-
-        fwrite(fid, natom*4, 'int32');
-        fwrite(fid, trj(iframe, 1:3:end), 'float32');
-        fwrite(fid, natom*4, 'int32');
-
-        fwrite(fid, natom*4, 'int32');
-        fwrite(fid, trj(iframe, 2:3:end), 'float32');
-        fwrite(fid, natom*4, 'int32');
-
-        fwrite(fid, natom*4, 'int32');
-        fwrite(fid, trj(iframe, 3:3:end), 'float32');
-        fwrite(fid, natom*4, 'int32');
-    end
-
-end
+read netcdf file
 """
-function readnetcdf(filename::String)
+function readnetcdf(filename::String; index=nothing)
+    finfo = ncinfo(filename)
+    attributes = finfo.gatts
+    #dimensions = finfo.dims
+    nframe = Int64(finfo.dim["frame"].dimlen)
+    natom = Int64(finfo.dim["atom"].dimlen)
 
+    is_trj = haskey(finfo.vars, "coordinates") ? true : false
+    is_box = haskey(finfo.vars, "cell_lengths") ? true : false
+    is_vel = haskey(finfo.vars, "velocities") ? true : false
+    is_temp = haskey(finfo.vars, "temp0") ? true : false
+
+    if typeof(index) <: AbstractVector{Bool}
+        index2 = findall(index)
+    elseif index == nothing
+        index2 = collect(1:natom)
+    else
+        index2 = index
+    end
+
+    start_atom = minimum(index2)
+    count_atom = maximum(index2) - start_atom + 1
+    index3 = index2 .- start_atom .+ 1
+    start_time = 1
+    count_time = nframe
+
+    if is_trj
+        d = ncread(filename, "coordinates", start=[1, start_atom, start_time], count=[3, count_atom, count_time])
+        d = map(Float64, d)
+        x = d[1, index3, :]'
+        y = d[2, index3, :]'
+        z = d[3, index3, :]'
+    else
+        x = y = z = Matrix{Float64}(undef, 0, 0)
+    end
+
+    if is_box
+        d = ncread(filename, "cell_lengths", start=[1, start_time], count=[3, count_time]);
+        d = map(Float64, d)
+        boxsize = d'
+    else
+        boxsize = Vector{Float64}(undef, 0)
+    end
+
+    if is_vel
+        d = ncread(filename, "velocities", start=[1, start_atom, start_time], count=[3, count_atom, count_time])
+        d = map(Float64, d)
+        vx = d[1, index3, :]'
+        vy = d[2, index3, :]'
+        vz = d[3, index3, :]'
+    else
+        vx = vy = vz = Matrix{Float64}(undef, 0, 0)
+    end
+
+    if is_temp
+        d = ncread(filename, "temp0", start=[start_time], count=[count_time]);
+        temp = map(Float64, d)
+    else
+        temp = Vector{Float64}(undef, 0)
+    end
+
+    TrjArray(x=x, y=y, z=z, boxsize=boxsize)
 end
+
 
 function parse_line(line::String, index, mytype::DataType, default_value)
     try
@@ -344,6 +273,10 @@ function parse_line(line::String, index, mytype::DataType, default_value)
     end
 end
 
+
+"""
+read charmm or xplor type psf file
+"""
 function readpsf(filename::String)
     isPSF = false
     isEXT = false
@@ -408,7 +341,7 @@ function readpsf(filename::String)
                     push!(psf_residue_id, parse_line(line, fmt_atom[3], Int64, 0))
                     push!(psf_residue_name, parse_line(line, fmt_atom[4], String, "None"))
                     push!(psf_atom_name, parse_line(line, fmt_atom[5], String, "None"))
-                    push!(psf_atom_type, parse_line(line, fmt_atom[6], String, "None"))
+                    push!(psf_atom_type, parse_line(line, fmt_atom[6], String, "None")) # TODO: XPLOR or CHARMM format
                     push!(psf_charge, parse_line(line, fmt_atom[7], Float64, 0.0))
                     push!(psf_mass, parse_line(line, fmt_atom[8], Float64, 0.0))
                 end
@@ -421,4 +354,3 @@ function readpsf(filename::String)
              atomname=psf_atom_name, atomid=psf_atom_id,
              mass=psf_mass, charge=psf_charge)
 end
-
