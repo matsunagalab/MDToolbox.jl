@@ -10,8 +10,8 @@ using Base.Threads
 
 # package code goes here
 export AbstractTrajectory, TrjArray, select_atom
-export readdcd, readpsf
-export centerofmass, decenter, superimpose, calcrmsd, calcbond
+export readdcd, readnetcdf, readpsf
+export centerofmass, decenter, superimpose, calcrmsd, meanstructure, calcbond
 #fastCalcRMSDAndRotation!, innerproduct!
 
 #TODO: introduce physical constatns, such as const K_B_in_kcalpermol
