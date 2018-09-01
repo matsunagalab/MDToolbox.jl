@@ -202,6 +202,8 @@ function readnetcdf(filename::String; index=nothing)
     #dimensions = finfo.dims
     nframe = Int64(finfo.dim["frame"].dimlen)
     natom = Int64(finfo.dim["atom"].dimlen)
+    @show nframe
+    @show natom
 
     is_trj = haskey(finfo.vars, "coordinates") ? true : false
     is_box = haskey(finfo.vars, "cell_lengths") ? true : false
@@ -237,7 +239,7 @@ function readnetcdf(filename::String; index=nothing)
         d = map(Float64, d)
         boxsize = d'
     else
-        boxsize = Vector{Float64}(undef, 0)
+        boxsize = Matrix{Float64}(undef, 0, 0)
     end
 
     if is_vel
