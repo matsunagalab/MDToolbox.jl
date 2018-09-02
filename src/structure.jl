@@ -409,21 +409,21 @@ compute average structure by iterative superimposes
 function meanstructure(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray,TrjArray}
     nframe = ta.nframe
     natom = ta.natom
+    ta2 = ta
+    ref = ta2[1, :]
 
-    ref = ta[1, :]
     rmsd = [1.0]
     tolerance = tolerance = 10^(-6)
     while rmsd[1] > tolerance
         ref_old = ref;
-        ta = superimpose(ref, ta, isweight=isweight, index=index)
-        ref = TrjArray(x=mean(ta.x, dims=1), y=mean(ta.y, dims=1), z=mean(ta.z, dims=1)) # TODO: mean(ta) should be available in the futre
+        ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
+        ref = TrjArray(x=mean(ta2.x, dims=1), y=mean(ta2.y, dims=1), z=mean(ta2.z, dims=1)) # TODO: mean(ta) should be available in the futre
         rmsd = calcrmsd(ref_old, ref, isweight=isweight, index=index)
         println("rmsd from the previous mean structure: ", rmsd[1])
     end
 
-    mean_crd = ref
-    ta = superimpose(mean_crd, ta, isweight=isweight, index=index)
-    mean_crd, ta
+    ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
+    ref, ta2
 end
 
 ###### distance, angle, dihedral #################
