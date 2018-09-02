@@ -10,7 +10,7 @@ using Base.Threads
 
 # package code goes here
 export AbstractTrajectory, TrjArray, select_atom
-export readdcd, readnetcdf, readpsf
+export readdcd, readnetcdf, writenetcdf, readpsf
 export centerofmass, decenter, superimpose, calcrmsd, meanstructure, calcbond
 #fastCalcRMSDAndRotation!, innerproduct!
 
