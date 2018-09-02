@@ -306,12 +306,18 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
     #ncvar_temp0 = NcVar("temp0", ncdim_frame, t=NetCDF.NC_FLOAT, atts=Dict("units" => "kelvin"))
 
     # create the NetCDF file
-    varlist = [ncvar_spatial, ncvar_cell_spatial, ncvar_cell_angular, ncvar_time, ncvar_coordinates, ncvar_cell_lengths, ncvar_cell_angles]
+    varlist = [ncvar_spatial, ncvar_time, ncvar_coordinates]
+    if !isempty(ta.boxsize)
+        push!(varlist, ncvar_cell_spatial)
+        push!(varlist, ncvar_cell_angular)
+        push!(varlist, ncvar_cell_lengths)
+        push!(varlist, ncvar_cell_angles)
+    end
     if velocity != nothing
-        varlist.push!(ncvar_velocities)
+        push!(varlist, ncvar_velocities)
     end
     if force != nothing
-        varlist.push!(ncvar_forces)
+        push!(varlist, ncvar_forces)
     end
     nc = NetCDF.create(filename, varlist, gatts=gatts, mode=NetCDF.NC_64BIT_OFFSET)
 
