@@ -10,52 +10,38 @@ function readdcd(filename::String; index=nothing)
 
     open(filename, "r") do io
         seekend(io)
-
         file_size = position(io) # get file size in byte
         seekstart(io)
-
         blocksize = read(io, Int32) # should be 84
-
         # header (4 chars) either "CORD" or "VELD"; position(io) == 4 bytes
         header_hdr = Array{Char, 1}(undef, 4)
         for i in 1:4
             header_hdr[i] = read(io, Char)
         end
-
         # the total # of frames (snapshots); position(io) == 8 bytes
         header_nset = read(io, Int32)
-
         # starting time-step; position(io) == 12 bytes
         header_istrt = read(io, Int32)
-
         # frequency to save trajectory; position(io) == 16 bytes
         header_nsavc = read(io, Int32)
-
         # the total # of simulation step; position(io) == 20 bytes
         header_nstep = read(io, Int32)
-
         # null4 (int*4); position(io) == 24 bytes
         header_null4 = Array{Int32, 1}(undef, 4)
         read!(io, header_null4)
-
         # of degrees of freedom; position(io) == 40 bytes
         header_nfreat = read(io, Int32)
-
         # step-size of simulation; position(io) == 44 bytes
         header_delta = read(io, Float32)
-
         # null9 (int*9); position(io) == 48 bytes
         header_null9 = Array{Int32, 1}(undef, 9)
         read!(io, header_null9)
-
         # version; position(io) == 84 bytes
         header_version = read(io, Int32)
-
         # charmm extension format
         if header_version > 0
             header_ischarmm = true
         end
-
         # delta is double precision in xplor format
         if header_ischarmm == false
             cof = position(io)
@@ -64,38 +50,30 @@ function readdcd(filename::String; index=nothing)
             header_delta = read(io, Float64)
             seek(io, cof)
         end
-
         # check charmm extensions
         if header_ischarmm == true
             cof = position(io)
-
             # charmm extrablock extension
             seek(io, 48)
             n = read(io, Int32)
             if n == 1
                 header_ischarmm_extrablock = true
             end
-
             # charmm 4dims extension
             seek(io, 52);
             n = read(io, Int32)
             if n == 1
                 header_ischarmm_extrablock = true
             end
-
             seek(io, cof)
         end
-
         # blocksize1; position(io) == 88 bytes
         blocksize1 = read(io, Int32)
-
         #### read block 2 (title)
         # blocksize2; position(io) == 92 bytes
         blocksize2 = read(io, Int32)
-
         # of title lines; position(io) == 96 bytes
         header_ntitle = read(io, Int32)
-
         # title
         header_title = []
         for i in 1:header_ntitle
@@ -105,34 +83,25 @@ function readdcd(filename::String; index=nothing)
             end
             push!(header_title, String(t))
         end
-
         # blocksize2
         blocksize2 = read(io, Int32)
-
         #### read block 3 (natom)
         # blocksize3
         blocksize3 = read(io, Int32)
-
         # # of atoms
         header_natom = read(io, Int32)
-
         # blocksize3
         blocksize3 = read(io, Int32)
-
         ## read coordinates
         header_size = position(io)
-
         if header_ischarmm_extrablock == true
             extrablocksize = 4*2 + 8*6
         else
             extrablocksize = 0
         end
-
         coordblocksize = (4*2 + 4*header_natom)*3
-
         nframe = (file_size - header_size) / (extrablocksize + coordblocksize)
         nframe = Int64(floor(nframe))
-
         if typeof(index) <: AbstractVector{Bool}
             index2 = findall(index)
         elseif index == nothing
@@ -140,14 +109,12 @@ function readdcd(filename::String; index=nothing)
         else
             index2 = index
         end
-
         x = zeros(Float64, (nframe, length(index2)))
         y = zeros(Float64, (nframe, length(index2)))
         z = zeros(Float64, (nframe, length(index2)))
         if header_ischarmm_extrablock == true
             boxsize = zeros(Float64, (nframe, 3))
         end
-
         # read next frames
         dummy = Array{Float64, 1}(undef, 6)
         crd_x = Array{Float32, 1}(undef, header_natom)
@@ -262,7 +229,7 @@ end
 
 
 """
-read netcdf file
+write netcdf file
 """
 function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
     scale_factor = 20.455
@@ -465,4 +432,83 @@ function readpsf(filename::String)
              resname=psf_residue_name, resid=psf_residue_id,
              atomname=psf_atom_name, atomid=psf_atom_id,
              mass=psf_mass, charge=psf_charge)
+end
+
+"""
+read protein data bank (PDB) file
+"""
+function readpdb(filename::String)
+    lines = open(filename, "r" ) do fp
+        readlines(fp)
+    end
+
+    model = []
+    lines_clean = []
+    for i = 1:length(lines)
+        line = lines[i]
+        if match(r"^ATOM", line) != nothing
+            push!(lines_clean, line)
+        end
+        if match(r"^ENDMDL", line) != nothing || (i == length(lines) && !isempty(lines_clean))
+            push!(model, lines_clean)
+            lines_clean = []
+        end
+    end
+
+    natom = length(model[1])
+    pdb_record = Vector{String}(undef, natom)
+    pdb_serial = Vector{Int64}(undef, natom)
+    pdb_name = Vector{String}(undef, natom)
+    pdb_altloc = Vector{String}(undef, natom)
+    pdb_resname = Vector{String}(undef, natom)
+    pdb_chainid = Vector{String}(undef, natom)
+    pdb_resseq = Vector{Int64}(undef, natom)
+    pdb_x = zeros(Float64, length(model), natom)
+    pdb_y = zeros(Float64, length(model), natom)
+    pdb_z = zeros(Float64, length(model), natom)
+    pdb_occupancy = Vector{Float64}(undef, natom)
+    pdb_tempfactor = Vector{Float64}(undef, natom)
+    pdb_element = Vector{String}(undef, natom)
+    pdb_charge = Vector{Float64}(undef, natom)
+
+    lines = model[1]
+    for iatom = 1:natom
+        line = lines[iatom]
+        pdb_record[iatom] = parse_line(line, 1:6, String, "None")
+        num = parse_line(line, 7:12, String, "0")
+        if iatom == 1 || pdb_serial[iatom-1] < 99999
+            pdb_serial[iatom] = parse(Int64, num)
+        elseif match(r"\*", num) != nothing
+            pdb_serial[iatom] = iatom == 1 ? 1 : pdb_serial[iatom-1]
+        else
+            pdb_serial[iatom] = parse(Int64, num)
+        end
+        pdb_name[iatom] = parse_line(line, 13:16, String, "None")
+        pdb_altloc[iatom] = parse_line(line, 17:17, String, "None")
+        pdb_resname[iatom] = parse_line(line, 18:21, String, "None")
+        pdb_chainid[iatom] = parse_line(line, 22:22, String, "None")
+        pdb_resseq[iatom] = parse_line(line, 23:28, Int64, 0)
+        pdb_x[1, iatom] = parse_line(line, 31:38, Float64, 0.0)
+        pdb_y[1, iatom] = parse_line(line, 39:46, Float64, 0.0)
+        pdb_z[1, iatom] = parse_line(line, 47:54, Float64, 0.0)
+        pdb_occupancy[iatom] = parse_line(line, 55:60, Float64, 0.0)
+        pdb_tempfactor[iatom] = parse_line(line, 61:66, Float64, 0.0)
+        pdb_element[iatom] = parse_line(line, 77:78, String, "None")
+        pdb_charge[iatom] = parse_line(line, 79:80, Float64, 0.0)
+    end
+
+    for imodel = 2:length(model)
+        lines = model[imodel]
+        for iatom = 1:natom
+            line = lines[iatom]
+            pdb_x[imodel, iatom] = parse_line(line, 31:38, Float64, 0.0)
+            pdb_y[imodel, iatom] = parse_line(line, 39:46, Float64, 0.0)
+            pdb_z[imodel, iatom] = parse_line(line, 47:54, Float64, 0.0)
+        end
+    end
+
+    TrjArray(x=pdb_x, y=pdb_y, z=pdb_z,
+             chainname=pdb_chainid,
+             resid=pdb_resseq, resname=pdb_resname,
+             atomid=pdb_serial, atomname=pdb_name)
 end
