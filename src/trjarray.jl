@@ -1,5 +1,5 @@
-import Base: convert, copy, length, show, getindex, start, next, done, isempty,
-             endof, size, eachindex, ==, isequal, hash, vcat, hcat, merge, map
+import Base: convert, copy, show, getindex, start, next, done, isempty,
+             endof, size, length, eachindex, ==, isequal, hash, vcat, hcat, merge, map
 
 abstract type AbstractTrajectory end
 
@@ -74,65 +74,69 @@ struct TrjArray <: AbstractTrajectory
         natom = Int64(natom)
 
         # check type
-        x2 = typeof(x) == Matrix{Float64} ? x : map(Float64, x)
-        y2 = typeof(x) == Matrix{Float64} ? y : map(Float64, y)
-        z2 = typeof(x) == Matrix{Float64} ? z : map(Float64, z)
-        boxsize2 = typeof(boxsize) == Matrix{Float64} ? boxsize : map(Float64, boxsize)
-        chainname2 = typeof(chainname) == Vector{String} ? chainname : map(strip, map(string, chainname))
-        chainid2 = typeof(chainid) == Vector{Int64} ? chainid : map(Int64, chainid)
-        resname2 = typeof(resname) == Vector{String} ? resname : map(strip, map(string, resname))
-        resid2 = typeof(resid) == Vector{Int64} ? resid : map(Int64, resid)
-        atomname2 = typeof(atomname) == Vector{String} ? atomname : map(strip, map(string, atomname))
-        atomid2 = typeof(atomid) == Vector{Int64} ? atomid : map(Int64, atomid)
-        mass2 = typeof(mass) == Vector{Float64} ? mass : map(Float64, mass)
-        charge2 = typeof(charge) == Vector{Float64} ? charge : map(Float64, charge)
+        # x2 = typeof(x) == Matrix{Float64} ? x : map(Float64, x)
+        # y2 = typeof(x) == Matrix{Float64} ? y : map(Float64, y)
+        # z2 = typeof(x) == Matrix{Float64} ? z : map(Float64, z)
+        # boxsize2 = typeof(boxsize) == Matrix{Float64} ? boxsize : map(Float64, boxsize)
+        # chainname2 = typeof(chainname) == Vector{String} ? chainname : map(strip, map(string, chainname))
+        # chainid2 = typeof(chainid) == Vector{Int64} ? chainid : map(Int64, chainid)
+        # resname2 = typeof(resname) == Vector{String} ? resname : map(strip, map(string, resname))
+        # resid2 = typeof(resid) == Vector{Int64} ? resid : map(Int64, resid)
+        # atomname2 = typeof(atomname) == Vector{String} ? atomname : map(strip, map(string, atomname))
+        # atomid2 = typeof(atomid) == Vector{Int64} ? atomid : map(Int64, atomid)
+        # mass2 = typeof(mass) == Vector{Float64} ? mass : map(Float64, mass)
+        # charge2 = typeof(charge) == Vector{Float64} ? charge : map(Float64, charge)
 
-        return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, natom, nframe)
+        # return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, natom, nframe)
+        return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge, natom, nframe)
     end
 end
 
 ###### outer constructors ########
-
 function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 0, 0), z = Matrix{Float64}(undef, 0, 0),
-                  boxsize = Matrix{Float64}(undef, 0, 0), 
-                  chainname = Vector{String}(undef, 0), chainid = Vector{Int64}(undef, 0), 
-                  resname = Vector{String}(undef, 0), resid = Vector{Int64}(undef, 0), 
-                  atomname = Vector{String}(undef, 0), atomid = Vector{Int64}(undef, 0), 
+                  boxsize = Matrix{Float64}(undef, 0, 0),
+                  chainname = Vector{String}(undef, 0), chainid = Vector{Int64}(undef, 0),
+                  resname = Vector{String}(undef, 0), resid = Vector{Int64}(undef, 0),
+                  atomname = Vector{String}(undef, 0), atomid = Vector{Int64}(undef, 0),
                   mass = Vector{Float64}(undef, 0), charge = Vector{Float64}(undef, 0))
-    if typeof(x) <: AbstractVector
-        x2 = reshape(x, length(x), 1)
-    else
-        x2 = x
-    end
-    if typeof(y) <: AbstractVector
-        y2 = reshape(y, length(y), 1)
-    else
-        y2 = y
-    end
-    if typeof(z) <: AbstractVector
-        z2 = reshape(z, length(z), 1)
-    else
-        z2 = z
-    end
-    TrjArray(x2, y2, z2, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
+    # if typeof(x) <: AbstractVector
+    #     x2 = reshape(x, length(x), 1)
+    # else
+    #     x2 = x
+    # end
+    # if typeof(y) <: AbstractVector
+    #     y2 = reshape(y, length(y), 1)
+    # else
+    #     y2 = y
+    # end
+    # if typeof(z) <: AbstractVector
+    #     z2 = reshape(z, length(z), 1)
+    # else
+    #     z2 = z
+    # end
+    # TrjArray(x2, y2, z2, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
+    TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
 end
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjArray) where {T <: Real} =
-             TrjArray(x = x, y = y, z = z, boxsize = boxsize, 
+             TrjArray(x = x, y = y, z = z, boxsize = boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
                       mass = ta.mass, charge = ta.charge)
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
-             TrjArray(x = x, y = y, z = z, boxsize = ta.boxsize, 
+             TrjArray(x = x, y = y, z = z, boxsize = ta.boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
                       mass = ta.mass, charge = ta.charge)
 
-###### getindex #################
+###### size, length #################
+size(ta::TrjArray) = (ta.nframe, ta.natom)
+length(ta::TrjArray) = prod(size(ta))
 
+###### getindex #################
 # all element indexing
 getindex(ta::TrjArray, ::Colon) = ta
 getindex(ta::TrjArray, ::Colon, ::Colon) = ta
@@ -140,7 +144,7 @@ getindex(ta::TrjArray, ::Colon, ::Colon) = ta
 # single row
 function getindex(ta::TrjArray, n::Int)
     if iszero(n)
-        return TrjArray(Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), ta)
+        return TrjArray(Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), ta)
     elseif !isempty(ta.boxsize)
         return TrjArray(ta.x[n:n, :], ta.y[n:n, :], ta.z[n:n, :], ta.boxsize[n:n, :], ta)
     else
@@ -182,70 +186,69 @@ end
 getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
 
 # single column
-getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray( 
-             x = isempty(ta.x) ? ta.x : ta.x[:, r:r], 
-             y = isempty(ta.y) ? ta.y : ta.y[:, r:r], 
-             z = isempty(ta.z) ? ta.z : ta.z[:, r:r], 
-             boxsize = ta.boxsize, 
-             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r:r], 
-             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r:r], 
-             resname = isempty(ta.resname) ? ta.resname : ta.resname[r:r], 
-             resid = isempty(ta.resid) ? ta.resid : ta.resid[r:r], 
-             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r], 
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r], 
-             mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r], 
+getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
+             x = isempty(ta.x) ? ta.x : ta.x[:, r:r],
+             y = isempty(ta.y) ? ta.y : ta.y[:, r:r],
+             z = isempty(ta.z) ? ta.z : ta.z[:, r:r],
+             boxsize = ta.boxsize,
+             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r:r],
+             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r:r],
+             resname = isempty(ta.resname) ? ta.resname : ta.resname[r:r],
+             resid = isempty(ta.resid) ? ta.resid : ta.resid[r:r],
+             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r],
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
+             mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r])
 
 # range of columns
-getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray( 
-             x = isempty(ta.x) ? ta.x : ta.x[:, r], 
-             y = isempty(ta.y) ? ta.y : ta.y[:, r], 
-             z = isempty(ta.z) ? ta.z : ta.z[:, r], 
-             boxsize = ta.boxsize, 
-             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r], 
-             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r], 
-             resname = isempty(ta.resname) ? ta.resname : ta.resname[r], 
-             resid = isempty(ta.resid) ? ta.resid : ta.resid[r], 
-             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r], 
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r], 
-             mass = isempty(ta.mass) ? ta.mass : ta.mass[r], 
+getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
+             x = isempty(ta.x) ? ta.x : ta.x[:, r],
+             y = isempty(ta.y) ? ta.y : ta.y[:, r],
+             z = isempty(ta.z) ? ta.z : ta.z[:, r],
+             boxsize = ta.boxsize,
+             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r],
+             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r],
+             resname = isempty(ta.resname) ? ta.resname : ta.resname[r],
+             resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
+             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r])
 
 # array of columns (integer)
-getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray( 
-             x = isempty(ta.x) ? ta.x : ta.x[:, r], 
-             y = isempty(ta.y) ? ta.y : ta.y[:, r], 
-             z = isempty(ta.z) ? ta.z : ta.z[:, r], 
-             boxsize = ta.boxsize, 
-             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r], 
-             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r], 
-             resname = isempty(ta.resname) ? ta.resname : ta.resname[r], 
-             resid = isempty(ta.resid) ? ta.resid : ta.resid[r], 
-             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r], 
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r], 
-             mass = isempty(ta.mass) ? ta.mass : ta.mass[r], 
+getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(
+             x = isempty(ta.x) ? ta.x : ta.x[:, r],
+             y = isempty(ta.y) ? ta.y : ta.y[:, r],
+             z = isempty(ta.z) ? ta.z : ta.z[:, r],
+             boxsize = ta.boxsize,
+             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r],
+             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r],
+             resname = isempty(ta.resname) ? ta.resname : ta.resname[r],
+             resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
+             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r])
 
 # array of rows (bool)
-getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray( 
-             x = isempty(ta.x) ? ta.x : ta.x[:, r], 
-             y = isempty(ta.y) ? ta.y : ta.y[:, r], 
-             z = isempty(ta.z) ? ta.z : ta.z[:, r], 
-             boxsize = ta.boxsize, 
-             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r], 
-             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r], 
-             resname = isempty(ta.resname) ? ta.resname : ta.resname[r], 
-             resid = isempty(ta.resid) ? ta.resid : ta.resid[r], 
-             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r], 
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r], 
-             mass = isempty(ta.mass) ? ta.mass : ta.mass[r], 
+getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
+             x = isempty(ta.x) ? ta.x : ta.x[:, r],
+             y = isempty(ta.y) ? ta.y : ta.y[:, r],
+             z = isempty(ta.z) ? ta.z : ta.z[:, r],
+             boxsize = ta.boxsize,
+             chainname = isempty(ta.chainname) ? ta.chainname : ta.chainname[r],
+             chainid = isempty(ta.chainid) ? ta.chainid : ta.chainid[r],
+             resname = isempty(ta.resname) ? ta.resname : ta.resname[r],
+             resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
+             atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r])
 
 # combinations
 getindex(ta::TrjArray, rows, cols) = ta[rows, :][:, cols]
 
 ###### atom selection #################
-
 function unfold(A)
     V = []
     if typeof(A) <: AbstractString
@@ -355,7 +358,6 @@ getindex(ta::TrjArray, rows, s::AbstractString) = ta[rows, :][:, s]
 isequal(x::TrjArray, y::TrjArray) = all(f -> isequal(getfield(x, f), getfield(y, f)), fieldnames(TrjArray))
 
 ###### copy ###############
-
 copy(ta::TrjArray)::TrjArray =
     TrjArray(ta.x, ta.y, ta.z, ta.boxsize,
              ta.chainname, ta.chainid,
@@ -406,10 +408,7 @@ function vcat(ta_collection::TrjArray...)
     TrjArray(x, y, z, boxsize, ta_collection[1])
 end
 
-###### size #################
-
 ###### end keyword #################
-
 endof(ta::TrjArray) = isempty(ta.x) ? nothing : size(ta.x, 1)
 eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
@@ -432,7 +431,7 @@ function alignment_xyz(io::IO, X::AbstractVecOrMat,
         r = 13
         push!(a, (l, r))
         if length(a) > 1 && sum(map(sum,a)) + sep*length(a) >= cols_if_complete
-            pop!(a) 
+            pop!(a)
             break
         end
     end
@@ -541,7 +540,7 @@ function show(io::IO, ta::TrjArray)
     end
 
     @assert textwidth(hdots) == textwidth(ddots)
-    
+
     #rowsA, colsA = UnitRange(axes(X,1)), UnitRange(axes(X,2))
     rowsA, colsA = 1:ta.nframe, 1:ta.natom
     m, n = length(rowsA), length(colsA)
@@ -612,7 +611,7 @@ function show(io::IO, ta::TrjArray)
             println(io)
         end
     end
-    
+
     if m <= screenheight # rows fit vertically on screen
         if n <= length(columnwidth) # rows and cols fit so just print whole matrix in one piece
             for i in rowsA
@@ -667,5 +666,3 @@ function show(io::IO, ta::TrjArray)
         end
     end
 end
-
-
