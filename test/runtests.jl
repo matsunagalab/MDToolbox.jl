@@ -74,14 +74,15 @@ end
         ta = TrjArray(x=c, y=c, z=c)
         com = centerofmass(ta)
         @test com.x ≈ com.y ≈ com.z ≈ [0.0, 0.0]
-        
+
         c = [-2.0 0.0 1.0;
              -2.0 0.0 1.0]
         ta = TrjArray(x=c, y=c, z=c, mass=[0.5, 1.0, 1.0])
         com = centerofmass(ta)
         @test com.x ≈ com.y ≈ com.z ≈ [0.0, 0.0]
-        
+
         c = [rand(Float64)]
+        c = reshape(c, 1, 1)
         ta = TrjArray(x=c, y=c, z=c)
         com = centerofmass(ta)
         @test com.x ≈ com.y ≈ com.z ≈ c
@@ -95,11 +96,12 @@ end
         @test ta2.x ≈ ta2.y ≈ ta2.z ≈ [0.0 0.0 0.0; 0.0 0.0 0.0]
 
         c = [rand(Float64)]
+        c = reshape(c, 1, 1)
         ta = TrjArray(x=c, y=c, z=c)
         ta2, com = decenter(ta)
         @test ta2.x ≈ ta2.y ≈ ta2.z ≈ [0.0]
     end
-    
+
     @testset "superimpose and calcrmsd" begin
         A = [-2.803  -15.373   24.556;
              0.893  -16.062   25.147;
@@ -123,10 +125,12 @@ end
         y = A[:, 2]
         z = A[:, 3]
         ta = TrjArray(x=x', y=y', z=z', mass=1:7)
-        r, ta_fit = superimpose(ref, ta, isweight=true)
-        @test r[1] ≈ 0.7450161471
+        # r, ta_fit = superimpose(ref, ta, isweight=true)
+        ta_fit = superimpose(ref, ta, isweight=true)
+        #@test r[1] ≈ 0.7450161471
         r2 = calcrmsd(ref, ta_fit)
-        @test r2[1] ≈ r[1]
+        #@test r2[1] ≈ r[1]
+        @test r2[1] ≈ 0.7450161471
     end
 
     @testset "calcbond" begin
@@ -138,4 +142,3 @@ end
         @test d ≈ [1.0]
     end
 end
-
