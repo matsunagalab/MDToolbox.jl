@@ -1,5 +1,5 @@
-import Base: convert, copy, show, getindex, start, next, done, isempty,
-             endof, size, length, eachindex, ==, isequal, hash, vcat, hcat, merge, map
+import Base: convert, copy, show, getindex, isempty,
+             size, length, eachindex, ==, isequal, hash, vcat, hcat, merge, map
 
 abstract type AbstractTrajectory end
 
@@ -362,7 +362,8 @@ copy(ta::TrjArray)::TrjArray =
     TrjArray(ta.x, ta.y, ta.z, ta.boxsize,
              ta.chainname, ta.chainid,
              ta.resname, ta.resid,
-             ta.atomname, ta.atomid, ta.mass, ta.charge)
+             ta.atomname, ta.atomid,
+             ta.mass, ta.charge)
 
 ###### accessors to field values #################
 
@@ -409,8 +410,8 @@ function vcat(ta_collection::TrjArray...)
 end
 
 ###### end keyword #################
-endof(ta::TrjArray) = isempty(ta.x) ? nothing : size(ta.x, 1)
-eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
+# endof(ta::TrjArray) = isempty(ta.x) ? nothing : size(ta.x, 1)
+# eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
 ###### iterator #################
 
@@ -418,10 +419,9 @@ eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
 # conversion(Float64, ta:TrjArray)
 
-###### mathematical operators, broadcast #################
+###### broadcast #################
 
 ###### show #####################
-
 function alignment_xyz(io::IO, X::AbstractVecOrMat,
         rows::AbstractVector, cols::AbstractVector,
         cols_if_complete::Integer, cols_otherwise::Integer, sep::Integer)
