@@ -13,4 +13,6 @@ RUN julia -e 'import Pkg; Pkg.update()' && \
     julia -e 'import Pkg; Pkg.add("BenchmarkTools")' && \
     julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(url="https://github.com/ymatsunaga/MDToolbox.jl.git", rev="master"))' && \
     julia -e 'using IJulia' && \
+    julia -e 'using PyPlot' && \
+    julia -e 'using MDToolbox' && \
     fix-permissions $JULIA_PKGDIR $CONDA_DIR/share/jupyter
