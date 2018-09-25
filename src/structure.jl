@@ -47,58 +47,11 @@ end
 
 
 ###### superimpose #################
-function innerproduct!(ref_x::Vector{Float64}, ref_y::Vector{Float64}, ref_z::Vector{Float64},
-                       x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64},
-                       index::Vector{Int64}, A::Vector{Float64}, isweight::Bool, ta::TrjArray)::Float64
-    A[:] .= 0.0
-    G1 = G2 = 0.0
-    if isweight
-        for i in index
-            x1 = ta.mass[i] * ref_x[i]
-            y1 = ta.mass[i] * ref_y[i]
-            z1 = ta.mass[i] * ref_z[i]
-            G1 += x1 * ref_x[i] + y1 * ref_y[i] + z1 * ref_z[i]
-            x2 = x[i]
-            y2 = y[i]
-            z2 = z[i]
-            G2 += ta.mass[i] * (x2 * x2 + y2 * y2 + z2 * z2)
-            A[1] +=  (x1 * x2)
-            A[2] +=  (x1 * y2)
-            A[3] +=  (x1 * z2)
-            A[4] +=  (y1 * x2)
-            A[5] +=  (y1 * y2)
-            A[6] +=  (y1 * z2)
-            A[7] +=  (z1 * x2)
-            A[8] +=  (z1 * y2)
-            A[9] +=  (z1 * z2)
-        end
-    else
-        for i in index
-            x1 = ref_x[i]
-            y1 = ref_y[i]
-            z1 = ref_z[i]
-            G1 += x1 * ref_x[i] + y1 * ref_y[i] + z1 * ref_z[i]
-            x2 = x[i]
-            y2 = y[i]
-            z2 = z[i]
-            G2 += (x2 * x2 + y2 * y2 + z2 * z2)
-            A[1] +=  (x1 * x2)
-            A[2] +=  (x1 * y2)
-            A[3] +=  (x1 * z2)
-            A[4] +=  (y1 * x2)
-            A[5] +=  (y1 * y2)
-            A[6] +=  (y1 * z2)
-            A[7] +=  (z1 * x2)
-            A[8] +=  (z1 * y2)
-            A[9] +=  (z1 * z2)
-        end
-    end
-    return (G1 + G2) * 0.5
-end
-
-function innerproduct!(iframe::Int64, ref::TrjArray, ta::TrjArray,
-                       index::Vector{Int64}, A::Vector{Float64}, isweight::Bool)::Float64
-    A[:] .= 0.0
+function innerproduct(iframe::Int64, ref::TrjArray, ta::TrjArray,
+                       index::Vector{Int64}, isweight::Bool)
+    A = zeros(Float64, 9)
+    # A = Vector{Float64}(undef, 9)
+    # A[:] .= 0.0
     G1 = G2 = 0.0
     if isweight
         for i in index
@@ -141,16 +94,16 @@ function innerproduct!(iframe::Int64, ref::TrjArray, ta::TrjArray,
             A[9] +=  (z1 * z2)
         end
     end
-    return (G1 + G2) * 0.5
+    return A, (G1 + G2) * 0.5
 end
 
 """
 this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
-function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Float64, rot::Vector{Float64}, C::Vector{Float64})::Float64
+function fastCalcRMSDAndRotation(A::Vector{Float64}, E0::Float64, wsum_inv::Float64)
     oldg = 0.0
-    #C = zeros(Float64, 3)
-    #rot = zeros(Float64, 9)
+    C = zeros(Float64, 3)
+    rot = zeros(Float64, 9)
     evecprec = 1e-6
     evalprec = 1e-11
 
@@ -215,8 +168,8 @@ function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Flo
     end
 
     # the abs() is to guard against extremely small, but *negative* numbers due to floating point error */
-    rmsd = sqrt(abs(2.0 * (E0 - mxEigenV) * wsum_inv))
-    # printf("\n\n %16g %16g %16g \n", rmsd, E0, 2.0 * (E0 - mxEigenV)/len)
+    r1 = sqrt(abs(2.0 * (E0 - mxEigenV) * wsum_inv))
+    # printf("\n\n %16g %16g %16g \n", r1, E0, 2.0 * (E0 - mxEigenV)/len)
 
     a11 = SxxpSyy + Szz-mxEigenV; a12 = SyzmSzy; a13 = - SxzmSzx; a14 = SxymSyx
     a21 = SyzmSzy; a22 = SxxmSyy - Szz-mxEigenV; a23 = SxypSyx; a24= SxzpSzx
@@ -265,7 +218,7 @@ function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Flo
                     # if qsqr is still too small, return the identity matrix.
                     rot[1] = rot[5] = rot[9] = 1.0
                     rot[2] = rot[3] = rot[4] = rot[6] = rot[7] = rot[8] = 0.0
-                    return rmsd
+                    return r1, rot
                 end
             end
         end
@@ -298,7 +251,7 @@ function fastCalcRMSDAndRotation!(A::Vector{Float64}, E0::Float64, wsum_inv::Flo
     rot[7] = 2 * (zx + ay)
     rot[8] = 2 * (yz - ax)
     rot[9] = a2 - x2 - y2 + z2
-    return rmsd
+    return r1, rot
 end
 
 """
@@ -343,14 +296,15 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
     x = Matrix{Float64}(undef, nframe, natom)
     y = Matrix{Float64}(undef, nframe, natom)
     z = Matrix{Float64}(undef, nframe, natom)
-    rmsd = Vector{Float64}(undef, nframe)
-    A = Vector{Float64}(undef, 9)
-    rot = Vector{Float64}(undef, 9)
-    C = Vector{Float64}(undef, 3)
+    r1 = Vector{Float64}(undef, nframe)
+    # A = Vector{Float64}(undef, 9)
+    # rot = Vector{Float64}(undef, 9)
+    # C = Vector{Float64}(undef, 3)
+    # Threads.@threads for iframe in 1:nframe
     for iframe in 1:nframe
-        E0 = innerproduct!(iframe, ref2, ta2, index2, A, isweight2)
-        r = fastCalcRMSDAndRotation!(A, E0, wsum_inv, rot, C)
-        rmsd[iframe] = r
+        A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
+        r, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
+        r1[iframe] = r
         for iatom in 1:natom
             @inbounds x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
             @inbounds y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
@@ -364,12 +318,12 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
         z = z .+ com.z
     end
     ta_fit = TrjArray(x, y, z, ta)
-    #rmsd, ta_fit
+    #r1, ta_fit
 end
 
 ###### rmsd #################
 """
-rmsd
+calcrmsd
 
 root mean square deviation of ta::TrjArray from ref:TrjArray
 """
@@ -397,7 +351,7 @@ function calcrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vecto
     d =  sum(weight2 .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
     d = d .* wsum_inv
     d = sqrt.(d)
-    rmsd = reshape(d, nframe)
+    reshape(d, nframe)
 end
 
 ###### mean structure #################
@@ -412,37 +366,108 @@ function meanstructure(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=V
     ta2 = ta
     ref = ta2[1, :]
 
-    rmsd = [1.0]
+    r = [1.0]
     tolerance = tolerance = 10^(-6)
-    while rmsd[1] > tolerance
+    while r[1] > tolerance
         ref_old = ref;
         ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
         ref = TrjArray(x=mean(ta2.x, dims=1), y=mean(ta2.y, dims=1), z=mean(ta2.z, dims=1)) # TODO: mean(ta) should be available in the futre
-        rmsd = calcrmsd(ref_old, ref, isweight=isweight, index=index)
-        println("rmsd from the previous mean structure: ", rmsd[1])
+        r = calcrmsd(ref_old, ref, isweight=isweight, index=index)
+        println("rmsd from the previous mean structure: ", r[1])
     end
 
     ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
     ref, ta2
 end
 
+###### rmsf #################
+"""
+rmsf
+
+root mean square fluctuation
+"""
+function rmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
+    nframe = ta.nframe
+    natom = ta.natom
+    if isweight && length(ta.mass) == natom
+        weight = ta.mass
+    else
+        weight = ones(Float64, natom)
+    end
+    wsum_inv = 1.0 / sum(weight[index2])
+    weight2 = reshape(weight[index2], 1, length(index2))
+    mean_x = (ta.x .* weight2)
+
+    ref_x = ref.x[1:1, index2]
+    ref_y = ref.y[1:1, index2]
+    ref_z = ref.z[1:1, index2]
+    ta_x = ta.x[:, index2]
+    ta_y = ta.y[:, index2]
+    ta_z = ta.z[:, index2]
+    d =  sum(weight2 .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
+    d = d .* wsum_inv
+    d = sqrt.(d)
+    reshape(d, nframe)
+end
+
 ###### distance, angle, dihedral #################
 """
-calcdistance
+calcbond
 
-calculate distances between two atoms or groups of atoms
+distance between two atoms or groups of atoms
 """
-function calcbond(ta::TrjArray, index1::Vector{Int64}=Vector{Int64}(undef, 0), index2::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
+function calcbond(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
     # TODO: support for PBC
-    nframe = ta.nframe
-    if isempty(index1)
-        index1 = [1]
-    end
-    if isempty(index2)
-        index2 = [2]
-    end
-    com1 = centerofmass(ta, isweight=true, index=index1)
-    com2 = centerofmass(ta, isweight=true, index=index2)
+    # TODO: hypot
+    nframe = ta1.nframe
+    com1 = centerofmass(ta1, isweight=true)
+    com2 = centerofmass(ta2, isweight=true)
     dist = sqrt.((com1.x .- com2.x).^2 .+ (com1.y .- com2.y).^2 .+ (com1.z .- com2.z).^2)
     reshape(dist, nframe)
+end
+
+"""
+calcangle
+
+angle of three atoms or groups of atoms
+"""
+function calcangle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)::Vector{Float64}
+    nframe = ta1.nframe
+    com1 = centerofmass(ta1, isweight=true)
+    com2 = centerofmass(ta2, isweight=true)
+    com3 = centerofmass(ta3, isweight=true)
+    a = zeros(Float64, nframe)
+    for iframe in 1:nframe
+        d1 = [com1.x[iframe] - com2.x[iframe]; com1.y[iframe] - com2.y[iframe]; com1.z[iframe] - com2.z[iframe]]
+        d2 = [com3.x[iframe] - com2.x[iframe]; com3.y[iframe] - com2.y[iframe]; com3.z[iframe] - com2.z[iframe]]
+        a[iframe] = acos(dot(d1, d2)/(norm(d1)*norm(d2)))
+    end
+    a = (a ./ pi) .* 180.0
+end
+
+"""
+calcdihedral
+
+dihedral of four atoms or groups of atoms
+"""
+function calcdihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)::Vector{Float64}
+    nframe = ta1.nframe
+    com1 = centerofmass(ta1, isweight=true)
+    com2 = centerofmass(ta2, isweight=true)
+    com3 = centerofmass(ta3, isweight=true)
+    com4 = centerofmass(ta4, isweight=true)
+    a = zeros(Float64, nframe)
+    for iframe in 1:nframe
+        d1 = [com1.x[iframe] - com2.x[iframe]; com1.y[iframe] - com2.y[iframe]; com1.z[iframe] - com2.z[iframe]]
+        d2 = [com3.x[iframe] - com2.x[iframe]; com3.y[iframe] - com2.y[iframe]; com3.z[iframe] - com2.z[iframe]]
+        d3 = [com3.x[iframe] - com4.x[iframe]; com3.y[iframe] - com4.y[iframe]; com3.z[iframe] - com4.z[iframe]]
+        m1 = cross(d1, d2)
+        m2 = cross(d2, d3)
+        a[iframe] = acos(dot(m1, m2)/(norm(m1)*norm(m2)))
+        rotdirection = dot(d2,cross(m1,m2))
+        if rotdirection < 0.0
+            a[iframe] = -a[iframe]
+        end
+    end
+    a = (a ./ pi) .* 180.0
 end

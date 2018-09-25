@@ -508,6 +508,10 @@ end
 
 
 function show(io::IO, ta::TrjArray)
+    # for jupyter notebook
+    #ENV["COLUMNS"] = 150
+    #ENV["LINES"] = 30
+
     #TODO: fix double empty lines when nframe=0
     pre = "|"  # pre-matrix string
     sep = " |" # separator between elements

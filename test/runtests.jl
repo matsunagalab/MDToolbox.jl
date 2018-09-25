@@ -138,7 +138,25 @@ end
         y = [0.0 0.0]
         z = [0.0 0.0]
         ta = TrjArray(x=x, y=y, z=z)
-        d = calcbond(ta)
+        d = calcbond(ta[:, 1], ta[:, 2])
         @test d ≈ [1.0]
+    end
+
+    @testset "calcangle" begin
+        x = [1.0 0.0 0.0]
+        y = [0.0 0.0 1.0]
+        z = [0.0 0.0 0.0]
+        ta = TrjArray(x=x, y=y, z=z)
+        a = calcangle(ta[:, 1], ta[:, 2], ta[:, 3])
+        @test a ≈ [90.0]
+    end
+
+    @testset "calcdihedral" begin
+        x = [-1.0 -1.0 1.0 1.0]
+        y = [-1.0  0.0 0.0 1.0]
+        z = [ 0.0  0.0 0.0 0.0]
+        ta = TrjArray(x=x, y=y, z=z)
+        a = calcdihedral(ta[:, 1], ta[:, 2], ta[:, 3], ta[:, 4])
+        @test a ≈ [180.0]
     end
 end
