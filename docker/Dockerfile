@@ -5,8 +5,6 @@ USER $NB_UID
 ENV DEBIAN_FRONTEND noninteractive
 ENV OMP_NUM_THREADS 8
 
-RUN julia --version
-
 RUN julia -e 'import Pkg; Pkg.update()' && \
     julia -e 'import Pkg; Pkg.add("PyPlot")' && \
     julia -e 'import Pkg; Pkg.add("Revise")' && \
