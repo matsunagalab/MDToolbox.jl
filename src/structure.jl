@@ -254,6 +254,14 @@ function fastCalcRMSDAndRotation(A::Vector{Float64}, E0::Float64, wsum_inv::Floa
     return r1, rot
 end
 
+function applyrotation!(iframe, x, y, z, ta2, rot)
+    for iatom in 1:ta2.natom
+        x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
+        y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
+        z[iframe, iatom] = rot[7] * ta2.x[iframe, iatom] + rot[8] * ta2.y[iframe, iatom] + rot[9] * ta2.z[iframe, iatom]
+    end
+end
+
 """
 superimpose
 
@@ -296,20 +304,10 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
     x = Matrix{Float64}(undef, nframe, natom)
     y = Matrix{Float64}(undef, nframe, natom)
     z = Matrix{Float64}(undef, nframe, natom)
-    r1 = Vector{Float64}(undef, nframe)
-    # A = Vector{Float64}(undef, 9)
-    # rot = Vector{Float64}(undef, 9)
-    # C = Vector{Float64}(undef, 3)
-    # Threads.@threads for iframe in 1:nframe
-    for iframe in 1:nframe
+    Threads.@threads for iframe in 1:nframe
         A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
-        r, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
-        r1[iframe] = r
-        for iatom in 1:natom
-            @inbounds x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
-            @inbounds y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
-            @inbounds z[iframe, iatom] = rot[7] * ta2.x[iframe, iatom] + rot[8] * ta2.y[iframe, iatom] + rot[9] * ta2.z[iframe, iatom]
-        end
+        rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
+        applyrotation!(iframe, x, y, z, ta2, rot)
     end
 
     if !isdecenter
@@ -318,14 +316,14 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
         z = z .+ com.z
     end
     ta_fit = TrjArray(x, y, z, ta)
-    #r1, ta_fit
+    #rmsd, ta_fit
 end
 
 ###### rmsd #################
 """
 calcrmsd
 
-root mean square deviation of ta::TrjArray from ref:TrjArray
+rmsd (root mean square deviation)
 """
 function calcrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
     nframe = ta.nframe
@@ -382,11 +380,11 @@ end
 
 ###### rmsf #################
 """
-rmsf
+calcrmsf
 
-root mean square fluctuation
+rmsf (root mean square fluctuation)
 """
-function rmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
+function calcrmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
     nframe = ta.nframe
     natom = ta.natom
     if isweight && length(ta.mass) == natom
@@ -457,6 +455,7 @@ function calcdihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray
     com3 = centerofmass(ta3, isweight=true)
     com4 = centerofmass(ta4, isweight=true)
     a = zeros(Float64, nframe)
+    # Threads.@threads for iframe in 1:nframe
     for iframe in 1:nframe
         d1 = [com1.x[iframe] - com2.x[iframe]; com1.y[iframe] - com2.y[iframe]; com1.z[iframe] - com2.z[iframe]]
         d2 = [com3.x[iframe] - com2.x[iframe]; com3.y[iframe] - com2.y[iframe]; com3.z[iframe] - com2.z[iframe]]
