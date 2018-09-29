@@ -160,3 +160,47 @@ end
         @test a ≈ [180.0]
     end
 end
+
+@testset "ksdensity.jl" begin
+    @testset "ksdensity 1d" begin
+        grid_x=collect(-3:0.1:3)
+        f, _ = ksdensity(randn(10^6), grid_x=grid_x);
+        sigma = 1.0
+        f_true = (1.0/(sqrt(2.0*pi)*sigma)).*exp.(-grid_x.*grid_x./(2.0*sigma^2));
+        @test maximum(abs.(f - f_true)) < 0.01
+    end
+
+    @testset "ksdensity 2d" begin
+        grid_x=collect(-2:0.1:2)
+        grid_y=collect(-2:0.1:2)
+        f, _, _ = ksdensity(randn(10^6), randn(10^6), grid_x=grid_x, grid_y=grid_y);
+        sigma = 1.0
+        f_true = zeros(Float64, length(grid_x), length(grid_y))
+        for i in 1:length(grid_x)
+            for j in 1:length(grid_y)
+                f_true[i, j] = (1.0/(sqrt(2.0*pi)*sigma))*exp(-grid_x[i]*grid_x[i]/(2.0*sigma^2))*
+                            (1.0/(sqrt(2.0*pi)*sigma))*exp(-grid_y[j]*grid_y[j]/(2.0*sigma^2));
+            end
+        end
+        @test maximum(abs.(f - f_true)) < 0.01
+    end
+
+    @testset "ksdensity 3d" begin
+        grid_x=collect(-1:0.1:1)
+        grid_y=collect(-1:0.1:1)
+        grid_z=collect(-1:0.1:1)
+        f, _, _, _ = ksdensity(randn(10^6), randn(10^6), randn(10^6), grid_x=grid_x, grid_y=grid_y, grid_z=grid_z);
+        sigma = 1.0
+        f_true = zeros(Float64, length(grid_x), length(grid_y), length(grid_z))
+        for i in 1:length(grid_x)
+            for j in 1:length(grid_y)
+                for k in 1:length(grid_z)
+                    f_true[i, j, k] = (1.0/(sqrt(2.0*pi)*sigma))*exp(-grid_x[i]*grid_x[i]/(2.0*sigma^2))*
+                            (1.0/(sqrt(2.0*pi)*sigma))*exp(-grid_y[j]*grid_y[j]/(2.0*sigma^2))*
+                            (1.0/(sqrt(2.0*pi)*sigma))*exp(-grid_z[j]*grid_z[j]/(2.0*sigma^2));
+                end
+            end
+        end
+        @test maximum(abs.(f - f_true)) < 0.05
+    end
+end
