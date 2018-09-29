@@ -2,6 +2,7 @@
 read xplor or charmm (namd) format dcd file
 """
 function readdcd(filename::String; index=nothing)
+    #TODO: endian
     header_ischarmm_4dims = false
     x = []
     y = []
