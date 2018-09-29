@@ -256,16 +256,16 @@ end
 
 function applyrotation!(iframe, x, y, z, ta2, rot)
     for iatom in 1:ta2.natom
-        x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
-        y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
-        z[iframe, iatom] = rot[7] * ta2.x[iframe, iatom] + rot[8] * ta2.y[iframe, iatom] + rot[9] * ta2.z[iframe, iatom]
+        @inbounds x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
+        @inbounds y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
+        @inbounds z[iframe, iatom] = rot[7] * ta2.x[iframe, iatom] + rot[8] * ta2.y[iframe, iatom] + rot[9] * ta2.z[iframe, iatom]
     end
 end
 
 """
 superimpose
 
-superimpose ta::TrjArray to ref:TrjArray
+superimpose ta to ref
 
 this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
@@ -305,6 +305,56 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
     y = Matrix{Float64}(undef, nframe, natom)
     z = Matrix{Float64}(undef, nframe, natom)
     Threads.@threads for iframe in 1:nframe
+        A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
+        rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
+        applyrotation!(iframe, x, y, z, ta2, rot)
+    end
+
+    if !isdecenter
+        x = x .+ com.x
+        y = y .+ com.y
+        z = z .+ com.z
+    end
+    ta_fit = TrjArray(x, y, z, ta)
+    #rmsd, ta_fit
+end
+
+function superimpose_serial(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), isdecenter::Bool=false)::TrjArray
+    nframe = ta.nframe
+    natom = ta.natom
+
+    if isempty(index)
+        index2 = collect(1:natom)
+    else
+        index2 = index
+    end
+
+    if isweight && length(ref.mass) == natom && length(ta.mass) == natom
+        isweight2 = true
+        weight = ta.mass
+    else
+        isweight2 = false
+    end
+
+    if isweight2
+        weight2 = reshape(weight[index2], length(index2))
+        wsum_inv = 1.0 / sum(weight2)
+    else
+        wsum_inv = 1.0 / Float64(length(index2))
+    end
+
+    if isdecenter
+        ta2 = copy(ta)
+        ref2 = ref[1, :]
+    else
+        ta2, = decenter(ta, isweight=isweight2, index=index)
+        ref2, com = decenter(ref[1, :], isweight=isweight2, index=index)
+    end
+
+    x = Matrix{Float64}(undef, nframe, natom)
+    y = Matrix{Float64}(undef, nframe, natom)
+    z = Matrix{Float64}(undef, nframe, natom)
+    for iframe in 1:nframe
         A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
         rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
         applyrotation!(iframe, x, y, z, ta2, rot)
