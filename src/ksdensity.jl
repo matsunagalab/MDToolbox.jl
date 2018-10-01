@@ -361,7 +361,7 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64};
             f[ix, iy] = sum(f_private[ix, iy, :])
         end
     end
-    f, grid_x, grid_y
+    transpose(f), grid_x, grid_y
 end
 
 function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
@@ -442,4 +442,51 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
         end
     end
     f, grid_x, grid_y, grid_z
+end
+
+"""
+calcpmf
+
+Potential of mean force estimator by a kernel density estimator
+"""
+function calcpmf(x::Vector{Float64};
+    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
+    weight::Vector{Float64}=Vector{Float64}(undef, 0),
+    boxsize::Union{Float64,Missing}=missing,
+    bandwidth::Union{Float64,Missing}=missing)
+
+    pdf, grid_x = ksdensity(x, grid_x=grid_x, weight=weight, boxsize=boxsize, bandwidth=bandwidth)
+    #pdf[pdf .< eps()] .= missing
+    pmf = -log.(pdf)
+    pmf = pmf .- minimum(pmf)
+    pmf, grid_x
+end
+
+function calcpmf(x::Vector{Float64}, y::Vector{Float64};
+    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_y::Vector{Float64}=Vector{Float64}(undef, 0),
+    weight::Vector{Float64}=Vector{Float64}(undef, 0),
+    boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
+    bandwidth::Vector{Float64}=Vector{Float64}(undef, 0))
+
+    pdf, grid_x, grid_y = ksdensity(x, y, grid_x=grid_x, grid_y=grid_y, weight=weight, boxsize=boxsize, bandwidth=bandwidth)
+    #pdf[pdf .< eps()] .= NaN
+    pmf = -log.(pdf)
+    pmf = pmf .- minimum(pmf)
+    pmf, grid_x, grid_y
+end
+
+function calcpmf(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
+    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_y::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_z::Vector{Float64}=Vector{Float64}(undef, 0),
+    weight::Vector{Float64}=Vector{Float64}(undef, 0),
+    boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
+    bandwidth::Vector{Float64}=Vector{Float64}(undef, 0))
+
+    pdf, grid_x, grid_y, grid_z = ksdensity(x, y, z, grid_x=grid_x, grid_y=grid_y, grid_z=grid_z, weight=weight, boxsize=boxsize, bandwidth=bandwidth)
+    #pdf[pdf .< eps()] .= NaN
+    pmf = -log.(pdf)
+    pmf = pmf .- minimum(pmf)
+    pmf, grid_x, grid_y, grid_z
 end
