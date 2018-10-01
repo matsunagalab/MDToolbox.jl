@@ -14,7 +14,7 @@ export AbstractTrajectory, TrjArray, select_atom
 export readdcd, readnetcdf, writenetcdf, readpsf, readpdb
 export centerofmass, decenter, superimpose, superimpose_serial, calcrmsd, meanstructure, calcrmsf
 export calcbond, calcangle, calcdihedral
-export ksdensity, ksdensity_serial
+export ksdensity, ksdensity_serial, calcpmf
 
 #TODO: introduce physical constatns, such as const K_B_in_kcalpermol
 
