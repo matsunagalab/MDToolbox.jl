@@ -212,16 +212,18 @@ ksdensity
 kernel density estimator with gaussian kernel
 """
 function ksdensity(x::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Union{Float64,Missing}=missing,
     bandwidth::Union{Float64,Missing}=missing)
     nframe = length(x)
     if isempty(grid_x)
-        grid_x = range(minimum(x), stop=maximum(x), length=100)
+        grid_x2 = range(minimum(x), stop=maximum(x), length=100)
+    else typeof(grid_x) != Vector{Float64}
+        grid_x2 = map(Float64, grid_x)
     end
-    nx = length(grid_x)
-    gridsize_x = abs(grid_x[2]-grid_x[1])
+    nx = length(grid_x2)
+    gridsize_x = abs(grid_x2[2]-grid_x2[1])
     if isempty(weight)
         weight2 = ones(Float64, nframe)/nframe
     else
@@ -239,7 +241,7 @@ function ksdensity(x::Vector{Float64};
             tid = Threads.threadid()
             frames = (tid-1)*d+1:tid*d
             for iframe in frames
-                convolution1d!(tid, iframe, x, nx, rx, gridsize_x, grid_x, bandwidth, f_x, weight2[iframe])
+                convolution1d!(tid, iframe, x, nx, rx, gridsize_x, grid_x2, bandwidth, f_x, weight2[iframe])
             end
         end
     else
@@ -247,7 +249,7 @@ function ksdensity(x::Vector{Float64};
             tid = Threads.threadid()
             frames = (tid-1)*d+1:tid*d
             for iframe in frames
-                convolution1d_box!(tid, iframe, boxsize, x, nx, rx, gridsize_x, grid_x, bandwidth, f_x, weight2[iframe])
+                convolution1d_box!(tid, iframe, boxsize, x, nx, rx, gridsize_x, grid_x2, bandwidth, f_x, weight2[iframe])
             end
         end
     end
@@ -255,20 +257,22 @@ function ksdensity(x::Vector{Float64};
     for ind in 1:nx
         f[ind] = sum(f_x[ind, :])
     end
-    f, grid_x
+    f, grid_x2
 end
 
 function ksdensity_serial(x::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Union{Float64,Missing}=missing,
     bandwidth::Union{Float64,Missing}=missing)
     nframe = length(x)
     if isempty(grid_x)
-        grid_x = range(minimum(x), stop=maximum(x), length=100)
+        grid_x2 = range(minimum(x), stop=maximum(x), length=100)
+    else typeof(grid_x) != Vector{Float64}
+        grid_x2 = map(Float64, grid_x)
     end
-    nx = length(grid_x)
-    gridsize_x = abs(grid_x[2]-grid_x[1])
+    nx = length(grid_x2)
+    gridsize_x = abs(grid_x2[2]-grid_x2[1])
     if isempty(weight)
         weight2 = ones(Float64, nframe)/nframe
     else
@@ -282,37 +286,40 @@ function ksdensity_serial(x::Vector{Float64};
     f_x = zeros(nx, nth)
     if typeof(boxsize) == Missing
         for iframe in 1:nframe
-            convolution1d!(1, iframe, x, nx, rx, gridsize_x, grid_x, bandwidth, f_x, weight2[iframe])
+            convolution1d!(1, iframe, x, nx, rx, gridsize_x, grid_x2, bandwidth, f_x, weight2[iframe])
         end
     else
         for iframe in 1:nframe
-            convolution1d_box!(1, iframe, boxsize, x, nx, rx, gridsize_x, grid_x, bandwidth, f_x, weight2[iframe])
+            convolution1d_box!(1, iframe, boxsize, x, nx, rx, gridsize_x, grid_x2, bandwidth, f_x, weight2[iframe])
         end
     end
     f = zeros(nx)
     for ind in 1:nx
         f[ind] = sum(f_x[ind, :])
     end
-    f, grid_x
+    f, grid_x2
 end
 
 function ksdensity(x::Vector{Float64}, y::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
-    grid_y::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x, grid_y,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
     bandwidth::Vector{Float64}=Vector{Float64}(undef, 0))
     nframe = length(x)
     if isempty(grid_x)
-        grid_x = range(minimum(x), stop=maximum(x), length=100)
+        grid_x2 = range(minimum(x), stop=maximum(x), length=100)
+    else typeof(grid_x) != Vector{Float64}
+        grid_x2 = map(Float64, grid_x)
     end
     if isempty(grid_y)
-        grid_y = range(minimum(y), stop=maximum(y), length=100)
+        grid_y2 = range(minimum(y), stop=maximum(y), length=100)
+    else typeof(grid_y) != Vector{Float64}
+        grid_y2 = map(Float64, grid_y)
     end
-    nx = length(grid_x)
-    ny = length(grid_y)
-    gridsize_x = abs(grid_x[2]-grid_x[1])
-    gridsize_y = abs(grid_y[2]-grid_y[1])
+    nx = length(grid_x2)
+    ny = length(grid_y2)
+    gridsize_x = abs(grid_x2[2]-grid_x2[1])
+    gridsize_y = abs(grid_y2[2]-grid_y2[1])
     if isempty(weight)
         weight2 = ones(Float64, nframe)/nframe
     else
@@ -334,8 +341,8 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64};
             frames = (tid-1)*d+1:tid*d
             for iframe in frames
                 convolution2d!(tid, iframe,
-                    x, nx, rx, gridsize_x, grid_x,
-                    y, ny, ry, gridsize_y, grid_y,
+                    x, nx, rx, gridsize_x, grid_x2,
+                    y, ny, ry, gridsize_y, grid_y2,
                     bandwidth, f_x, f_y, f_private, weight2[iframe])
             end
         end
@@ -347,8 +354,8 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64};
             frames = (tid-1)*d+1:tid*d
             for iframe in frames
                 convolution2d_box!(tid, iframe, boxsize,
-                    x, nx, rx, gridsize_x, grid_x,
-                    y, ny, ry, gridsize_y, grid_y,
+                    x, nx, rx, gridsize_x, grid_x2,
+                    y, ny, ry, gridsize_y, grid_y2,
                     bandwidth, f_x, f_y, f_private, weight2[iframe],
                     ix_array, iy_array)
             end
@@ -361,32 +368,36 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64};
             f[ix, iy] = sum(f_private[ix, iy, :])
         end
     end
-    transpose(f), grid_x, grid_y
+    transpose(f), grid_x2, grid_y2
 end
 
 function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
-    grid_y::Vector{Float64}=Vector{Float64}(undef, 0),
-    grid_z::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x, grid_y, grid_z,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
     bandwidth::Vector{Float64}=Vector{Float64}(undef, 0))
     nframe = length(x)
     if isempty(grid_x)
-        grid_x = range(minimum(x), stop=maximum(x), length=100)
+        grid_x2 = range(minimum(x), stop=maximum(x), length=100)
+    else typeof(grid_x) != Vector{Float64}
+        grid_x2 = map(Float64, grid_x)
     end
     if isempty(grid_y)
-        grid_y = range(minimum(y), stop=maximum(y), length=100)
+        grid_y2 = range(minimum(y), stop=maximum(y), length=100)
+    else typeof(grid_y) != Vector{Float64}
+        grid_y2 = map(Float64, grid_y)
     end
     if isempty(grid_z)
-        grid_z = range(minimum(z), stop=maximum(z), length=100)
+        grid_z2 = range(minimum(z), stop=maximum(z), length=100)
+    else typeof(grid_z) != Vector{Float64}
+        grid_z2 = map(Float64, grid_z)
     end
-    nx = length(grid_x)
-    ny = length(grid_y)
-    nz = length(grid_z)
-    gridsize_x = abs(grid_x[2]-grid_x[1])
-    gridsize_y = abs(grid_y[2]-grid_y[1])
-    gridsize_z = abs(grid_z[2]-grid_z[1])
+    nx = length(grid_x2)
+    ny = length(grid_y2)
+    nz = length(grid_z2)
+    gridsize_x = abs(grid_x2[2]-grid_x2[1])
+    gridsize_y = abs(grid_y2[2]-grid_y2[1])
+    gridsize_z = abs(grid_z2[2]-grid_z2[1])
     if isempty(weight)
         weight2 = ones(Float64, nframe)/nframe
     else
@@ -410,9 +421,9 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
             frames = (tid-1)*d+1:tid*d
             for iframe in frames
                 convolution3d!(tid, iframe,
-                    x, nx, rx, gridsize_x, grid_x,
-                    y, ny, ry, gridsize_y, grid_y,
-                    z, nz, rz, gridsize_z, grid_z,
+                    x, nx, rx, gridsize_x, grid_x2,
+                    y, ny, ry, gridsize_y, grid_y2,
+                    z, nz, rz, gridsize_z, grid_z2,
                     bandwidth, f_x, f_y, f_z, f_private, weight2[iframe])
             end
         end
@@ -425,9 +436,9 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
             frames = (tid-1)*d+1:tid*d
             for iframe in frames
                 convolution3d_box!(tid, iframe, boxsize,
-                    x, nx, rx, gridsize_x, grid_x,
-                    y, ny, ry, gridsize_y, grid_y,
-                    z, nz, rz, gridsize_z, grid_z,
+                    x, nx, rx, gridsize_x, grid_x2,
+                    y, ny, ry, gridsize_y, grid_y2,
+                    z, nz, rz, gridsize_z, grid_z2,
                     bandwidth, f_x, f_y, f_z, f_private, weight2[iframe],
                     ix_array, iy_array, iz_array)
             end
@@ -441,7 +452,7 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
             end
         end
     end
-    f, grid_x, grid_y, grid_z
+    f, grid_x2, grid_y2, grid_z2
 end
 
 """
@@ -450,7 +461,7 @@ calcpmf
 Potential of mean force estimator by a kernel density estimator
 """
 function calcpmf(x::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Union{Float64,Missing}=missing,
     bandwidth::Union{Float64,Missing}=missing)
@@ -463,8 +474,7 @@ function calcpmf(x::Vector{Float64};
 end
 
 function calcpmf(x::Vector{Float64}, y::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
-    grid_y::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x, grid_y,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
     bandwidth::Vector{Float64}=Vector{Float64}(undef, 0))
@@ -477,9 +487,7 @@ function calcpmf(x::Vector{Float64}, y::Vector{Float64};
 end
 
 function calcpmf(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
-    grid_x::Vector{Float64}=Vector{Float64}(undef, 0),
-    grid_y::Vector{Float64}=Vector{Float64}(undef, 0),
-    grid_z::Vector{Float64}=Vector{Float64}(undef, 0),
+    grid_x, grid_y, grid_z,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
     bandwidth::Vector{Float64}=Vector{Float64}(undef, 0))
