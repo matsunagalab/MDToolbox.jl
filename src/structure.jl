@@ -8,26 +8,26 @@ function centerofmass(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Ve
     nframe = ta.nframe
     natom = ta.natom
     if isempty(index)
-        index = Colon()
+        index2 = Colon()
         natom_sub = natom
     else
-        index = index
-        natom_sub = length(index)
+        index2 = index
+        natom_sub = length(index2)
     end
     if natom_sub == 1
-        return ta[:, index]
+        return ta[:, index2]
     elseif isweight && length(ta.mass) == natom
         weight = reshape(ta.mass, 1, natom_sub)
         wsum_inv = 1.0 / sum(weight)
-        x = sum(weight .* view(ta.x, :, index), dims=2) .* wsum_inv
-        y = sum(weight .* view(ta.y, :, index), dims=2) .* wsum_inv
-        z = sum(weight .* view(ta.z, :, index), dims=2) .* wsum_inv
+        x = sum(weight .* view(ta.x, :, index2), dims=2) .* wsum_inv
+        y = sum(weight .* view(ta.y, :, index2), dims=2) .* wsum_inv
+        z = sum(weight .* view(ta.z, :, index2), dims=2) .* wsum_inv
         return TrjArray(x=x, y=y, z=z)
     else
         wsum_inv = 1.0 / Float64(natom_sub)
-        x = sum(view(ta.x, :, index), dims=2) .* wsum_inv
-        y = sum(view(ta.y, :, index), dims=2) .* wsum_inv
-        z = sum(view(ta.z, :, index), dims=2) .* wsum_inv
+        x = sum(view(ta.x, :, index2), dims=2) .* wsum_inv
+        y = sum(view(ta.y, :, index2), dims=2) .* wsum_inv
+        z = sum(view(ta.z, :, index2), dims=2) .* wsum_inv
         return TrjArray(x=x, y=y, z=z)
     end
 end
