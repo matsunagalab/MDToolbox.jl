@@ -375,7 +375,7 @@ calcrmsd
 
 rmsd (root mean square deviation)
 """
-function calcrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
+function get_rmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
     nframe = ta.nframe
     natom = ta.natom
     if isweight && length(ta.mass) == natom
@@ -434,7 +434,7 @@ calcrmsf
 
 rmsf (root mean square fluctuation)
 """
-function calcrmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
+function get_rmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
     nframe = ta.nframe
     natom = ta.natom
     if isweight && length(ta.mass) == natom
@@ -464,7 +464,7 @@ calcbond
 
 distance between two atoms or groups of atoms
 """
-function calcbond(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
+function get_distance(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
     # TODO: support for PBC
     # TODO: hypot
     nframe = ta1.nframe
@@ -479,7 +479,7 @@ calcangle
 
 angle of three atoms or groups of atoms
 """
-function calcangle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)::Vector{Float64}
+function get_angle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)::Vector{Float64}
     nframe = ta1.nframe
     com1 = centerofmass(ta1, isweight=true)
     com2 = centerofmass(ta2, isweight=true)
@@ -498,7 +498,7 @@ calcdihedral
 
 dihedral of four atoms or groups of atoms
 """
-function calcdihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)::Vector{Float64}
+function get_dihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)::Vector{Float64}
     nframe = ta1.nframe
     com1 = centerofmass(ta1, isweight=true)
     com2 = centerofmass(ta2, isweight=true)
