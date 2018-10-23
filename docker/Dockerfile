@@ -25,5 +25,7 @@ RUN julia -e 'import Pkg; Pkg.update()' && \
     julia -e 'using Revise' && \
     julia -e 'using ProfileView' && \
     julia -e 'using BenchmarkTools' && \
+    julia -e 'using HDF5' && \
+    julia -e 'using JLD' && \
     julia -e 'using MDToolbox' && \
     fix-permissions $JULIA_PKGDIR $CONDA_DIR/share/jupyter
