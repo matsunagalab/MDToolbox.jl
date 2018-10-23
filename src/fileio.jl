@@ -1,7 +1,7 @@
 """
-read xplor or charmm (namd) format dcd file
+load xplor or charmm (namd) format dcd file
 """
-function readdcd(filename::String; index=nothing)
+function load_dcd(filename::String; index=nothing)
     #TODO: endian
     header_ischarmm_4dims = false
     x = []
@@ -164,7 +164,7 @@ end
 """
 read netcdf file
 """
-function readnetcdf(filename::String; index=nothing)
+function load_netcdf(filename::String; index=nothing)
     finfo = ncinfo(filename)
     attributes = finfo.gatts
     #dimensions = finfo.dims
@@ -232,7 +232,7 @@ end
 """
 write netcdf file
 """
-function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
+function save_netcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
     scale_factor = 20.455
     natom = ta.natom
     nframe = ta.nframe
@@ -357,7 +357,7 @@ end
 """
 read charmm or xplor type psf file
 """
-function readpsf(filename::String)
+function load_psf(filename::String)
     isPSF = false
     isEXT = false
     isCMAP = false
@@ -438,7 +438,7 @@ end
 """
 read protein data bank (PDB) file
 """
-function readpdb(filename::String)
+function load_pdb(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)
     end
