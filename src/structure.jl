@@ -420,7 +420,7 @@ function meanstructure(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=V
         ref_old = ref;
         ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
         ref = TrjArray(x=mean(ta2.x, dims=1), y=mean(ta2.y, dims=1), z=mean(ta2.z, dims=1)) # TODO: mean(ta) should be available in the futre
-        r = calcrmsd(ref_old, ref, isweight=isweight, index=index)
+        r = get_rmsd(ref_old, ref, isweight=isweight, index=index)
         println("rmsd from the previous mean structure: ", r[1])
     end
 

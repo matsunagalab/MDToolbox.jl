@@ -277,7 +277,7 @@ function match_query(some_array, query)
     end
     query = unique(unfold(query))
     for q in query
-        index = index .| (some_array .== q) # conversion occurs because Vector{Bool} .| BitArray{1}
+        index = index .| (some_array .== q) # type conversion occurs because Vector{Bool} .| BitArray{1}
     end
     index
 end
@@ -314,6 +314,8 @@ end
 
 function select_atom(ta::TrjArray, s::AbstractString)
     s = strip(s)
+
+    # attributes for selection
     s = replace(s, "chainid" => "match_query(chainid, \" ")
     s = replace(s, "chainname" => "match_query(chainname, \" ")
     s = replace(s, "resid" => "match_query(resid, \" ")
@@ -321,10 +323,12 @@ function select_atom(ta::TrjArray, s::AbstractString)
     s = replace(s, "atomid" => "match_query(atomid, \" ")
     s = replace(s, "atomname" => "match_query(atomname, \" ")
 
+    # parentheses (only 1-depth) and logical operators (and, or , not)
     s = replace(s, r"\)(\s+)and" => "\" ) ) .& ")
     s = replace(s, r"([^\)])(\s+)and" => s"\1 \" ) .& ")
     s = replace(s, r"\)(\s+)or" => "\" ) ) .| ")
     s = replace(s, r"([^\)])(\s+)or" => s"\1 \" ) .| ")
+    s = replace(s, r"(^|(\s+))not(\s+)" => " .! ")
 
     if s[end] == ')'
         s = s[1:end-1] * " \" ) )"

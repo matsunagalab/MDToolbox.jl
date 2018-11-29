@@ -520,10 +520,9 @@ end
 """
 write pdb file
 """
-function save_pdb(filename::String, ta::TrjArray)
+function save_pdb(filename::String, ta::TrjArray; format_type="vmd")
     natom = ta.natom
     nframe = ta.nframe
-    format_type = "vmd"
 
     open(filename, "w") do io
         if format_type == "namd"
