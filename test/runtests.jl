@@ -54,6 +54,8 @@ using Test
         @test ta["atomid 3:5 or chainname A"].x ≈ ta.x[:, :]
         @test ta["(atomid 3:5 and chainname A) and atomid 3"].x ≈ ta.x[:, 3]
         @test ta["(atomid 3:5 and chainname A) and (atomid 3 and chainname A)"].x ≈ ta.x[:, 3]
+        @test ta["not atomid 1:3"].x ≈ ta.x[:, 4:5]
+        @test ta["not (atomid 1:2 or atomid 4:5)"].x ≈ ta.x[:, 3]
     end
 
     @testset "merging" begin
