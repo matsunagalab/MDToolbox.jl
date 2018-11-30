@@ -401,38 +401,84 @@ function load_psf(filename::String)
     psf_residue_name = Vector{String}(undef, 0)
     psf_residue_id = Vector{Int64}(undef, 0)
     psf_atom_name = Vector{String}(undef, 0)
-    psf_atom_type = Vector{String}(undef, 0)
+    psf_atom_type_letter = Vector{String}(undef, 0)
+    psf_atom_type_number = Vector{Int64}(undef, 0)
     psf_atom_id = Vector{Int64}(undef, 0)
     psf_charge = Vector{Float64}(undef, 0)
     psf_mass = Vector{Float64}(undef, 0)
+    list_bond = Array{Int64}(undef, 0, 0)
+    list_angle = Array{Int64}(undef, 0, 0)
+    list_dihedral = Array{Int64}(undef, 0, 0)
+    list_improper = Array{Int64}(undef, 0, 0)
 
-    i = 2
-    while i <= length(lines)
-        line = lines[i]; i += 1
+    iline = 2
+    while iline <= length(lines)
+        line = lines[iline]; iline += 1
 
         if occursin(r".*\d.*!\w.*", line) && !occursin("NGRP", line)
             line_splitted = split(line, "!")
             num = parse(Int64, line_splitted[1])
-            if strip(line_splitted[end]) == "NATOM"
-                for ii = i:(i+num-1)
+            key = strip(line_splitted[2])
+            if occursin(r"^NATOM", key)
+                for ii = iline:(iline+num-1)
                     line = lines[ii]
                     push!(psf_atom_id, parse_line(line, fmt_atom[1], Int64, 0))
                     push!(psf_segment_name, parse_line(line, fmt_atom[2], String, "None"))
                     push!(psf_residue_id, parse_line(line, fmt_atom[3], Int64, 0))
                     push!(psf_residue_name, parse_line(line, fmt_atom[4], String, "None"))
                     push!(psf_atom_name, parse_line(line, fmt_atom[5], String, "None"))
-                    push!(psf_atom_type, parse_line(line, fmt_atom[6], String, "None")) # TODO: XPLOR or CHARMM format
+                    if isletter(strip(line[fmt_atom[6]])[1])
+                        push!(psf_atom_type_letter, parse_line(line, fmt_atom[6], String, "None")) # CHARMM format
+                    else
+                        push!(psf_atom_type_number, parse_line(line, fmt_atom[6], Int64, 0)) # XPLOR format
+                    end
                     push!(psf_charge, parse_line(line, fmt_atom[7], Float64, 0.0))
                     push!(psf_mass, parse_line(line, fmt_atom[8], Float64, 0.0))
                 end
-                i += num
+                iline += num
+
+            elseif occursin(r"^NBOND", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*2)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_bond = collect(reshape(a, 2, :)')
+
+            elseif occursin(r"^NTHETA", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*3)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_angle = collect(reshape(a, 3, :)')
+
+            elseif occursin(r"^NPHI", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*4)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_dihedral = collect(reshape(a, 4, :)')
+
+            elseif occursin(r"^NIMPHI", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*4)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_improper = collect(reshape(a, 4, :)')
+
             end
         end
     end
+
     TrjArray(chainname=psf_segment_name,
              resname=psf_residue_name, resid=psf_residue_id,
              atomname=psf_atom_name, atomid=psf_atom_id,
-             mass=psf_mass, charge=psf_charge)
+             mass=psf_mass, charge=psf_charge,
+             list_bond=list_bond, list_angle=list_angle,
+             list_dihedral=list_dihedral, list_improper=list_improper)
 end
 
 """
