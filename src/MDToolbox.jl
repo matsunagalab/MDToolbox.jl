@@ -13,7 +13,7 @@ using Base.Threads
 # package code goes here
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, select_atom
-export load_dcd, load_netcdf, save_netcdf, load_psf, load_pdb, save_pdb
+export load_dcd, load_netcdf, save_netcdf, load_psf, save_psf, load_pdb, save_pdb
 export centerofmass, decenter, superimpose, superimpose_serial, get_rmsd, meanstructure, get_rmsf
 export get_distance, get_angle, get_dihedral
 export ksdensity, ksdensity_serial, get_pmf

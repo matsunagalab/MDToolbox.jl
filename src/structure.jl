@@ -1,4 +1,3 @@
-###### center of mass #################
 """
 centerofmass
 
@@ -33,6 +32,7 @@ function centerofmass(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Ve
 end
 
 
+############################################################################
 """
 decenter
 
@@ -97,6 +97,8 @@ function innerproduct(iframe::Int64, ref::TrjArray, ta::TrjArray,
     return A, (G1 + G2) * 0.5
 end
 
+
+############################################################################
 """
 this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
@@ -262,6 +264,8 @@ function applyrotation!(iframe, x, y, z, ta2, rot)
     end
 end
 
+
+############################################################################
 """
 superimpose
 
@@ -319,6 +323,8 @@ function superimpose(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Ve
     #rmsd, ta_fit
 end
 
+
+############################################################################
 function superimpose_serial(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0), isdecenter::Bool=false)::TrjArray
     nframe = ta.nframe
     natom = ta.natom
@@ -369,7 +375,8 @@ function superimpose_serial(ref::TrjArray, ta::TrjArray; isweight::Bool=true, in
     #rmsd, ta_fit
 end
 
-###### rmsd #################
+
+############################################################################
 """
 calcrmsd
 
@@ -402,7 +409,8 @@ function get_rmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vecto
     reshape(d, nframe)
 end
 
-###### mean structure #################
+
+############################################################################
 """
 meanstructure
 
@@ -428,7 +436,8 @@ function meanstructure(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=V
     ref, ta2
 end
 
-###### rmsf #################
+
+############################################################################
 """
 calcrmsf
 
@@ -458,7 +467,8 @@ function get_rmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
     reshape(d, nframe)
 end
 
-###### distance, angle, dihedral #################
+
+############################################################################
 """
 calcbond
 
@@ -474,6 +484,8 @@ function get_distance(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
     reshape(dist, nframe)
 end
 
+
+############################################################################
 """
 calcangle
 
@@ -493,6 +505,8 @@ function get_angle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)::Vector{Float64}
     a = (a ./ pi) .* 180.0
 end
 
+
+############################################################################
 """
 calcdihedral
 
