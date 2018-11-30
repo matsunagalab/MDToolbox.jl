@@ -22,13 +22,15 @@ struct TrjArray <: AbstractTrajectory
     atomid::Vector{Int64}
     mass::Vector{Float64}
     charge::Vector{Float64}
-    # bond::Matrix{Int64}
-    # angle::Matrix{Int64}
-    # dihedral::Matrix{Int64}
+    list_bond::Matrix{Int64}
+    list_angle::Matrix{Int64}
+    list_dihedral::Matrix{Int64}
+    list_improper::Matrix{Int64}
     natom::Int64
     nframe::Int64
 
-    function TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
+    function TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+                      list_bond, list_angle, list_dihedral, list_improper)
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
         # ischecked && return new(trj, atomname, atomid, meta)
@@ -88,7 +90,8 @@ struct TrjArray <: AbstractTrajectory
         # charge2 = typeof(charge) == Vector{Float64} ? charge : map(Float64, charge)
 
         # return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, natom, nframe)
-        return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge, natom, nframe)
+        return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+                   list_bond, list_angle, list_dihedral, list_improper, natom, nframe)
     end
 end
 
@@ -98,7 +101,9 @@ function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 
                   chainname = Vector{String}(undef, 0), chainid = Vector{Int64}(undef, 0),
                   resname = Vector{String}(undef, 0), resid = Vector{Int64}(undef, 0),
                   atomname = Vector{String}(undef, 0), atomid = Vector{Int64}(undef, 0),
-                  mass = Vector{Float64}(undef, 0), charge = Vector{Float64}(undef, 0))
+                  mass = Vector{Float64}(undef, 0), charge = Vector{Float64}(undef, 0),
+                  list_bond = Matrix{Int64}(undef, 0, 0), list_angle = Matrix{Int64}(undef, 0, 0),
+                  list_dihedral = Matrix{Int64}(undef, 0, 0), list_improper = Matrix{Int64}(undef, 0, 0))
     # if typeof(x) <: AbstractVector
     #     x2 = reshape(x, length(x), 1)
     # else
@@ -115,7 +120,8 @@ function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 
     #     z2 = z
     # end
     # TrjArray(x2, y2, z2, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
-    TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
+    TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+             list_bond, list_angle, list_dihedral, list_improper)
 end
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjArray) where {T <: Real} =
@@ -123,14 +129,18 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjAr
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
-                      mass = ta.mass, charge = ta.charge)
+                      mass = ta.mass, charge = ta.charge,
+                      list_bond = ta.list_bond, list_angle = ta.list_angle,
+                      list_dihedral = ta.list_dihedral, list_improper = ta.list_improper)
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
              TrjArray(x = x, y = y, z = z, boxsize = ta.boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
-                      mass = ta.mass, charge = ta.charge)
+                      mass = ta.mass, charge = ta.charge,
+                      list_bond = ta.list_bond, list_angle = ta.list_angle,
+                      list_dihedral = ta.list_dihedral, list_improper = ta.list_improper)
 
 ###### size, length #################
 size(ta::TrjArray) = (ta.nframe, ta.natom)
@@ -185,6 +195,37 @@ function getindex(ta::TrjArray, a::AbstractVector{Bool})
 end
 getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
 
+# define function for updating list_bond, list_angle, list_dihedral, list_improper
+function reindex_list(natom, list_some, index)
+  if isempty(list_some) || isempty(index)
+    return Matrix{Int64}(undef, 0, 0)
+  end
+  if typeof(index) <: AbstractVector{Bool}
+    index_logical = index
+    reindex = zeros(Int64, natom)
+    reindex[index] = 1:sum(index)
+  else
+    index_logical = falses(natom)
+    index_logical[index] .= true
+    reindex = zeros(Int64, natom)
+    reindex[index] = 1:length(index)
+  end
+  nlist = size(list_some, 1)
+  list_some_new = similar(list_some)
+  icount = 0
+  for i = 1:nlist
+    if all(index_logical[list_some[i, :]])
+      icount += 1
+      list_some_new[icount, :] .= reindex[list_some[i, :]]
+    end
+  end
+  if icount == 0
+    return Matrix{Int64}(undef, 0, 0)
+  else
+    return list_some_new[1:icount, :]
+  end
+end
+
 # single column
 getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
              x = isempty(ta.x) ? ta.x : ta.x[:, r:r],
@@ -198,7 +239,11 @@ getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r],
-             charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r])
+             charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r],
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r:r),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r:r),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r:r),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r:r))
 
 # range of columns
 getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
@@ -213,7 +258,11 @@ getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
-             charge = isempty(ta.charge) ? ta.charge : ta.charge[r])
+             charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r))
 
 # array of columns (integer)
 getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(
@@ -228,7 +277,11 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = Trj
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
-             charge = isempty(ta.charge) ? ta.charge : ta.charge[r])
+             charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r))
 
 # array of rows (bool)
 getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
@@ -243,7 +296,11 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
-             charge = isempty(ta.charge) ? ta.charge : ta.charge[r])
+             charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r))
 
 # combinations
 getindex(ta::TrjArray, rows, cols) = ta[rows, :][:, cols]
@@ -313,7 +370,7 @@ function replace_ex!(ex::Expr, ta::TrjArray)
 end
 
 function select_atom(ta::TrjArray, s::AbstractString)
-    s = strip(s)
+    #s = strip(s)
 
     # attributes for selection
     s = replace(s, "chainid" => "match_query(chainid, \" ")
@@ -322,6 +379,7 @@ function select_atom(ta::TrjArray, s::AbstractString)
     s = replace(s, "resname" => "match_query(resname, \" ")
     s = replace(s, "atomid" => "match_query(atomid, \" ")
     s = replace(s, "atomname" => "match_query(atomname, \" ")
+    s = replace(s, r"(^|(\s+))name(\s+)" => "match_query(atomname, \" ")
 
     # parentheses (only 1-depth) and logical operators (and, or , not)
     s = replace(s, r"\)(\s+)and" => "\" ) ) .& ")
@@ -330,6 +388,7 @@ function select_atom(ta::TrjArray, s::AbstractString)
     s = replace(s, r"([^\)])(\s+)or" => s"\1 \" ) .| ")
     s = replace(s, r"(^|(\s+))not(\s+)" => " .! ")
 
+    s = strip(s)
     if s[end] == ')'
         s = s[1:end-1] * " \" ) )"
     elseif s[end-length("all")+1:end] != "all" && s[end-length("backbone")+1:end] != "backbone"
@@ -367,7 +426,8 @@ copy(ta::TrjArray)::TrjArray =
              ta.chainname, ta.chainid,
              ta.resname, ta.resid,
              ta.atomname, ta.atomid,
-             ta.mass, ta.charge)
+             ta.mass, ta.charge,
+             ta.list_bond, ta.list_angle, ta.list_dihedral, ta.list_improper)
 
 ###### accessors to field values #################
 
