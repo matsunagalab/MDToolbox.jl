@@ -26,11 +26,12 @@ struct TrjArray <: AbstractTrajectory
     list_angle::Matrix{Int64}
     list_dihedral::Matrix{Int64}
     list_improper::Matrix{Int64}
+    list_cmap::Matrix{Int64}
     natom::Int64
     nframe::Int64
 
     function TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
-                      list_bond, list_angle, list_dihedral, list_improper)
+                      list_bond, list_angle, list_dihedral, list_improper, list_cmap)
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
         # ischecked && return new(trj, atomname, atomid, meta)
@@ -91,7 +92,7 @@ struct TrjArray <: AbstractTrajectory
 
         # return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, natom, nframe)
         return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
-                   list_bond, list_angle, list_dihedral, list_improper, natom, nframe)
+                   list_bond, list_angle, list_dihedral, list_improper, list_cmap, natom, nframe)
     end
 end
 
@@ -103,7 +104,8 @@ function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 
                   atomname = Vector{String}(undef, 0), atomid = Vector{Int64}(undef, 0),
                   mass = Vector{Float64}(undef, 0), charge = Vector{Float64}(undef, 0),
                   list_bond = Matrix{Int64}(undef, 0, 0), list_angle = Matrix{Int64}(undef, 0, 0),
-                  list_dihedral = Matrix{Int64}(undef, 0, 0), list_improper = Matrix{Int64}(undef, 0, 0))
+                  list_dihedral = Matrix{Int64}(undef, 0, 0), list_improper = Matrix{Int64}(undef, 0, 0),
+                  list_cmap = Matrix{Int64}(undef, 0, 0))
     # if typeof(x) <: AbstractVector
     #     x2 = reshape(x, length(x), 1)
     # else
@@ -121,7 +123,7 @@ function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 
     # end
     # TrjArray(x2, y2, z2, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
     TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
-             list_bond, list_angle, list_dihedral, list_improper)
+             list_bond, list_angle, list_dihedral, list_improper, list_cmap)
 end
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjArray) where {T <: Real} =
@@ -131,7 +133,8 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjAr
                       atomname = ta.atomname, atomid = ta.atomid,
                       mass = ta.mass, charge = ta.charge,
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
-                      list_dihedral = ta.list_dihedral, list_improper = ta.list_improper)
+                      list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
+                      list_cmap = ta.list_cmap)
 
 TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
              TrjArray(x = x, y = y, z = z, boxsize = ta.boxsize,
@@ -140,7 +143,8 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Rea
                       atomname = ta.atomname, atomid = ta.atomid,
                       mass = ta.mass, charge = ta.charge,
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
-                      list_dihedral = ta.list_dihedral, list_improper = ta.list_improper)
+                      list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
+                      list_cmap = ta.list_cmap)
 
 ###### size, length #################
 size(ta::TrjArray) = (ta.nframe, ta.natom)
@@ -195,7 +199,7 @@ function getindex(ta::TrjArray, a::AbstractVector{Bool})
 end
 getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
 
-# define function for updating list_bond, list_angle, list_dihedral, list_improper
+# define function for updating list_bond, list_angle, list_dihedral, list_improper, list_cmap
 function reindex_list(natom, list_some, index)
   if isempty(list_some) || isempty(index)
     return Matrix{Int64}(undef, 0, 0)
@@ -243,7 +247,8 @@ getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r:r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r:r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r:r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r:r))
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r:r),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r:r))
 
 # range of columns
 getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
@@ -262,7 +267,8 @@ getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r))
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
 
 # array of columns (integer)
 getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(
@@ -281,7 +287,8 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = Trj
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r))
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
 
 # array of rows (bool)
 getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
@@ -300,7 +307,8 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r))
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
 
 # combinations
 getindex(ta::TrjArray, rows, cols) = ta[rows, :][:, cols]
@@ -324,7 +332,8 @@ end
 
 function match_query(some_array, query)
     natom = length(some_array)
-    index = fill(false, natom)
+    #index = fill(false, natom)
+    index = falses(natom)
     if isempty(some_array)
         return index
     elseif typeof(some_array[1]) == String
@@ -334,7 +343,7 @@ function match_query(some_array, query)
     end
     query = unique(unfold(query))
     for q in query
-        index = index .| (some_array .== q) # type conversion occurs because Vector{Bool} .| BitArray{1}
+        index = index .| (some_array .== q)
     end
     index
 end
@@ -427,7 +436,7 @@ copy(ta::TrjArray)::TrjArray =
              ta.resname, ta.resid,
              ta.atomname, ta.atomid,
              ta.mass, ta.charge,
-             ta.list_bond, ta.list_angle, ta.list_dihedral, ta.list_improper)
+             ta.list_bond, ta.list_angle, ta.list_dihedral, ta.list_improper, ta.list_cmap)
 
 ###### accessors to field values #################
 

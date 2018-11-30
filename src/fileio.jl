@@ -161,6 +161,7 @@ function load_dcd(filename::String; index=nothing)
 end
 
 
+############################################################################
 """
 read netcdf file
 """
@@ -229,6 +230,7 @@ function load_netcdf(filename::String; index=nothing)
 end
 
 
+############################################################################
 """
 write netcdf file
 """
@@ -341,6 +343,7 @@ function save_netcdf(filename::String, ta::TrjArray; velocity = nothing, force =
 end
 
 
+############################################################################
 function parse_line(line::String, index, mytype::DataType, default_value)
     try
         if mytype == String
@@ -354,6 +357,7 @@ function parse_line(line::String, index, mytype::DataType, default_value)
 end
 
 
+############################################################################
 """
 read charmm or xplor type psf file
 """
@@ -410,6 +414,7 @@ function load_psf(filename::String)
     list_angle = Array{Int64}(undef, 0, 0)
     list_dihedral = Array{Int64}(undef, 0, 0)
     list_improper = Array{Int64}(undef, 0, 0)
+    list_cmap = Array{Int64}(undef, 0, 0)
 
     iline = 2
     while iline <= length(lines)
@@ -469,6 +474,14 @@ function load_psf(filename::String)
                 end
                 list_improper = collect(reshape(a, 4, :)')
 
+            elseif occursin(r"^NCRTERM", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*8)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_cmap = collect(reshape(a, 8, :)')
+
             end
         end
     end
@@ -478,9 +491,110 @@ function load_psf(filename::String)
              atomname=psf_atom_name, atomid=psf_atom_id,
              mass=psf_mass, charge=psf_charge,
              list_bond=list_bond, list_angle=list_angle,
-             list_dihedral=list_dihedral, list_improper=list_improper)
+             list_dihedral=list_dihedral, list_improper=list_improper,
+             list_cmap=list_cmap)
 end
 
+
+############################################################################
+"""
+write psf file
+"""
+function save_psf(filename::String, ta::TrjArray)
+    natom = ta.natom
+
+    open(filename, "w") do io
+        Printf.@printf(io, "%4s", "PSF ")
+        if !isempty(ta.list_cmap)
+            Printf.@printf(io, "%4s", "CMAP")
+        end
+        Printf.@printf(io, "\n\n")
+
+        Printf.@printf(io, "%8d !NTITLE\n", 1)
+        Printf.@printf(io, "CREATED by MDToolbox.jl\n")
+        Printf.@printf(io, "\n")
+
+        Printf.@printf(io, "%8d !NATOM\n", natom)
+        for iatom = 1:natom
+            Printf.@printf(io, "%8d", iatom)
+            Printf.@printf(io, " %4s", isempty(ta.chainname) ? rpad("NONE", 4) : rpad(ta.chainname[iatom], 4))
+            Printf.@printf(io, " %-4d", isempty(ta.resid) ? 0 : ta.resid[iatom])
+            Printf.@printf(io, " %4s", isempty(ta.resname) ? rpad("NONE", 4) : rpad(ta.resname[iatom], 4))
+            Printf.@printf(io, " %4s", isempty(ta.atomname) ? rpad("NONE", 4) : rpad(ta.atomname[iatom], 4))
+            Printf.@printf(io, " %4s", isempty(ta.atomname) ? rpad("NONE", 4) : rpad(ta.atomname[iatom], 4))
+            Printf.@printf(io, "%14.9f", isempty(ta.charge) ? 0.0 : ta.charge[iatom])
+            Printf.@printf(io, "%14.7f", isempty(ta.mass) ? 0.0 : ta.mass[iatom])
+            Printf.@printf(io, "%9d", 0)
+            Printf.@printf(io, "\n")
+        end
+
+        if !isempty(ta.list_bond)
+            Printf.@printf(io, "%8d !NBOND\n", size(ta.list_bond, 1))
+            for i = 1:size(ta.list_bond, 1)
+                for j = 1:size(ta.list_bond, 2)
+                    Printf.@printf(io, "%8d", ta.list_bond[i, j])
+                end
+                if (i % 4) == 0
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        end
+
+        if !isempty(ta.list_angle)
+            Printf.@printf(io, "%8d !NTHETA\n", size(ta.list_angle, 1))
+            for i = 1:size(ta.list_angle, 1)
+                for j = 1:size(ta.list_angle, 2)
+                    Printf.@printf(io, "%8d", ta.list_angle[i, j])
+                end
+                if (i % 3) == 0
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        end
+
+        if !isempty(ta.list_dihedral)
+            Printf.@printf(io, "%8d !NPHI\n", size(ta.list_dihedral, 1))
+            for i = 1:size(ta.list_dihedral, 1)
+                for j = 1:size(ta.list_dihedral, 2)
+                    Printf.@printf(io, "%8d", ta.list_dihedral[i, j])
+                end
+                if (i % 2) == 0
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        end
+
+        if !isempty(ta.list_improper)
+            Printf.@printf(io, "%8d !NIMPHI\n", size(ta.list_improper, 1))
+            for i = 1:size(ta.list_improper, 1)
+                for j = 1:size(ta.list_improper, 2)
+                    Printf.@printf(io, "%8d", ta.list_improper[i, j])
+                end
+                if (i % 2) == 0
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        end
+
+        if !isempty(ta.list_cmap)
+            Printf.@printf(io, "%8d !NCRTERM\n", size(ta.list_cmap, 1))
+            for i = 1:size(ta.list_cmap, 1)
+                for j = 1:size(ta.list_cmap, 2)
+                    Printf.@printf(io, "%8d", ta.list_cmap[i, j])
+                end
+                Printf.@printf(io, "\n")
+            end
+            Printf.@printf(io, "\n")
+        end
+    end
+end
+
+
+############################################################################
 """
 read protein data bank (PDB) file
 """
@@ -563,6 +677,8 @@ function load_pdb(filename::String)
              atomid=pdb_serial, atomname=pdb_name)
 end
 
+
+############################################################################
 """
 write pdb file
 """
@@ -589,7 +705,6 @@ function save_pdb(filename::String, ta::TrjArray; format_type="vmd")
                 else
                     Printf.@printf(io, "%4s", lpad(ta.atomname[iatom], 4))
                 end
-                #################################################################33
                 Printf.@printf(io, "%1s", " ")
                 #Printf.@printf(io, "%3s", ta.resname(iatom, :))
                 #Printf.@printf(io, "%1s", " ")
