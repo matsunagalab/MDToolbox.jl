@@ -241,7 +241,8 @@ getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
              resname = isempty(ta.resname) ? ta.resname : ta.resname[r:r],
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r:r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r],
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
+             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:1),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r:r),
@@ -261,7 +262,8 @@ getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
              resname = isempty(ta.resname) ? ta.resname : ta.resname[r],
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
@@ -281,7 +283,8 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = Trj
              resname = isempty(ta.resname) ? ta.resname : ta.resname[r],
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
@@ -301,7 +304,8 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
              resname = isempty(ta.resname) ? ta.resname : ta.resname[r],
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
-             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:sum(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
@@ -389,6 +393,7 @@ function select_atom(ta::TrjArray, s::AbstractString)
     s = replace(s, "atomid" => "match_query(atomid, \" ")
     s = replace(s, "atomname" => "match_query(atomname, \" ")
     s = replace(s, r"(^|(\s+))name(\s+)" => "match_query(atomname, \" ")
+    s = replace(s, r"(^|(\s+))chain(\s+)" => "match_query(chainname, \" ")
 
     # parentheses (only 1-depth) and logical operators (and, or , not)
     s = replace(s, r"\)(\s+)and" => "\" ) ) .& ")
