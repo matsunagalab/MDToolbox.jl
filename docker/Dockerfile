@@ -29,6 +29,7 @@ RUN julia -e 'import Pkg; Pkg.update()' && \
     julia -e 'import Pkg; Pkg.add("BenchmarkTools")' && \
     julia -e 'import Pkg; Pkg.add("HDF5")' && \
     julia -e 'import Pkg; Pkg.add("JLD2")' && \
+    julia -e 'import Pkg; Pkg.add("MAT")' && \
     julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(url="https://github.com/ymatsunaga/MDToolbox.jl.git", rev="master"))' && \
     julia -e 'import Pkg; Pkg.add("FileIO")'
 
@@ -44,6 +45,7 @@ RUN julia -e 'using IJulia' && \
     julia -e 'using BenchmarkTools' && \
     julia -e 'using HDF5' && \
     julia -e 'using JLD2' && \
+    julia -e 'using MAT' && \
     julia -e 'using MDToolbox' && \
     julia -e 'using FileIO'
 
