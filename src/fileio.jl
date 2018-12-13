@@ -1,7 +1,7 @@
 """
 load xplor or charmm (namd) format dcd file
 """
-function load_dcd(filename::String; index=nothing)
+function load_dcd(filename::String; index=nothing, stride=1)
     #TODO: endian
     header_ischarmm_4dims = false
     x = []
@@ -103,6 +103,7 @@ function load_dcd(filename::String; index=nothing)
         coordblocksize = (4*2 + 4*header_natom)*3
         nframe = (file_size - header_size) / (extrablocksize + coordblocksize)
         nframe = Int64(floor(nframe))
+        nframe_stride = length(1:stride:nframe)
         if typeof(index) <: AbstractVector{Bool}
             index2 = findall(index)
         elseif index == nothing
@@ -110,18 +111,18 @@ function load_dcd(filename::String; index=nothing)
         else
             index2 = index
         end
-        x = zeros(Float64, (nframe, length(index2)))
-        y = zeros(Float64, (nframe, length(index2)))
-        z = zeros(Float64, (nframe, length(index2)))
+        x = zeros(Float64, (nframe_stride, length(index2)))
+        y = zeros(Float64, (nframe_stride, length(index2)))
+        z = zeros(Float64, (nframe_stride, length(index2)))
         if header_ischarmm_extrablock == true
-            boxsize = zeros(Float64, (nframe, 3))
+            boxsize = zeros(Float64, (nframe_stride, 3))
         end
         # read next frames
         dummy = Array{Float64, 1}(undef, 6)
         crd_x = Array{Float32, 1}(undef, header_natom)
         crd_y = Array{Float32, 1}(undef, header_natom)
         crd_z = Array{Float32, 1}(undef, header_natom)
-        for iframe in 1:nframe
+        for iframe in 1:nframe_stride
             # read charmm extrablock (unitcell info)
             if header_ischarmm_extrablock == true
                 blocksize_box = read(io, Int32)
@@ -152,6 +153,35 @@ function load_dcd(filename::String; index=nothing)
             z[iframe, :] = crd_z[index2];
             if header_ischarmm_extrablock == true
                 boxsize[iframe, :] = dummy[[1 3 6]];
+            end
+
+            # skip stride-1 frames
+            if iframe < nframe_stride
+                for ii = 1:(stride-1)
+                    if header_ischarmm_extrablock == true
+                        blocksize_box = read(io, Int32)
+                        skip(io, blocksize_box)
+                        blocksize_box = read(io, Int32)
+                    end
+                    # read x coordinates
+                    blocksize_x = read(io, Int32)
+                    skip(io, blocksize_x)
+                    blocksize_x = read(io, Int32)
+                    # read y coordinates
+                    blocksize_y = read(io, Int32)
+                    skip(io, blocksize_y)
+                    blocksize_y = read(io, Int32)
+                    # read z coordinates
+                    blocksize_z = read(io, Int32)
+                    skip(io, blocksize_z)
+                    blocksize_z = read(io, Int32)
+                    # skip charmm 4dims extension
+                    if header_ischarmm_4dims == true
+                        blocksize_4dims = read(io, Int32)
+                        skip(io, blocksize_4dims)
+                        blocksize_4dims = read(io, Int32)
+                    end
+                end
             end
         end
     end
