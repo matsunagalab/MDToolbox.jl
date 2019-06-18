@@ -456,11 +456,11 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
 end
 
 """
-get_pmf
+getpmf
 
 Potential of mean force estimator by a kernel density estimator
 """
-function get_pmf(x::Vector{Float64};
+function getpmf(x::Vector{Float64};
     grid_x,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Union{Float64,Missing}=missing,
@@ -473,7 +473,7 @@ function get_pmf(x::Vector{Float64};
     pmf, grid_x
 end
 
-function get_pmf(x::Vector{Float64}, y::Vector{Float64};
+function getpmf(x::Vector{Float64}, y::Vector{Float64};
     grid_x, grid_y,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
@@ -486,7 +486,7 @@ function get_pmf(x::Vector{Float64}, y::Vector{Float64};
     pmf, grid_x, grid_y
 end
 
-function get_pmf(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
+function getpmf(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
     grid_x, grid_y, grid_z,
     weight::Vector{Float64}=Vector{Float64}(undef, 0),
     boxsize::Vector{Float64}=Vector{Float64}(undef, 0),
