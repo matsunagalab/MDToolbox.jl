@@ -1,9 +1,10 @@
 """
 load xplor or charmm (namd) format dcd file
 """
-function load_dcd(filename::String; index=nothing, stride=1)
+function readdcd(filename::String; index=nothing, stride=1)
     #TODO: endian
     header_ischarmm_4dims = false
+    header_ischarmm_extrablock = false
     x = []
     y = []
     z = []
@@ -64,7 +65,7 @@ function load_dcd(filename::String; index=nothing, stride=1)
             seek(io, 52);
             n = read(io, Int32)
             if n == 1
-                header_ischarmm_extrablock = true
+                header_ischarmm_4dims = true
             end
             seek(io, cof)
         end
@@ -195,7 +196,7 @@ end
 """
 read netcdf file
 """
-function load_netcdf(filename::String; index=nothing)
+function readnetcdf(filename::String; index=nothing)
     finfo = ncinfo(filename)
     attributes = finfo.gatts
     #dimensions = finfo.dims
@@ -264,7 +265,7 @@ end
 """
 write netcdf file
 """
-function save_netcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
+function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
     scale_factor = 20.455
     natom = ta.natom
     nframe = ta.nframe
@@ -391,7 +392,7 @@ end
 """
 read charmm or xplor type psf file
 """
-function load_psf(filename::String)
+function readpsf(filename::String)
     isPSF = false
     isEXT = false
     isCMAP = false
@@ -452,7 +453,8 @@ function load_psf(filename::String)
 
         if occursin(r".*\d.*!\w.*", line) && !occursin("NGRP", line)
             line_splitted = split(line, "!")
-            num = parse(Int64, line_splitted[1])
+            #num = parse(Int64, line_splitted[1])
+            num = parse_line(String(line_splitted[1]), 1:length(line_splitted[1]), Int64, 0)
             key = strip(line_splitted[2])
             if occursin(r"^NATOM", key)
                 for ii = iline:(iline+num-1)
@@ -530,7 +532,7 @@ end
 """
 write psf file
 """
-function save_psf(filename::String, ta::TrjArray)
+function writepsf(filename::String, ta::TrjArray)
     natom = ta.natom
 
     open(filename, "w") do io
@@ -628,7 +630,7 @@ end
 """
 read protein data bank (PDB) file
 """
-function load_pdb(filename::String)
+function readpdb(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)
     end
@@ -712,7 +714,7 @@ end
 """
 write pdb file
 """
-function save_pdb(filename::String, ta::TrjArray; format_type="vmd")
+function writepdb(filename::String, ta::TrjArray; format_type="vmd")
     natom = ta.natom
     nframe = ta.nframe
 

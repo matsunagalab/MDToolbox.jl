@@ -13,10 +13,10 @@ using Base.Threads
 # package code goes here
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, select_atom
-export load_dcd, load_netcdf, save_netcdf, load_psf, save_psf, load_pdb, save_pdb
-export centerofmass, decenter, superimpose, superimpose_serial, get_rmsd, meanstructure, get_rmsf
-export get_distance, get_angle, get_dihedral
-export ksdensity, ksdensity_serial, get_pmf
+export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb
+export centerofmass, decenter, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf
+export getdistance, getangle, getdihedral
+export ksdensity, ksdensity_serial, getpmf
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia

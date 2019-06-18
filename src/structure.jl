@@ -382,7 +382,7 @@ calcrmsd
 
 rmsd (root mean square deviation)
 """
-function get_rmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
+function getrmsd(ref::TrjArray, ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Vector{Float64}
     nframe = ta.nframe
     natom = ta.natom
     if isweight && length(ta.mass) == natom
@@ -428,7 +428,7 @@ function meanstructure(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=V
         ref_old = ref;
         ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
         ref = TrjArray(x=mean(ta2.x, dims=1), y=mean(ta2.y, dims=1), z=mean(ta2.z, dims=1)) # TODO: mean(ta) should be available in the futre
-        r = get_rmsd(ref_old, ref, isweight=isweight, index=index)
+        r = getrmsd(ref_old, ref, isweight=isweight, index=index)
         println("rmsd from the previous mean structure: ", r[1])
     end
 
@@ -443,7 +443,7 @@ calcrmsf
 
 rmsf (root mean square fluctuation)
 """
-function get_rmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
+function getrmsf(ta::TrjArray; isweight::Bool=true)::Vector{Float64}
     nframe = ta.nframe
     natom = ta.natom
     if isweight && length(ta.mass) == natom
@@ -474,7 +474,7 @@ calcbond
 
 distance between two atoms or groups of atoms
 """
-function get_distance(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
+function getdistance(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
     # TODO: support for PBC
     # TODO: hypot
     nframe = ta1.nframe
@@ -484,14 +484,13 @@ function get_distance(ta1::TrjArray, ta2::TrjArray)::Vector{Float64}
     reshape(dist, nframe)
 end
 
-
 ############################################################################
 """
 calcangle
 
 angle of three atoms or groups of atoms
 """
-function get_angle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)::Vector{Float64}
+function getangle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)::Vector{Float64}
     nframe = ta1.nframe
     com1 = centerofmass(ta1, isweight=true)
     com2 = centerofmass(ta2, isweight=true)
@@ -512,7 +511,7 @@ calcdihedral
 
 dihedral of four atoms or groups of atoms
 """
-function get_dihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)::Vector{Float64}
+function getdihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)::Vector{Float64}
     nframe = ta1.nframe
     com1 = centerofmass(ta1, isweight=true)
     com2 = centerofmass(ta2, isweight=true)
