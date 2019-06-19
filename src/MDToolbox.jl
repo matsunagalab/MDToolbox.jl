@@ -17,6 +17,7 @@ export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb
 export centerofmass, decenter, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf
 export getdistance, getangle, getdihedral
 export ksdensity, ksdensity_serial, getpmf
+export wham
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
@@ -27,5 +28,6 @@ include("trjarray.jl")
 include("fileio.jl")
 include("structure.jl")
 include("ksdensity.jl")
+include("wham.jl")
 
 end # module
