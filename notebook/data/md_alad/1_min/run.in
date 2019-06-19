@@ -1,0 +1,16 @@
+minimization
+ &cntrl
+   imin=1, 
+   irest=0, ntx=1, 
+   maxcyc=1000, 
+   ioutfm=1,  
+   ntpr=10, ntwx=10, ntwr=10, 
+   ntc=1, ntf=1, tol=0.000001, 
+   ntb=1, ntt=0, ntp=0, 
+   ig=2739273,
+   cut=10.0,
+   ntr=1, 
+   restraint_wt=10.0, 
+   restraintmask=':1-3 & !@H=', 
+ /
+
