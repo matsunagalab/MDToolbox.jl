@@ -20,9 +20,12 @@ RUN conda install --quiet --yes \
 
 RUN julia -e 'import Pkg; Pkg.update()' && \
     julia -e 'import Pkg; Pkg.add("PyPlot")' && \
+    julia -e 'import Pkg; Pkg.add("Plots")' && \
     julia -e 'import Pkg; Pkg.add("Flux")' && \
+    julia -e 'import Pkg; Pkg.add("DifferentialEquations.jl")' && \
     julia -e 'import Pkg; Pkg.add("Optim")' && \
     julia -e 'import Pkg; Pkg.add("NLsolve")' && \
+    julia -e 'import Pkg; Pkg.add("StatsBase")' && \
     julia -e 'import Pkg; Pkg.add("FFTW")' && \
     julia -e 'import Pkg; Pkg.add("Revise")' && \
     julia -e 'import Pkg; Pkg.add("ProfileView")' && \
@@ -38,9 +41,12 @@ RUN julia -e 'import Pkg; Pkg.update()' && \
 RUN julia -e 'using IJulia' && \
     #julia -e 'pygui(false)' && \
     julia -e 'using PyPlot' && \
+    julia -e 'using Plots' && \
     julia -e 'using Flux' && \
+    julia -e 'using DifferentialEquations.jl' && \
     julia -e 'using Optim' && \
     julia -e 'using NLsolve' && \
+    julia -e 'using StatsBase' && \
     julia -e 'using FFTW' && \
     julia -e 'using Revise' && \
     julia -e 'using ProfileView' && \
