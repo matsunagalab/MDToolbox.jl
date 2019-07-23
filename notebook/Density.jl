@@ -31,4 +31,9 @@ end
 # ガウス関数の値を求める
 function get_gaussian(dx, mean, sigma)
     return exp((-(mean - dx)^2)/(2*(sigma^2)))/(sqrt(2.0*pi)*sigma)
+    
+    # sigma_matrix = (sigma^2) * collect(Diagonal(ones(length(dx))))
+    
+    # gaussian = exp(-(1/2) * ((dx - mean) * inv(sigma_matrix) * (dx - mean)'))
+    # return gaussian[1, 1]
 end
