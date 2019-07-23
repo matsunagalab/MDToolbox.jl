@@ -1,0 +1,23 @@
+production run
+ &cntrl
+   ig=792663, 
+   irest=1, ntx=5,
+   nstlim=50000, dt=0.002,
+   ntc=2, ntf=1, tol=0.000001,
+   ntb=2, nscm=50000,
+   ntt=3, gamma_ln=2.0, temp0=300.0,
+   ntp=1, taup=5.0,
+   cut=10.0,
+   ioutfm=1,
+   ntpr=100, ntwx=100, ntwr=50000, iwrap=1,
+   nmropt=1,
+ /
+ &wt
+  type='DUMPFREQ', istep1=100,
+ /
+ &wt
+  type='END',
+ /
+DISANG=run_-45_60.disang
+DUMPAVE=run_-45_60.dat
+
