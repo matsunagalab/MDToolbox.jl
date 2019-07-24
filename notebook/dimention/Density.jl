@@ -11,5 +11,5 @@ end
 
 # 多変量ガウス
 function calc_gaussian(input, mean, sigma_matrix)
-    return pdf(MvNormal(mean, sigma_matrix), input)
+    return pdf(MvNormal(mean, sigma_matrix), input) * (((2*pi)^(length(mean)/2)) * sqrt(det(sigma_matrix)))
 end
