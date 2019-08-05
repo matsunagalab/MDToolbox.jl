@@ -188,7 +188,12 @@ function readdcd(filename::String; index=nothing, stride=1)
     end
 
     #x, y, z, boxsize
-    TrjArray(x=x, y=y, z=z, boxsize=boxsize)
+    @show size(x)
+    @show size(y)
+    @show size(z)
+    @show size(boxsize)
+    TrjArray(x=x, y=y, z=z)
+    #TrjArray(x=x, y=y, z=z, boxsize=boxsize)
 end
 
 
@@ -410,12 +415,15 @@ function readpsf(filename::String)
             isPSF = true
         end
     end
-    for i = 1:4:(line_size-3)
-        isPSF = line[i:i+3] == "PSF " ? true : isPSF
-        isEXT = line[i:i+3] == "EXT " ? true : isEXT
-        isCMAP = line[i:i+3] == "CMAP" ? true : isCMAP
-        line[i:i+3] == "CHEQ" ? true : isCHEQ
+    for i = 1:4:line_size
+        i_max = minimum([i+3, line_size])
+        @show line[i:i_max]
+        isPSF = line[i:i_max] == "PSF" ? true : isPSF
+        isEXT = line[i:i_max] == "EXT" ? true : isEXT
+        isCMAP = line[i:i_max] == "CMAP" ? true : isCMAP
+        line[i:i_max] == "CHEQ" ? true : isCHEQ
     end
+    @show isEXT
     if !isPSF
         print("Sorry, this seems not be a PSF file")
         return false
