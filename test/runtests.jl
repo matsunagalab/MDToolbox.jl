@@ -104,7 +104,7 @@ end
         @test ta2.x ≈ ta2.y ≈ ta2.z ≈ [0.0]
     end
 
-    @testset "superimpose and get_rmsd" begin
+    @testset "superimpose and getrmsd" begin
         A = [-2.803  -15.373   24.556;
              0.893  -16.062   25.147;
              1.368  -12.371   25.885;
@@ -130,35 +130,35 @@ end
         # r, ta_fit = superimpose(ref, ta, isweight=true)
         ta_fit = superimpose(ref, ta, isweight=true)
         #@test r[1] ≈ 0.7450161471
-        r2 = get_rmsd(ref, ta_fit)
+        r2 = getrmsd(ref, ta_fit)
         #@test r2[1] ≈ r[1]
         @test r2[1] ≈ 0.7450161471
     end
 
-    @testset "get_distance" begin
+    @testset "getdistance" begin
         x = [1.0 0.0]
         y = [0.0 0.0]
         z = [0.0 0.0]
         ta = TrjArray(x=x, y=y, z=z)
-        d = get_distance(ta[:, 1], ta[:, 2])
+        d = getdistance(ta[:, 1], ta[:, 2])
         @test d ≈ [1.0]
     end
 
-    @testset "get_angle" begin
+    @testset "getangle" begin
         x = [1.0 0.0 0.0]
         y = [0.0 0.0 1.0]
         z = [0.0 0.0 0.0]
         ta = TrjArray(x=x, y=y, z=z)
-        a = get_angle(ta[:, 1], ta[:, 2], ta[:, 3])
+        a = getangle(ta[:, 1], ta[:, 2], ta[:, 3])
         @test a ≈ [90.0]
     end
 
-    @testset "get_dihedral" begin
+    @testset "getdihedral" begin
         x = [-1.0 -1.0 1.0 1.0]
         y = [-1.0  0.0 0.0 1.0]
         z = [ 0.0  0.0 0.0 0.0]
         ta = TrjArray(x=x, y=y, z=z)
-        a = get_dihedral(ta[:, 1], ta[:, 2], ta[:, 3], ta[:, 4])
+        a = getdihedral(ta[:, 1], ta[:, 2], ta[:, 3], ta[:, 4])
         @test a ≈ [180.0]
     end
 end
