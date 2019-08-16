@@ -187,13 +187,11 @@ function readdcd(filename::String; index=nothing, stride=1)
         end
     end
 
-    #x, y, z, boxsize
-    @show size(x)
-    @show size(y)
-    @show size(z)
-    @show size(boxsize)
-    TrjArray(x=x, y=y, z=z)
-    #TrjArray(x=x, y=y, z=z, boxsize=boxsize)
+    if isempty(boxsize)
+        TrjArray(x=x, y=y, z=z)
+    else
+        TrjArray(x=x, y=y, z=z, boxsize=boxsize)
+    end
 end
 
 
