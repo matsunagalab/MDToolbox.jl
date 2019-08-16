@@ -5,10 +5,8 @@ function readdcd(filename::String; index=nothing, stride=1)
     #TODO: endian
     header_ischarmm_4dims = false
     header_ischarmm_extrablock = false
-    x = []
-    y = []
-    z = []
-    boxsize = []
+    x = y = z = Matrix{Float64}(undef, 0, 0)
+    boxsize = Matrix{Float64}(undef, 0, 0)
 
     open(filename, "r") do io
         seekend(io)
