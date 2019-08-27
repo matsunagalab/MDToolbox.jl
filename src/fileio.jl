@@ -413,10 +413,10 @@ function readpsf(filename::String)
     end
     for i = 1:4:line_size
         i_max = minimum([i+3, line_size])
-        isPSF = line[i:i_max] == "PSF" ? true : isPSF
-        isEXT = line[i:i_max] == "EXT" ? true : isEXT
-        isCMAP = line[i:i_max] == "CMAP" ? true : isCMAP
-        line[i:i_max] == "CHEQ" ? true : isCHEQ
+        isPSF = strip(line[i:i_max]) == "PSF" ? true : isPSF
+        isEXT = strip(line[i:i_max]) == "EXT" ? true : isEXT
+        isCMAP = strip(line[i:i_max]) == "CMAP" ? true : isCMAP
+        isCHEQ = strip(line[i:i_max]) == "CHEQ" ? true : isCHEQ
     end
     if !isPSF
         print("Sorry, this seems not be a PSF file")
