@@ -15,10 +15,13 @@ using Base.Threads
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, select_atom
 export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb
-export centerofmass, decenter, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf
+export centerofmass, decenter, decenter!, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf, rotate, rotate!
 export getdistance, getangle, getdihedral
+export getmsd
+export afmize
 export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
+export mbar
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
@@ -28,7 +31,10 @@ const KB_kjpermol = 0.0083144621 #Boltzmann constant taken from wikipedia
 include("trjarray.jl")
 include("fileio.jl")
 include("structure.jl")
+include("afm.jl")
+include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")
+include("mbar.jl")
 
 end # module

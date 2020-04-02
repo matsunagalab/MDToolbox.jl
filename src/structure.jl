@@ -39,10 +39,21 @@ decenter
 remove center of mass
 """
 function decenter(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray, TrjArray}
-    nframe = ta.nframe
-    natom = ta.natom
     com = centerofmass(ta, isweight=isweight, index=index)
     TrjArray(ta.x .- com.x, ta.y .- com.y, ta.z .- com.z, ta), com
+end
+
+"""
+decenter!
+
+remove center of mass
+"""
+function decenter!(ta::TrjArray; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::TrjArray
+    com = centerofmass(ta, isweight=isweight, index=index)
+    ta.x .= ta.x .- com.x
+    ta.y .= ta.y .- com.y
+    ta.z .= ta.z .- com.z
+    ta
 end
 
 
@@ -264,6 +275,55 @@ function applyrotation!(iframe, x, y, z, ta2, rot)
     end
 end
 
+############################################################################
+function rotate(ta::TrjArray, quater::Vector{Float64})::TrjArray
+    x = zeros(eltype(ta.x), ta.nframe, ta.natom)
+    y = zeros(eltype(ta.y), ta.nframe, ta.natom)
+    z = zeros(eltype(ta.z), ta.nframe, ta.natom)
+    rot = zeros(eltype(ta.x), 9)
+    rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3];
+    rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4]);
+    rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4]);
+    rot[4] = 2 * (quater[1] * quater[2] - quater[3] * quater[4]);
+    rot[5] = 1 - 2 * quater[1] * quater[1] - 2 * quater[3] * quater[3];
+    rot[6] = 2 * (quater[2] * quater[3] + quater[1] * quater[4]);
+    rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
+    rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
+    rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
+    #@show det(reshape(rot, (3, 3)))
+    for iframe in 1:ta.nframe
+        for iatom in 1:ta.natom
+            @inbounds x[iframe, iatom] = rot[1] * ta.x[iframe, iatom] + rot[2] * ta.y[iframe, iatom] + rot[3] * ta.z[iframe, iatom]
+            @inbounds y[iframe, iatom] = rot[4] * ta.x[iframe, iatom] + rot[5] * ta.y[iframe, iatom] + rot[6] * ta.z[iframe, iatom]
+            @inbounds z[iframe, iatom] = rot[7] * ta.x[iframe, iatom] + rot[8] * ta.y[iframe, iatom] + rot[9] * ta.z[iframe, iatom]
+        end
+    end
+    return TrjArray(x, y, z, ta)
+end
+
+function rotate!(ta::TrjArray, quater::Vector{Float64})
+    rot = zeros(eltype(ta.x), 9)
+    rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3];
+    rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4]);
+    rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4]);
+    rot[4] = 2 * (quater[1] * quater[2] - quater[3] * quater[4]);
+    rot[5] = 1 - 2 * quater[1] * quater[1] - 2 * quater[3] * quater[3];
+    rot[6] = 2 * (quater[2] * quater[3] + quater[1] * quater[4]);
+    rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
+    rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
+    rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
+    #@show det(reshape(rot, (3, 3)))
+    for iframe in 1:ta.nframe
+        for iatom in 1:ta.natom
+            @inbounds x = rot[1] * ta.x[iframe, iatom] + rot[2] * ta.y[iframe, iatom] + rot[3] * ta.z[iframe, iatom]
+            @inbounds y = rot[4] * ta.x[iframe, iatom] + rot[5] * ta.y[iframe, iatom] + rot[6] * ta.z[iframe, iatom]
+            @inbounds z = rot[7] * ta.x[iframe, iatom] + rot[8] * ta.y[iframe, iatom] + rot[9] * ta.z[iframe, iatom]
+            @inbounds ta.x[iframe, iatom] = x
+            @inbounds ta.y[iframe, iatom] = y
+            @inbounds ta.z[iframe, iatom] = z
+        end
+    end
+end
 
 ############################################################################
 """
