@@ -716,79 +716,86 @@ end
 """
 write pdb file
 """
-function writepdb(filename::String, ta::TrjArray; format_type="vmd")
+function writepdb(io::IO, ta::TrjArray; format_type="vmd")
     natom = ta.natom
     nframe = ta.nframe
 
-    open(filename, "w") do io
-        if format_type == "namd"
-            Printf.@printf io "CRYST1    0.000    0.000    0.000  90.00  90.00  90.00 P 1           1\n"
-        end
+    if format_type == "namd"
+        Printf.@printf io "CRYST1    0.000    0.000    0.000  90.00  90.00  90.00 P 1           1\n"
+    end
 
-        for iframe = 1:nframe
-            for iatom = 1:natom
-                Printf.@printf(io, "%6s", "ATOM  ")
-                if isempty(ta.atomid)
-                    Printf.@printf(io, "%5d", mod(iatom, 100000))
-                else
-                    Printf.@printf(io, "%5d", mod(ta.atomid[iatom], 100000))
-                end
-                Printf.@printf(io, "%1s", " ")
-                if isempty(ta.atomname)
-                    Printf.@printf(io, "%4s", " CA ")
-                else
-                    Printf.@printf(io, "%4s", lpad(ta.atomname[iatom], 4))
-                end
-                Printf.@printf(io, "%1s", " ")
-                #Printf.@printf(io, "%3s", ta.resname(iatom, :))
-                #Printf.@printf(io, "%1s", " ")
-                if isempty(ta.resname)
-                    Printf.@printf(io, "%4s", "ALA ")
-                else
-                    Printf.@printf(io, "%4s", lpad(ta.resname[iatom], 4))
-                end
-                if isempty(ta.chainname)
-                    Printf.@printf(io, "%1s", " ")
-                else
-                    Printf.@printf(io, "%1s", ta.chainname[iatom])
-                end
-                if isempty(ta.chainname)
-                    Printf.@printf(io, "%4d", mod(iatom, 10000))
-                else
-                    Printf.@printf(io, "%4d", mod(ta.resid[iatom], 10000))
-                end
-                #Printf.@printf(io, "%1s", ta.icode(iatom, :))
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 1))
-                #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 2))
-                #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 3))
-                Printf.@printf(io, "%8.3f", ta.x[iframe, iatom])
-                Printf.@printf(io, "%8.3f", ta.y[iframe, iatom])
-                Printf.@printf(io, "%8.3f", ta.z[iframe, iatom])
-                Printf.@printf(io, "%6.2f", 0.0)
-                Printf.@printf(io, "%6.2f", 0.0)
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%1s", " ")
-                Printf.@printf(io, "%2s", "  "); #element
-                Printf.@printf(io, "%2s", "  "); #charge
-                Printf.@printf(io, "\n")
+    for iframe = 1:nframe
+        for iatom = 1:natom
+            Printf.@printf(io, "%6s", "ATOM  ")
+            if isempty(ta.atomid)
+                Printf.@printf(io, "%5d", mod(iatom, 100000))
+            else
+                Printf.@printf(io, "%5d", mod(ta.atomid[iatom], 100000))
             end
-            if nframe > 1
-                Printf.@printf(io, "TER\n");
-                Printf.@printf(io, "ENDMDL\n");
+            Printf.@printf(io, "%1s", " ")
+            if isempty(ta.atomname)
+                Printf.@printf(io, "%4s", " CA ")
+            else
+                Printf.@printf(io, "%4s", lpad(ta.atomname[iatom], 4))
             end
+            Printf.@printf(io, "%1s", " ")
+            #Printf.@printf(io, "%3s", ta.resname(iatom, :))
+            #Printf.@printf(io, "%1s", " ")
+            if isempty(ta.resname)
+                Printf.@printf(io, "%4s", "ALA ")
+            else
+                Printf.@printf(io, "%4s", lpad(ta.resname[iatom], 4))
+            end
+            if isempty(ta.chainname)
+                Printf.@printf(io, "%1s", " ")
+            else
+                Printf.@printf(io, "%1s", ta.chainname[iatom])
+            end
+            if isempty(ta.chainname)
+                Printf.@printf(io, "%4d", mod(iatom, 10000))
+            else
+                Printf.@printf(io, "%4d", mod(ta.resid[iatom], 10000))
+            end
+            #Printf.@printf(io, "%1s", ta.icode(iatom, :))
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 1))
+            #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 2))
+            #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 3))
+            Printf.@printf(io, "%8.3f", ta.x[iframe, iatom])
+            Printf.@printf(io, "%8.3f", ta.y[iframe, iatom])
+            Printf.@printf(io, "%8.3f", ta.z[iframe, iatom])
+            Printf.@printf(io, "%6.2f", 0.0)
+            Printf.@printf(io, "%6.2f", 0.0)
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%2s", "  "); #element
+            Printf.@printf(io, "%2s", "  "); #charge
+            Printf.@printf(io, "\n")
+        end
+        if nframe > 1
+            Printf.@printf(io, "TER\n");
+            Printf.@printf(io, "ENDMDL\n");
         end
         #Printf.@printf " %8.2f" X[i,j]
+    end
+end
+
+"""
+write pdb file
+"""
+function writepdb(filename::String, ta::TrjArray; format_type="vmd")
+    open(filename, "w") do io
+        writepdb(io, ta, format_type=format_type)
     end
 end

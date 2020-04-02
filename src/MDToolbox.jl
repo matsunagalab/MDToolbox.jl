@@ -4,6 +4,7 @@ using FileIO
 using NetCDF
 using NLsolve
 #using FFTW
+using Bio3DView
 
 # satndard library
 using Printf
@@ -22,6 +23,7 @@ export afmize
 export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
+export viewstruc
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
@@ -36,5 +38,6 @@ include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")
 include("mbar.jl")
+include("viz.jl")
 
 end # module
