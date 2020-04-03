@@ -732,11 +732,11 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             else
                 Printf.@printf(io, "%5d", mod(ta.atomid[iatom], 100000))
             end
-            Printf.@printf(io, "%1s", " ")
+            Printf.@printf(io, "%2s", " ")
             if isempty(ta.atomname)
-                Printf.@printf(io, "%4s", " CA ")
+                Printf.@printf(io, "%3s", "CA ")
             else
-                Printf.@printf(io, "%4s", lpad(ta.atomname[iatom], 4))
+                Printf.@printf(io, "%3s", rpad(ta.atomname[iatom], 3))
             end
             Printf.@printf(io, "%1s", " ")
             #Printf.@printf(io, "%3s", ta.resname(iatom, :))
@@ -744,7 +744,7 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             if isempty(ta.resname)
                 Printf.@printf(io, "%4s", "ALA ")
             else
-                Printf.@printf(io, "%4s", lpad(ta.resname[iatom], 4))
+                Printf.@printf(io, "%4s", rpad(ta.resname[iatom], 4))
             end
             if isempty(ta.chainname)
                 Printf.@printf(io, "%1s", " ")
