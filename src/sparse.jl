@@ -126,7 +126,7 @@ function sp_cumulate_pmf(M)
     ndim = size(sample_datas, 2)
     ncenters = size(umbrella_centers, 1)
     nframe = size(sample_datas, 1)
-    for i = 1:nframe #size(sample_datas, 1)
+    for i = 1:nframe
         sum_gaussian = 0.0
         for j = 1:ncenters #size(umbrella_centers, 1)
             sum_gaussian += weights[j] * (calc_gaussian(sample_datas[i, :], umbrella_centers[j, :], sigma2) - mean_M[j]) / std_M[j]
