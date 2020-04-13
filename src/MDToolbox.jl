@@ -38,6 +38,7 @@ include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")
 include("mbar.jl")
+include("sparse.jl")
 include("viz.jl")
 
 end # module
