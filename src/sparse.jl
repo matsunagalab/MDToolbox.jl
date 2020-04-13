@@ -18,7 +18,7 @@ function sp_delta_pmf(umbrella_centers, sim_all_datas, kbt, spring_constant)
 end
 
 #######################################
-function calc_design_matrix(umbrella_centers, sim_all_datas, stride, sigma_g)
+function sp_design_matrix(umbrella_centers, sim_all_datas, stride, sigma_g)
     nframe = size(sim_all_datas[1], 1)
     subframes = range(1, stop=nframe, step=stride)
     design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
