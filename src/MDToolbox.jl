@@ -19,7 +19,8 @@ export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb
 export centerofmass, decenter, decenter!, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf, rotate, rotate!
 export getdistance, getangle, getdihedral
 export getmsd
-export afmize
+export afmize, getcorrelation
+export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
@@ -38,7 +39,6 @@ include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")
 include("mbar.jl")
-include("sparse.jl")
 include("viz.jl")
 
 end # module
