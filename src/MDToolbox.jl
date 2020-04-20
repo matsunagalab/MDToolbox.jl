@@ -15,7 +15,7 @@ using Base.Threads
 # package code goes here
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, select_atom
-export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb
+export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readcrd
 export centerofmass, decenter, decenter!, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf, rotate, rotate!
 export getdistance, getangle, getdihedral
 export getmsd
