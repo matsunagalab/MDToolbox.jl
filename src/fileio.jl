@@ -732,11 +732,11 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             else
                 Printf.@printf(io, "%5d", mod(ta.atomid[iatom], 100000))
             end
-            Printf.@printf(io, "%2s", " ")
+            Printf.@printf(io, "%1s", " ")
             if isempty(ta.atomname)
-                Printf.@printf(io, "%3s", "CA ")
+                Printf.@printf(io, "%4s", " CA ")
             else
-                Printf.@printf(io, "%3s", rpad(ta.atomname[iatom], 3))
+                Printf.@printf(io, "%4s", rpad(ta.atomname[iatom], 3))
             end
             Printf.@printf(io, "%1s", " ")
             #Printf.@printf(io, "%3s", ta.resname(iatom, :))
@@ -798,4 +798,44 @@ function writepdb(filename::String, ta::TrjArray; format_type="vmd")
     open(filename, "w") do io
         writepdb(io, ta, format_type=format_type)
     end
+end
+
+
+############################################################################
+"""
+read amber coordinates file
+"""
+function readcrd(filename::String)
+    lines = open(filename, "r" ) do fp
+        readlines(fp)
+    end
+
+    title = lines[1]
+    natom = parse_line(lines[2], 1:length(lines[2]), Int64, 0)
+    #pdb_name[iatom] = parse_line(line, 13:16, String, "None")
+
+    xyz = Vector{Float64}(undef, natom*3)
+
+    iatom3 = 1
+    icount = 3
+    while true
+        n = length(lines[icount])
+        for i = 1:12:n
+            xyz[iatom3] = parse_line(lines[icount], i:(i+11), Float64, 0.0)
+            iatom3 += 1
+        end
+        icount += 1
+        if iatom3 > (natom*3)
+            break
+        end
+    end
+
+    x = zeros(Float64, 1, natom)
+    y = zeros(Float64, 1, natom)
+    z = zeros(Float64, 1, natom)
+    x[:] .= xyz[1:3:end]
+    y[:] .= xyz[2:3:end]
+    z[:] .= xyz[3:3:end]
+
+    TrjArray(x=x, y=y, z=z)
 end
