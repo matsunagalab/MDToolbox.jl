@@ -5,6 +5,7 @@ using NetCDF
 using NLsolve
 #using FFTW
 using Bio3DView
+using CuArrays
 
 # satndard library
 using Printf
@@ -24,6 +25,7 @@ export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
+export sp_delta_pmf, sp_design_matrix, sp_design_matrix_xyz, sp_admm, sp_standardize!, sp_standardize, sp_cumulate_pmf_atom
 export viewstruc
 
 # constants
@@ -39,6 +41,7 @@ include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")
 include("mbar.jl")
+include("sparse.jl")
 include("viz.jl")
 
 end # module
