@@ -123,6 +123,7 @@ end
 #######################################
 function sp_cumulate_pmf_atom(x, weight, umbrella_center, sigma_rdf, mean_M, std_M)
     ndim = size(umbrella_center, 2)
+    natom = Int(ndim / 3)
     K = size(umbrella_center, 1)
     nframe = size(x, 1)
 
@@ -133,11 +134,11 @@ function sp_cumulate_pmf_atom(x, weight, umbrella_center, sigma_rdf, mean_M, std
             for iatom = 1:natom
                 index = (k-1)*natom + iatom
                 index3 = ((iatom-1)*3 + 1):(iatom*3)
-                tmp = (sum(- 0.5 .* (x[iframe, index3] .- umbrella_center[k, index3]).^2 ./ sigma_rdf)  - mean_M[index]) / std_M[index]
+                tmp = (exp(sum(- 0.5 .* (x[iframe, index3] .- umbrella_center[k, index3]).^2 ./ sigma_rdf.^2))  - mean_M[index]) / std_M[index]
                 sum_rdf += tmp * weight[index]
             end
         end
-        pmf[i] = sum_rdf
+        pmf[iframe] = sum_rdf
     end
 
     return pmf .- minimum(pmf)

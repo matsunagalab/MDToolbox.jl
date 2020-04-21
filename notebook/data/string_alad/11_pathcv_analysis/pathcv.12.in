@@ -1,0 +1,24 @@
+# control parameters in crd_convert
+ 
+[INPUT]
+pdbfile     = ../0_system/sys_selected_13_no.pdb
+reffile     = ../0_system/sys_selected_13_no.pdb
+pathfile    = ../7_rpath_product/pr.tot.rpath_last
+ 
+[OUTPUT]
+pathcvfile  = 12.pathcv      # trajectory file
+ 
+[TRAJECTORY]
+trjfile1       = ../10_crd_convert/umb.12.dcd
+md_step1       = 450000          # number of MD steps
+mdout_period1  = 500             # MD output period
+ana_period1    = 1               # analysis period
+repeat1        = 1
+trj_format     = DCD             # (PDB/DCD)
+trj_type       = COOR        # (COOR/COOR+BOX)
+trj_natom      = 0               # (0:uses reference PDB atom count)
+ 
+[OPTION]
+nreplica       = 1
+trajectory     = yes
+
