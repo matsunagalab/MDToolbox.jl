@@ -18,7 +18,7 @@ function sp_delta_pmf(umbrella_center, data_k, kbt, spring_constant)
 end
 
 #######################################
-function sp_design_matrix(umbrella_centers, sim_all_datas, stride, sigma_g)
+function sp_design_matrix(umbrella_centers, sim_all_datas, sigma_g; stride=1)
     nframe = size(sim_all_datas[1], 1)
     subframes = range(1, stop=nframe, step=stride)
     design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
@@ -35,7 +35,7 @@ function sp_design_matrix(umbrella_centers, sim_all_datas, stride, sigma_g)
 end
 
 #######################################
-function sp_design_matrix_xyz(umbrella_centers, sim_all_datas, sigma_g)
+function sp_design_matrix_atom(umbrella_centers, sim_all_datas, sigma_g)
     nframe = size(sim_all_datas[1], 1)
     numbrella = size(umbrella_centers, 1)
     natom = Int(size(umbrella_centers, 2) / 3)
@@ -74,8 +74,16 @@ function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
     old_gamma = copy(gamma)
     old_my = copy(my)
 
+    @show 1
+    @show 1.1
+    B = X' * X
+    @show 1.2
+    B += (I * (ncolumn * rho))
+    @show 1.3
     U, S, V = svd(X' * X + ((CuArray{Float64}(I, (ncolumn, ncolumn)) .* (ncolumn .* rho))))
+    @show 2
     inverse_M = V * inv(Diagonal(S)) * U'
+    @show 3
     const_num = inverse_M
 
     max_diff = 100
@@ -118,6 +126,25 @@ function sp_standardize(M)
     std_M = std(M, dims=1)
     M_standardized = (M .- mean_M) ./ std_M
     return M_standardized, mean_M, std_M
+end
+
+#######################################
+function sp_cumulate_pmf(x, weight, umbrella_center, sigma_rdf, mean_M, std_M)
+    ndim = size(umbrella_center, 2)
+    K = size(umbrella_center, 1)
+    nframe = size(x, 1)
+
+    pmf = zeros(Float64, nframe);
+    for iframe = 1:nframe
+        sum_rdf = 0.0
+        for k = 1:K
+            tmp = (exp(sum(- 0.5 .* (x[iframe, :] .- umbrella_center[k, :]).^2 ./ sigma_rdf.^2))  - mean_M[k]) / std_M[k]
+            sum_rdf += tmp * weight[k]
+        end
+        pmf[iframe] = sum_rdf
+    end
+
+    return pmf .- minimum(pmf)
 end
 
 #######################################

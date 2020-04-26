@@ -25,7 +25,7 @@ export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
-export sp_delta_pmf, sp_design_matrix, sp_design_matrix_xyz, sp_admm, sp_standardize!, sp_standardize, sp_cumulate_pmf_atom
+export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_admm, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export viewstruc
 
 # constants
