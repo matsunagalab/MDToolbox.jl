@@ -492,6 +492,7 @@ end
 # eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
 
 ###### iterator #################
+Base.iterate(ta::TrjArray, state=1) = state > ta.nframe ? nothing : (ta[state], state + 1)
 
 ###### conversion #################
 

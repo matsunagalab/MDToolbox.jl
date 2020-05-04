@@ -270,10 +270,21 @@ function afmize_beta(tra::TrjArray, config::AfmizeConfig)
 end
 """
 
-function getafmposterior(afm_frame, model_list = nothing, quaternion_list = nothing, radius_list = nothing)
-    for model = 1:3
-        for rotation = 1:3
-            for probe_radius = 1:3
+function translateafm(afm, (dx, dy))
+    afm_translated = zeros(eltype(afm), size(afm))
+    (nx, ny) = size(afm)
+    for i in maximum([1, 1-dx]):minimum([nx, nx-dx])
+        for j in maximum([1, 1-dy]):minimum([ny, ny-dy])
+            afm_translated[i+dx, j+dy] = afm[i, j]
+        end
+    end
+    afm_translated
+end
+
+function getafmposterior(afm_frame, model_array = nothing, q_array = nothing, radius_array = nothing)
+    for model in model_array
+        for q in q_array
+            for r in radius_array
                 for dx = 1:3
                     nothing
                 end
