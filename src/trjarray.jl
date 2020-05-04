@@ -495,8 +495,15 @@ end
 Base.iterate(ta::TrjArray, state=1) = state > ta.nframe ? nothing : (ta[state], state + 1)
 
 ###### conversion #################
-
-# conversion(Float64, ta:TrjArray)
+function convert(::Type{T}, ta::TrjArray) where {T<:AbstractArray}
+    c = Matrix{eltype(T)}(undef, ta.nframe, 3*ta.natom)
+    for iatom = 1:ta.natom
+        c[1:ta.nframe, (3*(iatom-1)+1):(3*(iatom-1)+1)] .= eltype(T).(ta.x[1:ta.nframe, iatom:iatom])
+        c[1:ta.nframe, (3*(iatom-1)+2):(3*(iatom-1)+2)] .= eltype(T).(ta.y[1:ta.nframe, iatom:iatom])
+        c[1:ta.nframe, (3*(iatom-1)+3):(3*(iatom-1)+3)] .= eltype(T).(ta.z[1:ta.nframe, iatom:iatom])
+    end
+    return c
+end
 
 ###### broadcast #################
 
