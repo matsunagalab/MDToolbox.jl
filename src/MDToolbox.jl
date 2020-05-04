@@ -3,7 +3,7 @@ module MDToolbox
 using FileIO
 using NetCDF
 using NLsolve
-#using FFTW
+using FFTW
 using Bio3DView
 using CuArrays
 
@@ -11,6 +11,7 @@ using CuArrays
 using Printf
 using Statistics
 using LinearAlgebra
+using Dates
 using Base.Threads
 
 # package code goes here
@@ -20,13 +21,14 @@ export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, r
 export centerofmass, decenter, decenter!, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf, rotate, rotate!
 export getdistance, getangle, getdihedral
 export getmsd
-export afmize, getcorrelation
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_admm, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export viewstruc
+export afmize, getafmposterior
+export Asd, readasd
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
@@ -36,12 +38,13 @@ const KB_kjpermol = 0.0083144621 #Boltzmann constant taken from wikipedia
 include("trjarray.jl")
 include("fileio.jl")
 include("structure.jl")
-include("afm.jl")
 include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")
 include("mbar.jl")
 include("sparse.jl")
 include("viz.jl")
+include("afm.jl")
+include("asd.jl")
 
 end # module
