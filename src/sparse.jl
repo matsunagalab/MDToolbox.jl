@@ -1,13 +1,16 @@
 function sp_delta_pmf(umbrella_center, data_k, kbt, spring_constant)
     nframe = size(data_k[1], 1)
     K = size(data_k, 1)
-    delta_pmf      = CuArrays.zeros(Float64, nframe, K)
-    bias_potential = CuArrays.zeros(Float64, nframe, K)
+    delta_pmf      = similar(umbrella_center, nframe, K)
+    bias_potential = similar(umbrella_center, nframe, K)
+    delta_pmf .= zero(umbrella_center[1])
+    bias_potential .= zero(umbrella_center[1])
 
     for k = 1:K
         dd_mean = mean(data_k[k], dims=1)
         dd_cov = cov(data_k[k])
-        dd_inv = dd_cov \ CuArray{Float64}(I, size(dd_cov))
+        #dd_inv = dd_cov \ CuArray{Float64}(I, size(dd_cov))
+        dd_inv = dd_cov \ copyto!(similar(dd_cov, size(dd_cov,1), size(dd_cov,1)), I)
         bias_potential = spring_constant * sum((data_k[k] .- umbrella_center[k:k, :]).^2, dims=2)
         d = data_k[k] .- dd_mean
         tmp_pmf = kbt .* (-0.5 .* sum((d * dd_inv) .* d, dims=2))
@@ -21,7 +24,9 @@ end
 function sp_design_matrix(umbrella_centers, sim_all_datas, sigma_g; stride=1)
     nframe = size(sim_all_datas[1], 1)
     subframes = range(1, stop=nframe, step=stride)
-    design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
+    #design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
+    design_matrix = similar(umbrella_center, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
+    design_matrix .= zero(umbrella_center[1])
 
     for i = 1:size(umbrella_centers, 1)
         for k = 1:size(umbrella_centers, 1)
@@ -39,7 +44,9 @@ function sp_design_matrix_atom(umbrella_centers, sim_all_datas, sigma_g)
     nframe = size(sim_all_datas[1], 1)
     numbrella = size(umbrella_centers, 1)
     natom = Int(size(umbrella_centers, 2) / 3)
-    design_matrix = CuArrays.zeros(Float64, nframe * numbrella, numbrella * natom)
+    #design_matrix = CuArrays.zeros(Float64, nframe * numbrella, numbrella * natom)
+    design_matrix = similar(umbrella_center, nframe * numbrella, numbrella * natom)
+    design_matrix .= zero(umbrella_center[1])
 
     for i = 1:size(umbrella_centers, 1)
         for k = 1:size(umbrella_centers, 1)
@@ -57,7 +64,7 @@ end
 
 #######################################
 function funcS(cov, lambda)
-    return sign(cov) * max((abs(cov) - lambda), 0)
+    return sign(cov) * max((abs(cov) - lambda), 0.0)
 end
 
 #######################################
@@ -66,25 +73,30 @@ Alternating Direction Method of Multipliers (ADMM) for solving lasso
 """
 function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
     ncolumn = size(X, 2);
-    beta = CuArrays.zeros(Float64, ncolumn)
-    gamma = CuArrays.zeros(Float64, ncolumn)
-    my = CuArrays.zeros(Float64, ncolumn)
+    #beta = CuArrays.zeros(Float64, ncolumn)
+    #gamma = CuArrays.zeros(Float64, ncolumn)
+    #my = CuArrays.zeros(Float64, ncolumn)
+    beta = similar(y, ncolumn)
+    gamma = similar(y, ncolumn)
+    my = similar(y, ncolumn)
+    beta .= zero(y[1])
+    gamma .= zero(y[1])
+    my .= zero(y[1])
 
     old_beta = copy(beta)
     old_gamma = copy(gamma)
     old_my = copy(my)
 
-    @show 1
-    @show 1.1
     B = X' * X
-    @show 1.2
-    B += (I * (ncolumn * rho))
-    @show 1.3
-    U, S, V = svd(X' * X + ((CuArray{Float64}(I, (ncolumn, ncolumn)) .* (ncolumn .* rho))))
-    @show 2
-    inverse_M = V * inv(Diagonal(S)) * U'
-    @show 3
-    const_num = inverse_M
+    #B += (I * (ncolumn * rho))
+    B += copyto!(similar(y, size(X, 2), size(X, 2)), I) .* (ncolumn .* rho)
+    #U, S, V = svd(X' * X + ((CuArray{Float64}(I, (ncolumn, ncolumn)) .* (ncolumn .* rho))))
+    U, S, V = svd(B)
+    #U, S, V = svd(B, CuArrays.CUSOLVER.JacobiAlgorithm)
+    #U, S, V = svd(B, CuArrays.CUSOLVER.QRAlgorithm)
+    pinverse_M = V * inv(Diagonal(S)) * U'
+    const_num = pinverse_M
+    #const_num = B \ CuArray{Float64}(I, size(B))
 
     max_diff = 100
     cnt::Int = 1
