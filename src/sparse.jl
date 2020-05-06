@@ -21,17 +21,17 @@ function sp_delta_pmf(umbrella_center, data_k, kbt, spring_constant)
 end
 
 #######################################
-function sp_design_matrix(umbrella_centers, sim_all_datas, sigma_g; stride=1)
+function sp_design_matrix(umbrella_center, sim_all_datas, sigma_g; stride=1)
     nframe = size(sim_all_datas[1], 1)
     subframes = range(1, stop=nframe, step=stride)
-    #design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
-    design_matrix = similar(umbrella_center, length(subframes) * size(umbrella_centers, 1), size(umbrella_centers, 1))
+    #design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_center, 1), size(umbrella_center, 1))
+    design_matrix = similar(umbrella_center, length(subframes) * size(umbrella_center, 1), size(umbrella_center, 1))
     design_matrix .= zero(umbrella_center[1])
 
-    for i = 1:size(umbrella_centers, 1)
-        for k = 1:size(umbrella_centers, 1)
-            diff = exp.(- 0.5 .* sum((sim_all_datas[i] .- umbrella_centers[k:k, :]).^2, dims=2) ./ sigma_g.^2)
-            diff .-= exp(- 0.5 .* sum((sim_all_datas[i][1, :] .- umbrella_centers[k, :]).^2) ./ sigma_g.^2)
+    for i = 1:size(umbrella_center, 1)
+        for k = 1:size(umbrella_center, 1)
+            diff = exp.(- 0.5 .* sum((sim_all_datas[i] .- umbrella_center[k:k, :]).^2, dims=2) ./ sigma_g.^2)
+            diff .-= exp(- 0.5 .* sum((sim_all_datas[i][1, :] .- umbrella_center[k, :]).^2) ./ sigma_g.^2)
             design_matrix[(length(subframes)*(i-1)+1):(i*length(subframes)), k] = diff
         end
     end
@@ -40,22 +40,22 @@ function sp_design_matrix(umbrella_centers, sim_all_datas, sigma_g; stride=1)
 end
 
 #######################################
-function sp_design_matrix_atom(umbrella_centers, sim_all_datas, sigma_g)
+function sp_design_matrix_atom(umbrella_center, sim_all_datas, sigma_g)
     nframe = size(sim_all_datas[1], 1)
-    numbrella = size(umbrella_centers, 1)
-    natom = Int(size(umbrella_centers, 2) / 3)
+    numbrella = size(umbrella_center, 1)
+    natom = Int(size(umbrella_center, 2) / 3)
     #design_matrix = CuArrays.zeros(Float64, nframe * numbrella, numbrella * natom)
     design_matrix = similar(umbrella_center, nframe * numbrella, numbrella * natom)
     design_matrix .= zero(umbrella_center[1])
 
-    for i = 1:size(umbrella_centers, 1)
-        for k = 1:size(umbrella_centers, 1)
-            diff_x1 = exp.(- 0.5 .* ((sim_all_datas[i][:, 1:3:end]   .- umbrella_centers[k:k, 1:3:end]).^2) ./ sigma_g.^2)
-            diff_y1 = exp.(- 0.5 .* ((sim_all_datas[i][:, 2:3:end]   .- umbrella_centers[k:k, 2:3:end]).^2) ./ sigma_g.^2)
-            diff_z1 = exp.(- 0.5 .* ((sim_all_datas[i][:, 3:3:end]   .- umbrella_centers[k:k, 3:3:end]).^2) ./ sigma_g.^2)
-            diff_x2 = exp.(- 0.5 .* ((sim_all_datas[i][1:1, 1:3:end] .- umbrella_centers[k:k, 1:3:end]).^2) ./ sigma_g.^2)
-            diff_y2 = exp.(- 0.5 .* ((sim_all_datas[i][1:1, 2:3:end] .- umbrella_centers[k:k, 2:3:end]).^2) ./ sigma_g.^2)
-            diff_z2 = exp.(- 0.5 .* ((sim_all_datas[i][1:1, 3:3:end] .- umbrella_centers[k:k, 3:3:end]).^2) ./ sigma_g.^2)
+    for i = 1:size(umbrella_center, 1)
+        for k = 1:size(umbrella_center, 1)
+            diff_x1 = exp.(- 0.5 .* ((sim_all_datas[i][:, 1:3:end]   .- umbrella_center[k:k, 1:3:end]).^2) ./ sigma_g.^2)
+            diff_y1 = exp.(- 0.5 .* ((sim_all_datas[i][:, 2:3:end]   .- umbrella_center[k:k, 2:3:end]).^2) ./ sigma_g.^2)
+            diff_z1 = exp.(- 0.5 .* ((sim_all_datas[i][:, 3:3:end]   .- umbrella_center[k:k, 3:3:end]).^2) ./ sigma_g.^2)
+            diff_x2 = exp.(- 0.5 .* ((sim_all_datas[i][1:1, 1:3:end] .- umbrella_center[k:k, 1:3:end]).^2) ./ sigma_g.^2)
+            diff_y2 = exp.(- 0.5 .* ((sim_all_datas[i][1:1, 2:3:end] .- umbrella_center[k:k, 2:3:end]).^2) ./ sigma_g.^2)
+            diff_z2 = exp.(- 0.5 .* ((sim_all_datas[i][1:1, 3:3:end] .- umbrella_center[k:k, 3:3:end]).^2) ./ sigma_g.^2)
             design_matrix[(nframe*(i-1)+1):(nframe*i), (natom*(k-1)+1):(natom*k)] .= (diff_x1 .* diff_y1 .* diff_z1) .- (diff_x2 .* diff_y2 .* diff_z2)
         end
     end
