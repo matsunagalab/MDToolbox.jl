@@ -63,8 +63,8 @@ function sp_design_matrix_atom(umbrella_center, sim_all_datas, sigma_g)
 end
 
 #######################################
-function funcS(cov, lambda)
-    return sign(cov) * max((abs(cov) - lambda), 0.0)
+function funcS(x, lambda)
+    return sign(x) * max(abs(x) - lambda, 0.0)
 end
 
 #######################################
@@ -124,10 +124,93 @@ function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
     return gamma
 end
 
+#"""
+#Coordinate descent
+#"""
+#function sp_descent(y, X, lambda=0.1; condition=1e-5, iter_max=10000)
+#    nframe = size(X, 1)
+#    nfeature = size(X, 2)
+#    rhs1 = X' * y
+#    B = X' * X
+#
+#    beta = similar(y, nfeature)
+#    beta_old = similar(y, nfeature)
+#    beta_old .= one(y[1])
+#    rhs2 = similar(y, nfeature)
+#    rhs3 = similar(y, nfeature)
+#    rhs = similar(y, nfeature)
+#    max_diff = 100.0
+#    cnt = 1
+#    while max_diff > condition
+#        rhs2 .= B * beta_old
+#        rhs3 .= nframe .* beta_old
+#        rhs .= rhs1 .- rhs2 .+ rhs3
+#        #@show rhs./nframe
+#        beta .= funcS.(rhs./nframe, lambda)
+#        #@show beta
+#        max_diff = maximum(abs.(beta .- beta_old))
+#        beta_old .= beta
+#        cnt += 1
+#        if cnt > iter_max
+#            break
+#        end
+#    end
+#
+#    println("[ Cycle Count = ", cnt, " ]")
+#    println("[ Complete Condition ]")
+#    println("  Max Differ = ", max_diff)
+#    println("\n")
+#
+#    return beta
+#end
+
+"""
+Coordinate descent
+"""
+function sp_descent(y, X, lambda=0.1; condition=1e-5, iter_max=10000)
+    nframe = size(X, 1)
+    nfeature = size(X, 2)
+    Xty = X' * y
+    XtX = X' * X
+
+    beta = similar(y, nfeature)
+    beta_old = similar(y, nfeature)
+    beta .= one(y[1])
+    beta_old .= beta
+    #rhs2 = similar(y, nfeature)
+    #rhs3 = similar(y, nfeature)
+    rhs = similar(y, nfeature)
+    max_diff = 100.0
+    cnt = 1
+    while max_diff > condition
+        cnt += 1
+        for j = 1:nfeature
+            rhs1 = Xty[j]
+            rhs2 =  sum(XtX[j, :] .* beta)
+            rhs3 = nframe * beta[j]
+            rhs = rhs1 - rhs2 + rhs3
+            beta[j] = funcS(rhs/nframe, lambda)
+        end
+        max_diff = maximum(abs.(beta .- beta_old))
+        beta_old .= beta
+        if cnt > iter_max
+            break
+        end
+    end
+
+    println("[ Cycle Count = ", cnt, " ]")
+    println("[ Complete Condition ]")
+    println("  Max Differ = ", max_diff)
+    println("\n")
+
+    return beta
+end
+
+
 #######################################
 function sp_standardize!(M)
     mean_M = mean(M, dims=1)
-    std_M = std(M, dims=1)
+    std_M = sqrt.(sum((M .- mean_M).^2, dims=1)) ./ sqrt(size(M, 1))
     M .= (M .- mean_M) ./ std_M
     return mean_M, std_M
 end
@@ -135,7 +218,8 @@ end
 #######################################
 function sp_standardize(M)
     mean_M = mean(M, dims=1)
-    std_M = std(M, dims=1)
+    #std_M = std(M, dims=1)
+    std_M = sqrt.(sum((M .- mean_M).^2, dims=1)) ./ sqrt(size(M, 1))
     M_standardized = (M .- mean_M) ./ std_M
     return M_standardized, mean_M, std_M
 end
