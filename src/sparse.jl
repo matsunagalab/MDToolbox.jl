@@ -1,6 +1,6 @@
 function sp_delta_pmf(umbrella_center, data_k, kbt, spring_constant)
     nframe = size(data_k[1], 1)
-    K = size(data_k, 1)
+    K = length(data_k)
     delta_pmf      = similar(umbrella_center, nframe, K)
     bias_potential = similar(umbrella_center, nframe, K)
     delta_pmf .= zero(umbrella_center[1])
@@ -184,6 +184,7 @@ function sp_descent(y, X, lambda=0.1; condition=1e-5, iter_max=10000)
     cnt = 1
     while max_diff > condition
         cnt += 1
+        #@show cnt, max_diff
         for j = 1:nfeature
             rhs1 = Xty[j]
             rhs2 =  sum(XtX[j, :] .* beta)
@@ -244,22 +245,34 @@ function sp_cumulate_pmf(x, weight, umbrella_center, sigma_rdf, mean_M, std_M)
 end
 
 #######################################
-function sp_cumulate_pmf_atom(x, weight, umbrella_center, sigma_rdf, mean_M, std_M)
+function sp_cumulate_pmf_atom(data, weight, umbrella_center, sigma_rdf, mean_M, std_M)
     ndim = size(umbrella_center, 2)
     natom = Int(ndim / 3)
+    natom3 = natom * 3
     K = size(umbrella_center, 1)
-    nframe = size(x, 1)
+    nframe = size(data, 1)
 
     pmf = zeros(Float64, nframe);
     for iframe = 1:nframe
         sum_rdf = 0.0
         for k = 1:K
-            for iatom = 1:natom
-                index = (k-1)*natom + iatom
-                index3 = ((iatom-1)*3 + 1):(iatom*3)
-                tmp = (exp(sum(- 0.5 .* (x[iframe, index3] .- umbrella_center[k, index3]).^2 ./ sigma_rdf.^2))  - mean_M[index]) / std_M[index]
-                sum_rdf += tmp * weight[index]
-            end
+            index = ((k-1)*natom+1):(k*natom)
+            index_x = 1:3:natom3
+            index_y = 2:3:natom3
+            index_z = 3:3:natom3
+            tmp   = (data[iframe:iframe, index_x] .- umbrella_center[k:k, index_x]).^2
+            tmp .+= (data[iframe:iframe, index_y] .- umbrella_center[k:k, index_y]).^2
+            tmp .+= (data[iframe:iframe, index_z] .- umbrella_center[k:k, index_z]).^2
+            tmp ./= sigma_rdf.^2
+            tmp .*= -0.5
+            tmp .= (exp.(tmp) .- mean_M[1:1, index]) ./ std_M[1:1, index]
+            sum_rdf += sum(tmp[:] .* weight[index])
+            #for iatom = 1:natom
+            #    index = (k-1)*natom + iatom
+            #    index3 = ((iatom-1)*3 + 1):(iatom*3)
+            #    tmp = (exp(sum(- 0.5 .* (data[iframe, index3] .- umbrella_center[k, index3]).^2 ./ sigma_rdf.^2))  - mean_M[index]) / std_M[index]
+            #    sum_rdf += tmp * weight[index]
+            #end
         end
         pmf[iframe] = sum_rdf
     end
