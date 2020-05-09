@@ -69,6 +69,19 @@ end
 
 #######################################
 """
+Least squares
+"""
+function sp_lsquares(y, X)
+    # y = X * weight
+    U, S, V = svd(X) # svd
+    inverse_M = V * inv(Diagonal(S)) * U' # pseudo-inverse
+    beta = inverse_M * y
+
+    residual = sum((y - X*beta).^2)
+    return beta, residual
+end
+
+"""
 Alternating Direction Method of Multipliers (ADMM) for solving lasso
 """
 function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
@@ -121,7 +134,9 @@ function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
     println("  Max Differ = ", max_diff)
     println("\n")
 
-    return gamma
+    residual = sum((y - X*beta).^2)
+
+    return gamma, residual
 end
 
 #"""
@@ -204,7 +219,9 @@ function sp_descent(y, X, lambda=0.1; condition=1e-5, iter_max=10000)
     println("  Max Differ = ", max_diff)
     println("\n")
 
-    return beta
+    residual = sum((y - X*beta).^2)
+
+    return beta, residual
 end
 
 
