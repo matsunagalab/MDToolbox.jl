@@ -37,6 +37,15 @@ propagate_md
 
 Molecular dynamics test code
 """
-function propagate_md(pot_fun::Function, proposal_fun::Function, x_current::Vector{Float64}; temperature::Float64, nstep=1, delta_t=1.0::Float64)
-    return nothing
+function propagate_md(grad_fun::Function, x_current::Vector{Float64}, temperature::Float64; delta_t=0.01, nstep=1, io=nothing, outstep=1)
+    x = copy(x_current)
+    beta = 1 / temperature
+    for istep = 1:nstep
+        x_current .= x
+        x .= x_current .- (delta_t .* grad_fun(x_current)) .+ (sqrt(2.0 .* delta_t ./ beta) .* randn(size(x_current)))
+        if isa(io, IOStream) && (mod(istep, outstep) == 0)
+            flush_snapshot(io, x, temperature)
+        end
+    end
+    return x
 end
