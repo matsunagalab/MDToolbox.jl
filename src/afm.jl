@@ -85,12 +85,21 @@ mutable struct AfmizeConfig
     atomRadiusDict::Dict{String, Float64}
 end
 
+function AfmizeConfig(r::Float64)
+    return AfmizeConfig(10.0 * (pi / 180),
+                        r,
+                        Point2D(-90, -90),
+                        Point2D(90, 90),
+                        Point2D(15, 15),
+                        defaultParameters())
+end
+
 function defaultConfig()
     return AfmizeConfig(10.0 * (pi / 180),
-                        10.0,
-                        Point2D(-100, -100),
-                        Point2D(100, 100),
-                        Point2D(10, 10),
+                        20.0,
+                        Point2D(-90, -90),
+                        Point2D(90, 90),
+                        Point2D(15, 15),
                         defaultParameters())
 end
 
@@ -281,14 +290,56 @@ function translateafm(afm, (dx, dy))
     afm_translated
 end
 
-function getafmposterior(afm_frame, model_array = nothing, q_array = nothing, radius_array = nothing)
-    for model in model_array
-        for q in q_array
-            for r in radius_array
-                for dx = 1:3
-                    nothing
+function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
+    imax_model = 0
+    imax_q = 0
+    best_param = param_array[1]
+    best_translate = [0, 0]
+    best_afm = similar(afm)
+    best_posterior = -Inf
+
+    observed = afm
+    npix = Float64(size(observed, 1) * size(observed, 2))
+
+    decenter!(model_array)
+
+    for imodel in 1:size(model_array, 1)
+        @show imodel
+        model = model_array[imodel, :]
+        for iq in 1:size(q_array, 1)
+            q = q_array[iq, :]
+            model_rotated = MDToolbox.rotate(model, q)
+            for iparam in 1:length(param_array)
+                param = param_array[iparam]
+                calculated = afmize(model_rotated, param)
+                C_o  = sum(observed)
+                C_c  = sum(calculated)
+                #@btime C_oc = sum(observed_translated .* calculated)
+                C_oc = sum(observed .* calculated)
+                C_cc = sum(calculated.^2)
+                C_oo = sum(observed.^2)
+                #@btime C_oc_dxdy = real.(ifftshift(ifft(fft(observed_translated).*conj.(fft(calculated)))))
+                C_oc_dxdy = real.(ifftshift(ifft(fft(observed).*conj.(fft(calculated)))))
+                log01 = npix .* (C_cc .* C_oo .- C_oc_dxdy.^2) .+ 2.0 .* C_o .* C_oc_dxdy .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
+                log01[log01 .<= 0.0] .= eps(Float64)
+                log02 = (npix .- 2.0) .* (npix .* C_cc .- C_c.^2)
+                log02 = log02 <= 0 ? eps(Float64) : log02
+                logprob = 0.5 .* (3.0 .- npix) .* log.(log01) .+ (0.5 .* npix .- 2.0) .* log.(log02)
+                maximum_logprob = maximum(logprob)
+                if best_posterior < maximum_logprob
+                    best_posterior = maximum_logprob
+                    imax_model = imodel
+                    imax_q = iq
+                    best_param = param
+                    x_center = ceil(Int32, (size(observed,1)/2)+1.0)
+                    y_center = ceil(Int32, (size(observed,2)/2)+1.0)
+                    dx_estimated = argmax(logprob)[1] - x_center
+                    dy_estimated = argmax(logprob)[2] - y_center
+                    best_translate = (dx_estimated, dy_estimated)
+                    best_afm = translateafm(calculated, best_translate)
                 end
             end
         end
     end
+    return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
 end

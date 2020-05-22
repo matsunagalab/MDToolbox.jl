@@ -148,6 +148,15 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Rea
 
 ###### size, length #################
 size(ta::TrjArray) = (ta.nframe, ta.natom)
+function size(ta::TrjArray, id::Int)
+    if id == 1
+        ta.nframe
+    elseif id == 2
+        ta.natom
+    else
+        return 1
+    end
+end
 length(ta::TrjArray) = prod(size(ta))
 
 ###### getindex #################
