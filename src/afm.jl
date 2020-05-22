@@ -48,6 +48,27 @@ function defaultParameters()
     "AR" => 1.88,
      "K" => 2.75,
     "CA" => 2.31,
+    "CYS" => 2.75,
+    "PHE" => 3.2,
+    "LEU" => 3.1,
+    "TRP" => 3.4,
+    "VAL" => 2.95,
+    "ILE" => 3.1,
+    "MET" => 3.1,
+    "HIS" => 3.05,
+    "HSD" => 3.05,
+    "TYR" => 3.25,
+    "ALA" => 2.5,
+    "GLY" => 2.25,
+    "PRO" => 2.8,
+    "ASN" => 2.85,
+    "THR" => 2.8,
+    "SER" => 2.6,
+    "ARG" => 3.3,
+    "GLN" => 3.0,
+    "ASP" => 2.8,
+    "LYS" => 3.2,
+    "GLU" => 2.95,
     )
 end
 
@@ -311,7 +332,7 @@ function calcLogProb(observed, calculated)
     log02 = (npix .- 2.0) .* (npix .* C_cc .- C_c.^2)
     log02 = log02 <= 0 ? eps(Float64) : log02
     logprob = 0.5 .* (3.0 .- npix) .* log.(log01) .+ (0.5 .* npix .- 2.0) .* log.(log02)
-    
+
     return logprob
 end
 
@@ -330,11 +351,11 @@ function calcAfmPosterior_beta(afm_frame, model_array, quate_array, radius_array
             for radius in radius_array
                 config.probeRadius = radius
                 cal_frame = afmize(rotated_model, config)
-                
+
                 prob_mat = calcLogProb(afm_frame, cal_frame)
                 max_prob = maximum(prob_mat)
                 posteriors[model_id] = max(posteriors[model_id], max_prob)
-                
+
                 if best_posterior < max_prob
                     best_posterior = max_prob
                     best_model = model
@@ -350,7 +371,7 @@ function calcAfmPosterior_beta(afm_frame, model_array, quate_array, radius_array
 
     return posteriorResult(posteriors, best_posterior, best_model, best_quate, best_radius)
 end
-          
+
 function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
     imax_model = 0
     imax_q = 0
