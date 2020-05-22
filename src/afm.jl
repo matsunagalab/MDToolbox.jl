@@ -290,6 +290,67 @@ function translateafm(afm, (dx, dy))
     afm_translated
 end
 
+mutable struct posteriorResult
+    posteriors
+    best_posterior
+    model
+    quate
+    best_radius
+end
+
+function calcLogProb(observed, calculated)
+    npix = Float64(size(observed, 1) * size(observed, 2))
+    C_o  = sum(observed)
+    C_c  = sum(calculated)
+    C_cc = sum(calculated.^2)
+    C_oo = sum(observed.^2)
+    C_oc = real.(ifft(fft(observed).*conj.(fft(calculated))))
+
+    log01 = npix .* (C_cc .* C_oo .- C_oc.^2) .+ 2.0 .* C_o .* C_oc .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
+    log01[log01 .<= 0.0] .= eps(Float64)
+    log02 = (npix .- 2.0) .* (npix .* C_cc .- C_c.^2)
+    log02 = log02 <= 0 ? eps(Float64) : log02
+    logprob = 0.5 .* (3.0 .- npix) .* log.(log01) .+ (0.5 .* npix .- 2.0) .* log.(log02)
+    
+    return logprob
+end
+
+function calcAfmPosterior_beta(afm_frame, model_array, quate_array, radius_array, afm_config)
+    model_num = size(model_array)[1]
+    quate_num = size(quate_array)[1]
+    posteriors = ones(model_num) .* -1000000000
+    best_posterior = -1000000000
+    best_model = model_array[1]
+    best_quate = quate_array[1, :]
+    best_radius = radius_array[1]
+    config = deepcopy(afm_config)
+    for (model_id, model) in zip(1:model_num, model_array)
+        for quate_id in 1:quate_num
+            rotated_model = MDToolbox.rotate(model, quate_array[quate_id, :])
+            for radius in radius_array
+                config.probeRadius = radius
+                cal_frame = afmize(rotated_model, config)
+                
+                prob_mat = calcLogProb(afm_frame, cal_frame)
+                max_prob = maximum(prob_mat)
+                posteriors[model_id] = max(posteriors[model_id], max_prob)
+                
+                if best_posterior < max_prob
+                    best_posterior = max_prob
+                    best_model = model
+                    best_quate = quate_array[quate_id, :]
+                    best_radius = radius
+                end
+            end
+        end
+    end
+    posteriors .-= maximum(posteriors)
+    posteriors = exp.(posteriors)
+    posteriors ./= sum(posteriors)
+
+    return posteriorResult(posteriors, best_posterior, best_model, best_quate, best_radius)
+end
+          
 function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
     imax_model = 0
     imax_q = 0
@@ -341,5 +402,6 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
             end
         end
     end
+
     return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
 end
