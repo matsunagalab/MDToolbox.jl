@@ -1,8 +1,8 @@
 using Dates
 
-abstract type AbstractHeader end
+## --------------------------------struct Definition------------------------------------------
 
-struct HeaderV0 <: AbstractHeader
+mutable struct Header
     fileVersion       ::Int64
     dataType1ch       ::String     # 1chのデータ種別
     dataType2ch       ::String     # 2chのデータ種別
@@ -16,6 +16,8 @@ struct HeaderV0 <: AbstractHeader
     scanningRangeX    ::Int64
     scanningRangeY    ::Int64
     frameRate         ::Float64
+    piezoExtensionX   ::Float64    # Xピエゾ伸び係数[nm/V]
+    piezoExtensionY   ::Float64    # Yピエゾ伸び係数[nm/V]
     piezoExtensionZ   ::Float64    # Zピエゾ伸び係数[nm/V]
     piezoGainZ        ::Float64
     adRange           ::Float64    # AD電圧レンジ
@@ -23,7 +25,8 @@ struct HeaderV0 <: AbstractHeader
     isAveraged        ::Bool       # 移動平均化フラグ（tureで移動平均）
     averageWindow     ::Int64      # 1ピクセルに使える最大データ数(最低１)
     day               ::DateTime
-    roundingDegree    ::Int64
+    roundingDegreeX   ::Int64
+    roundingDegreeY   ::Int64
     maxRangeX         ::Float64
     maxRangeY         ::Float64
     booked1           ::Int64
@@ -38,6 +41,9 @@ struct HeaderV0 <: AbstractHeader
     phaseSensitivity  ::Float64       # 位相感度
     scannigDirection  ::Int64         # データ取得ステータスコード
     comment           ::Array{Int, 1}
+    textEncodingCodepage ::Int64
+    
+    Header() = new()
 end
 
 struct FrameHeader
@@ -63,9 +69,12 @@ end
 
 # 現在単位はÅ
 struct Asd
-    header   ::AbstractHeader
+    header   ::Header
     frames   ::Array{Frame, 1}
 end
+
+## --------------------------------struct Definition------------------------------------------
+## -----------------------------------read helper---------------------------------------------
 
 function getDataType(data)
     if     data == 0x5054 return "topography"
@@ -76,11 +85,11 @@ end
 
 function getAdRange(data)
     # ADレンジ定数（ユニポーラ0～1V）(使われていないらしい)
-    if     data == 0x00000001 @assert false
+    if     data == 0x00000001 @assert false "invalid AdRange"
     # ADレンジ定数（ユニポーラ0～2.5V）(使われていないらしい)
-    elseif data == 0x00000002 @assert false
+    elseif data == 0x00000002 @assert false "invalid AdRange"
     # ADレンジ定数（ユニポーラ0～5V）(使われていないらしい)
-    elseif data == 0x00000004 @assert false
+    elseif data == 0x00000004 @assert false "invalid AdRange"
     # ADレンジ定数（バイポーラ±1V）
     elseif data == 0x00010000 return 2.0
     # ADレンジ定数（バイポーラ±2.5V）
@@ -90,7 +99,7 @@ function getAdRange(data)
     # ADレンジ定数（バイポーラ±80V, データを編集した場合に仮想的にこれを使う。実際にバイポーラ80VでAD変換したわけではない。また、分解能は16ビットにする）
     elseif data == 0x00080000 return 160.0
     # 何も当てはまらない
-    else @assert false end
+        else @assert false "invalid AdRange" end
     return nothing
 end
 
@@ -113,7 +122,9 @@ function getComment(io, commentOffsetSize, commentSize)
     return ret
 end
 
-function readDate(io::IOStream)
+## -----------------------------------read helper---------------------------------------------
+
+function readDateV0(io::IOStream)
     year              = Int64(read(io, Int16))
     month             = Int64(read(io, UInt8))
     day               = Int64(read(io, UInt8))
@@ -123,45 +134,101 @@ function readDate(io::IOStream)
     return DateTime(year, month, day, hour, minute, second)
 end
 
-function readHeaderV0(io::IOStream)
-    fileVersion       = 0
-    dataType1ch       = getDataType(read(io, Int16))
-    dataType2ch       = getDataType(read(io, Int16))
-    fileHeaderSize    = Int64(read(io, Int32))
-    frameHeaderSize   = Int64(read(io, Int32))
-    operatorNameSize  = Int64(read(io, Int32))
-    commentOffsetSize = Int64(read(io, Int32))
-    commentSize       = Int64(read(io, Int32))
-    pixelX            = Int64(read(io, Int16))
-    pixelY            = Int64(read(io, Int16))
-    scanningRangeX    = Int64(read(io, Int16))
-    scanningRangeY    = Int64(read(io, Int16))
-    frameRate         = Float64(read(io, Float32))
-    piezoExtensionZ   = Float64(read(io, Float32))
-    piezoGainZ        = Float64(read(io, Float32))
-    adRange           = getAdRange(read(io, UInt32))
-    AdResolution      = (2.0)^Int64(read(io, Int32))
-    isAveraged        = read(io, Bool)
-    averageWindow     = Int64(read(io, Int32))
-    legacy            = Int64(read(io, Int16)) # ダミー
-    day               = readDate(io)
-    roundingDegree    = Int64(read(io, UInt8))
-    maxRangeX         = Float64(read(io, Float32))
-    maxRangeY         = Float64(read(io, Float32))
-    booked1           = Int64(read(io, Int32))
-    booked2           = Int64(read(io, Int32))
-    booked3           = Int64(read(io, Int32))
-    initFrame         = Int64(read(io, Int32))
-    numFrames         = Int64(read(io, Int32))
-    machineId         = Int64(read(io, Int32))
-    fileId            = Int64(read(io, Int16))
-    operatorName      = getOperatorName(io, operatorNameSize)
-    sensorSensitivity = Float64(read(io, Float32))
-    phaseSensitivity  = Float64(read(io, Float32))
-    scannigDirection  = Int64(read(io, Int32))
-    comment           = getComment(io, commentOffsetSize, commentSize)
+function readDateV1(io::IOStream)
+    year              = Int64(read(io, Int32))
+    month             = Int64(read(io, Int32))
+    day               = Int64(read(io, Int32))
+    hour              = Int64(read(io, Int32))
+    minute            = Int64(read(io, Int32))
+    second            = Int64(read(io, Int32))
+    return DateTime(year, month, day, hour, minute, second)
+end
 
-    return HeaderV0(fileVersion, dataType1ch, dataType2ch, fileHeaderSize, frameHeaderSize, operatorNameSize, commentOffsetSize, commentSize, pixelX, pixelY, scanningRangeX, scanningRangeY, frameRate, piezoExtensionZ, piezoGainZ, adRange, AdResolution, isAveraged, averageWindow, day, roundingDegree, maxRangeX, maxRangeY, booked1, booked2, booked3, initFrame, numFrames, machineId, fileId, operatorName, sensorSensitivity, phaseSensitivity, scannigDirection, comment)
+function readHeaderV0(io::IOStream)
+    header = Header()
+    header.fileVersion       = 0
+    header.dataType1ch       = getDataType(read(io, Int16))
+    header.dataType2ch       = getDataType(read(io, Int16))
+    header.fileHeaderSize    = Int64(read(io, Int32))
+    header.frameHeaderSize   = Int64(read(io, Int32))
+    header.operatorNameSize  = Int64(read(io, Int32))
+    header.commentOffsetSize = Int64(read(io, Int32))
+    header.commentSize       = Int64(read(io, Int32))
+    header.pixelX            = Int64(read(io, Int16))
+    header.pixelY            = Int64(read(io, Int16))
+    header.scanningRangeX    = Int64(read(io, Int16))
+    header.scanningRangeY    = Int64(read(io, Int16))
+    header.frameRate         = Float64(read(io, Float32))
+    header.piezoExtensionZ   = Float64(read(io, Float32))
+    header.piezoGainZ        = Float64(read(io, Float32))
+    header.adRange           = getAdRange(read(io, UInt32))
+    header.AdResolution      = (2.0)^Int64(read(io, Int32))
+    header.isAveraged        = read(io, Bool)
+    header.averageWindow     = Int64(read(io, Int16))
+    legacy                   = Int64(read(io, Int32)) # ダミー
+    header.day               = readDateV0(io)
+    header.roundingDegreeX   = Int64(read(io, UInt8))
+    header.maxRangeX         = Float64(read(io, Float32))
+    header.maxRangeY         = Float64(read(io, Float32))
+    header.booked1           = Int64(read(io, Int32))
+    header.booked2           = Int64(read(io, Int32))
+    header.booked3           = Int64(read(io, Int32))
+    header.initFrame         = Int64(read(io, Int32))
+    header.numFrames         = Int64(read(io, Int32))
+    header.machineId         = Int64(read(io, Int32))
+    header.fileId            = Int64(read(io, Int16))
+    header.operatorName      = getOperatorName(io, header.operatorNameSize)
+    header.sensorSensitivity = Float64(read(io, Float32))
+    header.phaseSensitivity  = Float64(read(io, Float32))
+    header.scannigDirection  = Int64(read(io, Int32))
+    header.comment           = getComment(io, header.commentOffsetSize, header.commentSize)
+
+    return header
+end
+
+function readHeaderV1(io::IOStream)
+    header = Header()
+    header.fileVersion       = 1
+    header.fileHeaderSize    = Int64(read(io, Int32))
+    header.frameHeaderSize   = Int64(read(io, Int32))
+    header.textEncodingCodepage = Int64(read(io, Int32))
+    header.operatorNameSize  = Int64(read(io, Int32))
+    header.commentSize       = Int64(read(io, Int32))
+    header.dataType1ch       = getDataType(read(io, Int32))
+    header.dataType2ch       = getDataType(read(io, Int32))
+    header.initFrame         = Int64(read(io, Int32))
+    header.numFrames         = Int64(read(io, Int32))
+    header.scannigDirection  = Int64(read(io, Int32))
+    header.fileId            = Int64(read(io, Int32))
+    header.pixelX            = Int64(read(io, Int32))
+    header.pixelY            = Int64(read(io, Int32))
+    header.scanningRangeX    = Int64(read(io, Int32))
+    header.scanningRangeY    = Int64(read(io, Int32))
+    header.isAveraged        = read(io, Bool)
+    header.averageWindow     = Int64(read(io, Int32))
+    header.day               = readDateV1(io)
+    header.roundingDegreeX   = Int64(read(io, Int32))
+    header.roundingDegreeY   = Int64(read(io, Int32))
+    header.frameRate         = Float64(read(io, Float32))
+    header.sensorSensitivity = Float64(read(io, Float32))
+    header.phaseSensitivity  = Float64(read(io, Float32))
+    header.commentOffsetSize = Int64(read(io, Int32))
+    header.booked1           = Int64(read(io, Int32))
+    header.booked2           = Int64(read(io, Int32))
+    header.booked3           = Int64(read(io, Int32))
+    header.machineId         = Int64(read(io, Int32))
+    header.adRange           = getAdRange(read(io, Int32))
+    header.AdResolution      = (2.0)^Int64(read(io, Int32))
+    header.maxRangeX         = Float64(read(io, Float32))
+    header.maxRangeY         = Float64(read(io, Float32))
+    header.piezoExtensionX   = Float64(read(io, Float32))
+    header.piezoExtensionY   = Float64(read(io, Float32))
+    header.piezoExtensionZ   = Float64(read(io, Float32))
+    header.piezoGainZ        = Float64(read(io, Float32))
+    header.operatorName      = getOperatorName(io, header.operatorNameSize)
+    header.comment           = getComment(io, 0, header.commentSize)
+
+    return header
 end
 
 """
@@ -192,7 +259,7 @@ function binaryToPhysicalQuantity(data, header, chanelType)
         multiplier = if header.phaseSensitivity != 0 phaseSensitivity else -1.0 end
     else
         # ここには来ない
-        @assert false
+        @assert false "invalid chanelType"
     end
 
     # nm -> angstrom(要議論)
@@ -244,21 +311,23 @@ function readFrame(io::IOStream, header)
     return Frame(frameHeader, data, subData)
 end
 
-function readasd(filePath)
+function readAsd(filePath)
     open(filePath, "r") do io
         headerVersion = Int64(read(io, Int32))
-
+        header = Header()
         if headerVersion == 0
             header = readHeaderV0(io)
-            frames = []
-            for i in 1:header.numFrames
-                push!(frames, readFrame(io, header))
-            end
-
-            return Asd(header, frames)
+        elseif headerVersion == 1
+            header = readHeaderV1(io)
         else
-            # TODO
-            @assert false
+            @assert false "can't read v2 file"
         end
+        
+        frames = []
+        for i in 1:header.numFrames
+            push!(frames, readFrame(io, header))
+        end
+
+        return Asd(header, frames)
     end
 end
