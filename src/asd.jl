@@ -42,7 +42,7 @@ mutable struct Header
     scannigDirection  ::Int64         # データ取得ステータスコード
     comment           ::Array{Int, 1}
     textEncodingCodepage ::Int64
-    
+
     Header() = new()
 end
 
@@ -311,7 +311,7 @@ function readFrame(io::IOStream, header)
     return Frame(frameHeader, data, subData)
 end
 
-function readAsd(filePath)
+function readasd(filePath)
     open(filePath, "r") do io
         headerVersion = Int64(read(io, Int32))
         header = Header()
@@ -322,7 +322,7 @@ function readAsd(filePath)
         else
             @assert false "can't read v2 file"
         end
-        
+
         frames = []
         for i in 1:header.numFrames
             push!(frames, readFrame(io, header))

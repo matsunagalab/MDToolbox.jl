@@ -3,35 +3,35 @@ import Base: convert, copy, show, getindex, isempty,
 
 abstract type AbstractTrajectory end
 
-struct TrjArray <: AbstractTrajectory
+struct TrjArray{T, U} <: AbstractTrajectory
 
     #DONE: support for x, y, z = nothing, nothing, nothing
     #DONE: natom, nframe
     #TODO: revert to parametric type, fix slowness of constructor
     #TODO: simple and easy constructions for other functions which outputs a new trjarray (such as centerofmass)
     #TODO: should allow one-dimensional array (vector) for x, y, z constructor input
-    x::Matrix{Float64}
-    y::Matrix{Float64}
-    z::Matrix{Float64}
-    boxsize::Matrix{Float64}
-    chainname::Vector{String}
-    chainid::Vector{Int64}
-    resname::Vector{String}
-    resid::Vector{Int64}
-    atomname::Vector{String}
-    atomid::Vector{Int64}
-    mass::Vector{Float64}
-    charge::Vector{Float64}
-    list_bond::Matrix{Int64}
-    list_angle::Matrix{Int64}
-    list_dihedral::Matrix{Int64}
-    list_improper::Matrix{Int64}
-    list_cmap::Matrix{Int64}
+    x::AbstractArray{T}
+    y::AbstractArray{T}
+    z::AbstractArray{T}
+    boxsize::AbstractArray{T}
+    chainname::AbstractArray{String}
+    chainid::AbstractArray{U}
+    resname::AbstractArray{String}
+    resid::AbstractArray{U}
+    atomname::AbstractArray{String}
+    atomid::AbstractArray{U}
+    mass::AbstractArray{T}
+    charge::AbstractArray{T}
+    list_bond::AbstractArray{U}
+    list_angle::AbstractArray{U}
+    list_dihedral::AbstractArray{U}
+    list_improper::AbstractArray{U}
+    list_cmap::AbstractArray{U}
     natom::Int64
     nframe::Int64
 
-    function TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
-                      list_bond, list_angle, list_dihedral, list_improper, list_cmap)
+    function TrjArray{T, U}(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+                      list_bond, list_angle, list_dihedral, list_improper, list_cmap) where {T, U}
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
         # ischecked && return new(trj, atomname, atomid, meta)
@@ -97,15 +97,15 @@ struct TrjArray <: AbstractTrajectory
 end
 
 ###### outer constructors ########
-function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 0, 0), z = Matrix{Float64}(undef, 0, 0),
-                  boxsize = Matrix{Float64}(undef, 0, 0),
-                  chainname = Vector{String}(undef, 0), chainid = Vector{Int64}(undef, 0),
-                  resname = Vector{String}(undef, 0), resid = Vector{Int64}(undef, 0),
-                  atomname = Vector{String}(undef, 0), atomid = Vector{Int64}(undef, 0),
-                  mass = Vector{Float64}(undef, 0), charge = Vector{Float64}(undef, 0),
-                  list_bond = Matrix{Int64}(undef, 0, 0), list_angle = Matrix{Int64}(undef, 0, 0),
-                  list_dihedral = Matrix{Int64}(undef, 0, 0), list_improper = Matrix{Int64}(undef, 0, 0),
-                  list_cmap = Matrix{Int64}(undef, 0, 0))
+function TrjArray{T, U}(;x = Matrix{T}(undef, 0, 0), y = Matrix{T}(undef, 0, 0), z = Matrix{T}(undef, 0, 0),
+                  boxsize = Matrix{T}(undef, 0, 0),
+                  chainname = Vector{String}(undef, 0), chainid = Vector{U}(undef, 0),
+                  resname = Vector{String}(undef, 0), resid = Vector{U}(undef, 0),
+                  atomname = Vector{String}(undef, 0), atomid = Vector{U}(undef, 0),
+                  mass = Vector{T}(undef, 0), charge = Vector{T}(undef, 0),
+                  list_bond = Matrix{U}(undef, 0, 0), list_angle = Matrix{U}(undef, 0, 0),
+                  list_dihedral = Matrix{U}(undef, 0, 0), list_improper = Matrix{U}(undef, 0, 0),
+                  list_cmap = Matrix{U}(undef, 0, 0)) where {T, U}
     # if typeof(x) <: AbstractVector
     #     x2 = reshape(x, length(x), 1)
     # else
@@ -122,12 +122,16 @@ function TrjArray(;x = Matrix{Float64}(undef, 0, 0), y = Matrix{Float64}(undef, 
     #     z2 = z
     # end
     # TrjArray(x2, y2, z2, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
-    TrjArray(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+    TrjArray{T, U}(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
              list_bond, list_angle, list_dihedral, list_improper, list_cmap)
 end
 
-TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjArray) where {T <: Real} =
-             TrjArray(x = x, y = y, z = z, boxsize = boxsize,
+function TrjArray()
+    TrjArray{Float64, Int64}()
+end
+
+TrjArray(x::AbstractArray{T}, y::AbstractArray{T}, z::AbstractArray{T}, boxsize::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
+       TrjArray{T, U}(x = x, y = y, z = z, boxsize = boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
@@ -136,8 +140,8 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, boxsize::Matrix{T}, ta::TrjAr
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
                       list_cmap = ta.list_cmap)
 
-TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Real} =
-             TrjArray(x = x, y = y, z = z, boxsize = ta.boxsize,
+TrjArray(x::AbstractArray{T}, y::AbstractArray{T}, z::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
+       TrjArray{T, U}(x = x, y = y, z = z, boxsize = ta.boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
@@ -148,15 +152,17 @@ TrjArray(x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta::TrjArray) where {T <: Rea
 
 ###### size, length #################
 size(ta::TrjArray) = (ta.nframe, ta.natom)
+
 function size(ta::TrjArray, id::Int)
     if id == 1
         ta.nframe
     elseif id == 2
         ta.natom
     else
-        return 1
+        return 0
     end
 end
+
 length(ta::TrjArray) = prod(size(ta))
 
 ###### getindex #################
@@ -165,62 +171,62 @@ getindex(ta::TrjArray, ::Colon) = ta
 getindex(ta::TrjArray, ::Colon, ::Colon) = ta
 
 # single row
-function getindex(ta::TrjArray, n::Int)
+function getindex(ta::TrjArray{T, U}, n::Int) where {T, U}
     if iszero(n)
-        return TrjArray(Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), Array{Float64, 2}(undef, 0, 0), ta)
+        return TrjArray(Array{T, 2}(undef, 0, 0), Array{T, 2}(undef, 0, 0), Array{T, 2}(undef, 0, 0), Array{T, 2}(undef, 0, 0), ta)
     elseif !isempty(ta.boxsize)
         return TrjArray(ta.x[n:n, :], ta.y[n:n, :], ta.z[n:n, :], ta.boxsize[n:n, :], ta)
     else
         return TrjArray(ta.x[n:n, :], ta.y[n:n, :], ta.z[n:n, :], ta)
     end
 end
-getindex(ta::TrjArray, n::Int, ::Colon) = getindex(ta, n)
+getindex(ta::TrjArray{T, U}, n::Int, ::Colon) where {T, U} = getindex(ta, n)
 
 # range of rows
-function getindex(ta::TrjArray, r::UnitRange{Int})
+function getindex(ta::TrjArray{T, U}, r::UnitRange{Int}) where {T, U}
     if !isempty(ta.boxsize)
         TrjArray(ta.x[r, :], ta.y[r, :], ta.z[r, :], ta.boxsize[r, :], ta)
     else
         TrjArray(ta.x[r, :], ta.y[r, :], ta.z[r, :], ta)
     end
 end
-getindex(ta::TrjArray, r::UnitRange{Int}, ::Colon) = getindex(ta, r)
+getindex(ta::TrjArray{T, U}, r::UnitRange{Int}, ::Colon) where {T, U} = getindex(ta, r)
 
 # array of rows (integer)
-function getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Integer}
+function getindex(ta::TrjArray{T, U}, a::AbstractVector{S}) where {T, U, S <: Integer}
     if !isempty(ta.boxsize)
         TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta.boxsize[a, :], ta)
     else
         TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
     end
 end
-getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Integer} = getindex(ta, a)
+getindex(ta::TrjArray{T, U}, a::AbstractVector{S}, ::Colon) where {T, U, S <: Integer} = getindex(ta, a)
 
 # array of rows (bool)
 #getindex(ta::TrjArray, a::AbstractVector{S}) where {S <: Bool} = TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
 #getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Bool} = getindex(ta, a)
-function getindex(ta::TrjArray, a::AbstractVector{Bool})
+function getindex(ta::TrjArray{T, U}, a::AbstractVector{Bool}) where {T, U}
     if !isempty(ta.boxsize)
         TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta.boxsize[a, :], ta)
     else
         TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
     end
 end
-getindex(ta::TrjArray, a::AbstractVector{Bool}, ::Colon) = getindex(ta, a)
+getindex(ta::TrjArray{T, U}, a::AbstractVector{Bool}, ::Colon) where {T, U} = getindex(ta, a)
 
 # define function for updating list_bond, list_angle, list_dihedral, list_improper, list_cmap
 function reindex_list(natom, list_some, index)
   if isempty(list_some) || isempty(index)
-    return Matrix{Int64}(undef, 0, 0)
+    return Matrix{eltype(list_some)}(undef, 0, 0)
   end
   if typeof(index) <: AbstractVector{Bool}
     index_logical = index
-    reindex = zeros(Int64, natom)
+    reindex = zeros(eltype(list_some), natom)
     reindex[index] = 1:sum(index)
   else
     index_logical = falses(natom)
     index_logical[index] .= true
-    reindex = zeros(Int64, natom)
+    reindex = zeros(eltype(list_some), natom)
     reindex[index] = 1:length(index)
   end
   nlist = size(list_some, 1)
@@ -233,14 +239,14 @@ function reindex_list(natom, list_some, index)
     end
   end
   if icount == 0
-    return Matrix{Int64}(undef, 0, 0)
+    return Matrix{eltype(list_some)}(undef, 0, 0)
   else
     return list_some_new[1:icount, :]
   end
 end
 
 # single column
-getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
+getindex(ta::TrjArray{T, U}, ::Colon, r::Int) where {T, U} = TrjArray{T, U}(
              x = isempty(ta.x) ? ta.x : ta.x[:, r:r],
              y = isempty(ta.y) ? ta.y : ta.y[:, r:r],
              z = isempty(ta.z) ? ta.z : ta.z[:, r:r],
@@ -261,7 +267,7 @@ getindex(ta::TrjArray, ::Colon, r::Int) = TrjArray(
              list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r:r))
 
 # range of columns
-getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
+getindex(ta::TrjArray{T, U}, ::Colon, r::UnitRange{Int}) where {T, U} = TrjArray{T, U}(
              x = isempty(ta.x) ? ta.x : ta.x[:, r],
              y = isempty(ta.y) ? ta.y : ta.y[:, r],
              z = isempty(ta.z) ? ta.z : ta.z[:, r],
@@ -282,7 +288,7 @@ getindex(ta::TrjArray, ::Colon, r::UnitRange{Int}) = TrjArray(
              list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
 
 # array of columns (integer)
-getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = TrjArray(
+getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{S}) where {T, U, S <: Integer} = TrjArray{T, U}(
              x = isempty(ta.x) ? ta.x : ta.x[:, r],
              y = isempty(ta.y) ? ta.y : ta.y[:, r],
              z = isempty(ta.z) ? ta.z : ta.z[:, r],
@@ -303,7 +309,7 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{S}) where {S <: Integer} = Trj
              list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
 
 # array of rows (bool)
-getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
+getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = TrjArray{T, U}(
              x = isempty(ta.x) ? ta.x : ta.x[:, r],
              y = isempty(ta.y) ? ta.y : ta.y[:, r],
              z = isempty(ta.z) ? ta.z : ta.z[:, r],
@@ -324,7 +330,7 @@ getindex(ta::TrjArray, ::Colon, r::AbstractVector{Bool}) = TrjArray(
              list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
 
 # combinations
-getindex(ta::TrjArray, rows, cols) = ta[rows, :][:, cols]
+getindex(ta::TrjArray{T, U}, rows, cols) where {T, U} = ta[rows, :][:, cols]
 
 ###### atom selection #################
 function unfold(A)

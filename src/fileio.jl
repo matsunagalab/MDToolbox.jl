@@ -186,9 +186,9 @@ function readdcd(filename::String; index=nothing, stride=1)
     end
 
     if isempty(boxsize)
-        TrjArray(x=x, y=y, z=z)
+        TrjArray{Float64, Int64}(x=x, y=y, z=z)
     else
-        TrjArray(x=x, y=y, z=z, boxsize=boxsize)
+        TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
     end
 end
 
@@ -261,7 +261,7 @@ function readnetcdf(filename::String; index=nothing)
         temp = Vector{Float64}(undef, 0)
     end
 
-    TrjArray(x=x, y=y, z=z, boxsize=boxsize)
+    TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
 end
 
 
@@ -523,7 +523,7 @@ function readpsf(filename::String)
         end
     end
 
-    TrjArray(chainname=psf_segment_name,
+    TrjArray{Float64, Int64}(chainname=psf_segment_name,
              resname=psf_residue_name, resid=psf_residue_id,
              atomname=psf_atom_name, atomid=psf_atom_id,
              mass=psf_mass, charge=psf_charge,
@@ -708,7 +708,7 @@ function readpdb(filename::String)
         end
     end
 
-    TrjArray(x=pdb_x, y=pdb_y, z=pdb_z,
+    TrjArray{Float64, Int64}(x=pdb_x, y=pdb_y, z=pdb_z,
              chainname=pdb_chainid,
              resid=pdb_resseq, resname=pdb_resname,
              atomid=pdb_serial, atomname=pdb_name)
@@ -840,5 +840,5 @@ function readcrd(filename::String)
     y[:] .= xyz[2:3:end]
     z[:] .= xyz[3:3:end]
 
-    TrjArray(x=x, y=y, z=z)
+    TrjArray{Float64, Int64}(x=x, y=y, z=z)
 end
