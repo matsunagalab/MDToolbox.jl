@@ -26,9 +26,9 @@ export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
-export viewstruc
 export afmize, AfmizeConfig, translateafm, getafmposterior
 export Asd, readasd
+export viewstruc, gpu, gpu32, cpu, cpu64
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
@@ -43,8 +43,8 @@ include("ksdensity.jl")
 include("wham.jl")
 include("mbar.jl")
 include("sparse.jl")
-include("viz.jl")
 include("afm.jl")
 include("asd.jl")
+include("utils.jl")
 
 end # module
