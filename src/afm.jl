@@ -311,21 +311,39 @@ function translateafm(afm, (dx, dy))
     afm_translated
 end
 
-mutable struct posteriorResult
-    posteriors
-    best_posterior
+struct posteriorResult
     model
     quate
-    best_radius
+    param
+    afm
 end
 
-function calcLogProb(observed, calculated)
+function direct_convolution(observed, calculated)
+    H, W = size(observed)
+    ret = zeros(H, W)
+    for y in 1:H, x in 1:W
+        for dy in 1:H, dx in 1:W
+            ny = y + dy - 1
+            nx = x + dx - 1
+            if ny > H ny -= H end
+            if nx > W nx -= W end
+            ret[y, x] += observed[dy, dx] * calculated[ny, nx]
+        end
+    end
+    return ret
+end
+
+function fft_convolution(observed, calculated)
+    return real.(ifft(fft(observed).*conj.(fft(calculated))))
+end
+
+function calcLogProb(observed, calculated, convolution_func)
     npix = Float64(size(observed, 1) * size(observed, 2))
     C_o  = sum(observed)
     C_c  = sum(calculated)
     C_cc = sum(calculated.^2)
     C_oo = sum(observed.^2)
-    C_oc = real.(ifft(fft(observed).*conj.(fft(calculated))))
+    C_oc = convolution_func(observed, calculated)
 
     log01 = npix .* (C_cc .* C_oo .- C_oc.^2) .+ 2.0 .* C_o .* C_oc .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
     log01[log01 .<= 0.0] .= eps(Float64)
@@ -336,40 +354,66 @@ function calcLogProb(observed, calculated)
     return logprob
 end
 
-function calcAfmPosterior_beta(afm_frame, model_array, quate_array, radius_array, afm_config)
+function getafmposterior_beta(afm_frame, model_array, quate_array, param_array, opt = "")
     model_num = size(model_array)[1]
     quate_num = size(quate_array)[1]
-    posteriors = ones(model_num) .* -1000000000
-    best_posterior = -1000000000
+    param_num = size(param_array)[1]
+    
+    convolution_func = fft_convolution
+    if opt == "direct"
+        convolution_func = direct_convolution
+    end
+    
+    println("func is $convolution_func")
+    
+    # 各モデルについて、一つの角度と半径ごとのlogprobの最高値を保持しておく
+    posteriors = zeros(model_num, quate_num * param_num)
+    # 各モデルについて、最も良い値をだした時のafm画像
+    afm_results = [zeros(size(afm_frame)) for i in 1:model_num]
+    each_best = ones(model_num) .* -Inf
+    
+    best_posterior = -Inf
     best_model = model_array[1]
     best_quate = quate_array[1, :]
-    best_radius = radius_array[1]
-    config = deepcopy(afm_config)
+    best_param = param_array[1]
+    best_afm = zeros(size(afm_frame))
+    
     for (model_id, model) in zip(1:model_num, model_array)
         for quate_id in 1:quate_num
             rotated_model = MDToolbox.rotate(model, quate_array[quate_id, :])
-            for radius in radius_array
-                config.probeRadius = radius
-                cal_frame = afmize(rotated_model, config)
+            for param_id in 1:param_num
+                cal_frame = afmize(rotated_model, param_array[param_id])
 
-                prob_mat = calcLogProb(afm_frame, cal_frame)
+                prob_mat = calcLogProb(afm_frame, cal_frame, convolution_func)
                 max_prob = maximum(prob_mat)
-                posteriors[model_id] = max(posteriors[model_id], max_prob)
+                id = (quate_id - 1) * param_num + param_id
+                posteriors[model_id, id] = max_prob
+                
+                if each_best[model_id] < max_prob
+                    each_best[model_id] = max_prob
+                    afm_results[model_id] = cal_frame
+                end
 
                 if best_posterior < max_prob
                     best_posterior = max_prob
                     best_model = model
                     best_quate = quate_array[quate_id, :]
-                    best_radius = radius
+                    best_param = param_array[param_id]
+                    best_afm = cal_frame
                 end
             end
         end
     end
     posteriors .-= maximum(posteriors)
+    println(size(posteriors))
     posteriors = exp.(posteriors)
-    posteriors ./= sum(posteriors)
+    posterior_results = sum(posteriors, dims = 2)
+    posterior_results ./= sum(posterior_results)
+    println(posterior_results)
+    
+    best_result = posteriorResult(best_model, best_quate, best_param, best_afm)
 
-    return posteriorResult(posteriors, best_posterior, best_model, best_quate, best_radius)
+    return afm_results, posterior_results, best_result
 end
 
 function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
