@@ -408,7 +408,6 @@ function getafmposterior_beta(afm_frame, model_array, quate_array, param_array, 
     println(size(posteriors))
     posteriors = exp.(posteriors)
     posterior_results = sum(posteriors, dims = 2)
-    println(posterior_results)
     posterior_results ./= sum(posterior_results)
     println(posterior_results)
     
