@@ -311,6 +311,25 @@ function translateafm(afm, (dx, dy))
     afm_translated
 end
 
+function translateafm_periodic(afm, (dx, dy))
+    afm_translated = zeros(eltype(afm), size(afm))
+    (nx, ny) = size(afm)
+    for x in 1:nx
+        for y in 1:ny
+            xx = x + dx
+            yy = y + dy
+            if xx > nx 
+                xx -= nx
+            end
+            if yy > ny
+                yy -= ny
+            end
+            afm_translated[xx, yy] = afm[x, y]
+        end
+    end
+    afm_translated
+end
+
 function direct_convolution(observed, calculated)
     H, W = size(observed)
     ret = zeros(H, W)
@@ -407,6 +426,7 @@ mutable struct posteriorResult
     each_best
     afm_results
     posterior_results
+    best_translate
     best_posterior
     best_model
     best_quate
@@ -443,7 +463,17 @@ function getafmposteriors_alpha(afm_frames, model_array, quate_array, param_arra
         best_param = param_array[1]
         best_afm = zeros(size(afm_frames[1]))
         posterior_results = zeros(model_num)
-        push!(results, posteriorResult(posteriors, each_best, afm_results, posterior_results, best_posterior, best_model, best_quate, best_model_rotated, best_param, best_afm))
+        push!(results, posteriorResult(posteriors, 
+                                        each_best, 
+                                        afm_results, 
+                                        posterior_results,
+                                        (0, 0), 
+                                        best_posterior, 
+                                        best_model, 
+                                        best_quate,
+                                        best_model_rotated, 
+                                        best_param, 
+                                        best_afm))
     end
 
     for (model_id, model) in zip(1:model_num, model_array)
@@ -469,7 +499,8 @@ function getafmposteriors_alpha(afm_frames, model_array, quate_array, param_arra
                         results[frame_id].best_quate = quate_array[quate_id, :]
                         results[frame_id].best_model_rotated = rotated_model
                         results[frame_id].best_param = param_array[param_id]
-                        results[frame_id].best_afm = cal_frame
+                        results[frame_id].best_translate = Tuple(argmax(prob_mat))
+                        results[frame_id].best_afm = translateafm_periodic(cal_frame, results[frame_id].best_translate)
                     end
                 end
             end
