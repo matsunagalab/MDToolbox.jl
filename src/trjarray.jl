@@ -153,15 +153,7 @@ TrjArray(x::AbstractArray{T}, y::AbstractArray{T}, z::AbstractArray{T}, ta::TrjA
 ###### size, length #################
 size(ta::TrjArray) = (ta.nframe, ta.natom)
 
-function size(ta::TrjArray, id::Int)
-    if id == 1
-        ta.nframe
-    elseif id == 2
-        ta.natom
-    else
-        return 0
-    end
-end
+size(ta::TrjArray, dim::Int) = (dim == 1) ? ta.nframe : (dim == 2) ? ta.natom : 1
 
 length(ta::TrjArray) = prod(size(ta))
 
@@ -332,7 +324,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
 # combinations
 getindex(ta::TrjArray{T, U}, rows, cols) where {T, U} = ta[rows, :][:, cols]
 
-# Define end keyword
+# end index
 lastindex(ta::TrjArray, dim::Int = 1) = (dim == 1) ? ta.nframe : (dim == 2) ? ta.natom : 1
 
 ###### atom selection #################
