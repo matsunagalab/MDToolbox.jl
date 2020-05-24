@@ -26,7 +26,7 @@ export ksdensity, ksdensity_serial, getpmf
 export wham, wham_iteration
 export mbar
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
-export afmize, AfmizeConfig, translateafm, getafmposterior
+export afmize, AfmizeConfig, translateafm, getafmposterior, getafmposteriors_alpha
 export Asd, readasd
 export viewstruc, gpu, gpu32, cpu, cpu64
 

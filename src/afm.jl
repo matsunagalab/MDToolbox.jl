@@ -311,13 +311,6 @@ function translateafm(afm, (dx, dy))
     afm_translated
 end
 
-struct posteriorResult
-    model
-    quate
-    param
-    afm
-end
-
 function direct_convolution(observed, calculated)
     H, W = size(observed)
     ret = zeros(H, W)
@@ -354,68 +347,6 @@ function calcLogProb(observed, calculated, convolution_func)
     return logprob
 end
 
-function getafmposterior_beta(afm_frame, model_array, quate_array, param_array, opt = "")
-    model_num = size(model_array)[1]
-    quate_num = size(quate_array)[1]
-    param_num = size(param_array)[1]
-    
-    convolution_func = fft_convolution
-    if opt == "direct"
-        convolution_func = direct_convolution
-    end
-    
-    println("func is $convolution_func")
-    
-    # 各モデルについて、一つの角度と半径ごとのlogprobの最高値を保持しておく
-    posteriors = zeros(model_num, quate_num * param_num)
-    # 各モデルについて、最も良い値をだした時のafm画像
-    afm_results = [zeros(size(afm_frame)) for i in 1:model_num]
-    each_best = ones(model_num) .* -Inf
-    
-    best_posterior = -Inf
-    best_model = model_array[1]
-    best_quate = quate_array[1, :]
-    best_param = param_array[1]
-    best_afm = zeros(size(afm_frame))
-    
-    for (model_id, model) in zip(1:model_num, model_array)
-        for quate_id in 1:quate_num
-            rotated_model = MDToolbox.rotate(model, quate_array[quate_id, :])
-            for param_id in 1:param_num
-                cal_frame = afmize(rotated_model, param_array[param_id])
-
-                prob_mat = calcLogProb(afm_frame, cal_frame, convolution_func)
-                max_prob = maximum(prob_mat)
-                id = (quate_id - 1) * param_num + param_id
-                posteriors[model_id, id] = max_prob
-                
-                if each_best[model_id] < max_prob
-                    each_best[model_id] = max_prob
-                    afm_results[model_id] = cal_frame
-                end
-
-                if best_posterior < max_prob
-                    best_posterior = max_prob
-                    best_model = model
-                    best_quate = quate_array[quate_id, :]
-                    best_param = param_array[param_id]
-                    best_afm = cal_frame
-                end
-            end
-        end
-    end
-    posteriors .-= maximum(posteriors)
-    println(size(posteriors))
-    posteriors = exp.(posteriors)
-    posterior_results = sum(posteriors, dims = 2)
-    posterior_results ./= sum(posterior_results)
-    println(posterior_results)
-    
-    best_result = posteriorResult(best_model, best_quate, best_param, best_afm)
-
-    return afm_results, posterior_results, best_result
-end
-
 function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
     imax_model = 0
     imax_q = 0
@@ -429,7 +360,7 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
 
     decenter!(model_array)
 
-    for imodel in 1:size(model_array, 1)
+    Threads.@threads for imodel in 1:size(model_array, 1)
         @show imodel
         model = model_array[imodel, :]
         for iq in 1:size(q_array, 1)
@@ -469,4 +400,88 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
     end
 
     return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
+end
+
+mutable struct posteriorResult
+    posteriors
+    each_best
+    afm_results
+    posterior_results
+    best_posterior
+    best_model
+    best_quate
+    best_model_rotated
+    best_param
+    best_afm
+end
+
+function getafmposteriors_alpha(afm_frames, model_array, quate_array, param_array, opt = "")
+    frame_num = size(afm_frames)[1]
+    model_num = size(model_array)[1]
+    quate_num = size(quate_array)[1]
+    param_num = size(param_array)[1]
+
+    convolution_func = fft_convolution
+    if opt == "direct"
+        convolution_func = direct_convolution
+    end
+
+    println("func is $convolution_func")
+
+    results = []
+    for i in 1:frame_num
+        # 各モデルについて、一つの角度と半径ごとのlogprobの最高値を保持しておく
+        posteriors = zeros(model_num, quate_num * param_num)
+        # 各モデルについて、最も良い値をだした時のafm画像
+        afm_results = [zeros(size(afm_frames[1])) for i in 1:model_num]
+        each_best = ones(model_num) .* -Inf
+
+        best_posterior = -Inf
+        best_model = model_array[1]
+        best_quate = quate_array[1, :]
+        best_model_rotated = model_array[1]
+        best_param = param_array[1]
+        best_afm = zeros(size(afm_frames[1]))
+        posterior_results = zeros(model_num)
+        push!(results, posteriorResult(posteriors, each_best, afm_results, posterior_results, best_posterior, best_model, best_quate, best_model_rotated, best_param, best_afm))
+    end
+
+    for (model_id, model) in zip(1:model_num, model_array)
+        @show model_id
+        for quate_id in 1:quate_num
+            rotated_model = MDToolbox.rotate(model, quate_array[quate_id, :])
+            for param_id in 1:param_num
+                cal_frame = afmize(rotated_model, param_array[param_id])
+                for frame_id in 1:frame_num
+                    prob_mat = calcLogProb(afm_frames[frame_id], cal_frame, convolution_func)
+                    max_prob = maximum(prob_mat)
+                    id = (quate_id - 1) * param_num + param_id
+                    results[frame_id].posteriors[model_id, id] = max_prob
+
+                    if results[frame_id].each_best[model_id] < max_prob
+                        results[frame_id].each_best[model_id] = max_prob
+                        results[frame_id].afm_results[model_id] = cal_frame
+                    end
+
+                    if results[frame_id].best_posterior < max_prob
+                        results[frame_id].best_posterior = max_prob
+                        results[frame_id].best_model = model
+                        results[frame_id].best_quate = quate_array[quate_id, :]
+                        results[frame_id].best_model_rotated = rotated_model
+                        results[frame_id].best_param = param_array[param_id]
+                        results[frame_id].best_afm = cal_frame
+                    end
+                end
+            end
+        end
+    end
+
+    for frame_id in 1:frame_num
+        results[frame_id].posteriors .-= maximum(results[frame_id].posteriors)
+        results[frame_id].posteriors = exp.(results[frame_id].posteriors)
+        results[frame_id].posterior_results = sum(results[frame_id].posteriors, dims = 2)
+        results[frame_id].posterior_results ./= sum(results[frame_id].posterior_results)
+    end
+
+    return results
 end
