@@ -1,4 +1,4 @@
-import Base: convert, copy, show, getindex, isempty,
+import Base: convert, copy, show, getindex, lastindex, isempty,
              size, length, eachindex, ==, isequal, hash, vcat, hcat, merge, map
 
 abstract type AbstractTrajectory end
@@ -331,6 +331,9 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
 
 # combinations
 getindex(ta::TrjArray{T, U}, rows, cols) where {T, U} = ta[rows, :][:, cols]
+
+# Define end keyword
+lastindex(ta::TrjArray, dim::Int = 1) = (dim == 1) ? ta.nframe : (dim == 2) ? ta.natom : 1
 
 ###### atom selection #################
 function unfold(A)
