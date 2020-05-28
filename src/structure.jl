@@ -310,9 +310,9 @@ function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
     rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
     rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
     rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
-    x .= rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
-    y .= rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
-    z .= rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
+    x = rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
+    y = rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
+    z = rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
     ta.x .= x
     ta.y .= y
     ta.z .= z
