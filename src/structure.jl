@@ -279,11 +279,11 @@ function applyrotation!(iframe, x, y, z, ta2, rot)
 end
 
 ############################################################################
-function rotate(ta::TrjArray{T, U}, quater::Vector{T})::TrjArray{T, U} where {T, U}
-    x = zeros(T, ta.nframe, ta.natom)
-    y = zeros(T, ta.nframe, ta.natom)
-    z = zeros(T, ta.nframe, ta.natom)
-    rot = zeros(T, 9)
+function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} where {T, U}
+    x = similar(ta.x, ta.nframe, ta.natom)
+    y = similar(ta.y, ta.nframe, ta.natom)
+    z = similar(ta.z, ta.nframe, ta.natom)
+    rot = similar(quater, 9)
     rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3];
     rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4]);
     rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4]);
@@ -293,19 +293,14 @@ function rotate(ta::TrjArray{T, U}, quater::Vector{T})::TrjArray{T, U} where {T,
     rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
     rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
     rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
-    #@show det(reshape(rot, (3, 3)))
-    for iframe in 1:ta.nframe
-        for iatom in 1:ta.natom
-            @inbounds x[iframe, iatom] = rot[1] * ta.x[iframe, iatom] + rot[2] * ta.y[iframe, iatom] + rot[3] * ta.z[iframe, iatom]
-            @inbounds y[iframe, iatom] = rot[4] * ta.x[iframe, iatom] + rot[5] * ta.y[iframe, iatom] + rot[6] * ta.z[iframe, iatom]
-            @inbounds z[iframe, iatom] = rot[7] * ta.x[iframe, iatom] + rot[8] * ta.y[iframe, iatom] + rot[9] * ta.z[iframe, iatom]
-        end
-    end
+    x .= rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
+    y .= rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
+    z .= rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
     return TrjArray(x, y, z, ta)
 end
 
-function rotate!(ta::TrjArray{T, U}, quater::Vector{T}) where {T, U}
-    rot = zeros(T, 9)
+function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
+    rot = similar(quater, 9)
     rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3];
     rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4]);
     rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4]);
@@ -315,17 +310,12 @@ function rotate!(ta::TrjArray{T, U}, quater::Vector{T}) where {T, U}
     rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
     rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
     rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
-    #@show det(reshape(rot, (3, 3)))
-    for iframe in 1:ta.nframe
-        for iatom in 1:ta.natom
-            @inbounds x = rot[1] * ta.x[iframe, iatom] + rot[2] * ta.y[iframe, iatom] + rot[3] * ta.z[iframe, iatom]
-            @inbounds y = rot[4] * ta.x[iframe, iatom] + rot[5] * ta.y[iframe, iatom] + rot[6] * ta.z[iframe, iatom]
-            @inbounds z = rot[7] * ta.x[iframe, iatom] + rot[8] * ta.y[iframe, iatom] + rot[9] * ta.z[iframe, iatom]
-            @inbounds ta.x[iframe, iatom] = x
-            @inbounds ta.y[iframe, iatom] = y
-            @inbounds ta.z[iframe, iatom] = z
-        end
-    end
+    x .= rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
+    y .= rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
+    z .= rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
+    ta.x .= x
+    ta.y .= y
+    ta.z .= z
 end
 
 ############################################################################
