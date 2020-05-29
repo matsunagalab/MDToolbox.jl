@@ -312,6 +312,7 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     atom_r = tra.mass
     atom_z = tra.z[:]
     atom_z = atom_z .- (minimum(atom_z) - atom_r[argmin(atom_z)])
+    #atom_z .= atom_z .- (minimum(atom_z))
     atom_z_max = maximum(atom_z)
     stage = similar(tra.x, 1, height*width)
     stage .= 0.0
@@ -319,7 +320,7 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     probe_x = similar(tra.x, 1, width)
     probe_y = similar(tra.x, 1, height)
     probe_x[:] .= range(config.range_min.x, step=config.resolution.x, stop=config.range_min.x + (width-1)*config.resolution.x) .+ (0.5*config.resolution.x)
-    probe_y[:] .= range(config.range_min.y, step=config.resolution.y, stop=config.range_min.y + (width-1)*config.resolution.y) .+ (0.5*config.resolution.y)
+    probe_y[:] .= range(config.range_min.y, step=config.resolution.y, stop=config.range_min.y + (height-1)*config.resolution.y) .+ (0.5*config.resolution.y)
     probe_r = config.probeRadius
     probe_angle = config.probeAngle
 
