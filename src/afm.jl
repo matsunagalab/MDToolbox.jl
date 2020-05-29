@@ -268,9 +268,7 @@ function afmize(tra::TrjArray, config::AfmizeConfig)
     return stage
 end
 
-"""
-高速化前
-
+# 高速化前
 function afmize_beta(tra::TrjArray, config::AfmizeConfig)
     message = checkConfig(tra, config)
     if !isnothing(message)
@@ -298,7 +296,6 @@ function afmize_beta(tra::TrjArray, config::AfmizeConfig)
 
     return stage
 end
-"""
 
 function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     message = checkConfig(tra, config)
@@ -336,14 +333,16 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     dr = probe_r .+ atom_r
     dr2 = dr.^2
     s = dr2 .- dist_xy2
+    @show typeof(s)
     index_collide = s .> 0.0
     index_not_collide = .!index_collide
+    @show typeof(index_collide)
     if any(index_collide)
-        s[index_collide] .= sqrt.(s[index_collide])
+        s[Array(index_collide)] .= sqrt.(s[index_collide])
     end
     s .= atom_z .+ s .- probe_r
     if any(index_not_collide)
-        s[index_not_collide] .= 0.0
+        s[Array(index_not_collide)] .= 0.0
     end
     s_max = maximum(s, dims=1)
     stage .= max.(stage, s_max)
@@ -354,10 +353,10 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     index_side   = dist_collision .< dist_xy2
     index_corner = (probe_r .< dist_xy2) .& .!index_side
     index_not_collide = .!(index_corner .| index_side)
-    s[index_side] .= (atom_r .* sin.(probe_angle) .- (dist_xy2 .- dist_collision) ./ tan.(probe_angle))[index_side]
-    s[index_corner] .= sqrt.( (atom_r.^2 .- (dist_xy2 .- probe_r).^2)[index_corner]  )
+    s[Array(index_side)] .= (atom_r .* sin.(probe_angle) .- (dist_xy2 .- dist_collision) ./ tan.(probe_angle))[index_side]
+    s[Array(index_corner)] .= sqrt.( (atom_r.^2 .- (dist_xy2 .- probe_r).^2)[index_corner]  )
     s .= s .+ atom_z .- probe_r
-    s[index_not_collide] .= 0.0
+    s[Array(index_not_collide)] .= 0.0
     s_max = maximum(s, dims=1)
     stage .= max.(stage, s_max)
 
