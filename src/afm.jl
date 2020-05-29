@@ -300,6 +300,70 @@ function afmize_beta(tra::TrjArray, config::AfmizeConfig)
 end
 """
 
+function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
+    message = checkConfig(tra, config)
+    if !isnothing(message)
+        println(message)
+        return zeros(1, 1)
+    end
+
+    width = floor(Int, (config.range_max.x - config.range_min.x) / config.resolution.x)
+    height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
+    atom_r = tra.mass
+    atom_z = tra.z[:]
+    atom_z = atom_z .- (minimum(atom_z) - atom_r[argmin(atom_z)])
+    atom_z_max = maximum(atom_z)
+    stage = similar(tra.x, 1, height*width)
+    stage .= 0.0
+
+    probe_x = similar(tra.x, 1, width)
+    probe_y = similar(tra.x, 1, height)
+    probe_x[:] .= range(config.range_min.x, step=config.resolution.x, stop=config.range_min.x + (width-1)*config.resolution.x) .+ (0.5*config.resolution.x)
+    probe_y[:] .= range(config.range_min.y, step=config.resolution.y, stop=config.range_min.y + (width-1)*config.resolution.y) .+ (0.5*config.resolution.y)
+    probe_r = config.probeRadius
+    probe_angle = config.probeAngle
+
+    # collision with sphere
+    dist_x2 = (tra.x[:] .- probe_x).^2
+    dist_y2 = (tra.y[:] .- probe_y).^2
+    index_x_to_xy = [j for j=1:width for i=1:height]
+    index_y_to_xy = [i for j=1:width for i=1:height]
+
+    dist_xy2 = dist_x2[:, index_x_to_xy] .+ dist_y2[:, index_y_to_xy]
+    #stage_xy = similar(dist_xy2)
+    #stage_xy .= 0.0
+    dr = probe_r .+ atom_r
+    dr2 = dr.^2
+    s = dr2 .- dist_xy2
+    index_collide = s .> 0.0
+    index_not_collide = .!index_collide
+    if any(index_collide)
+        s[index_collide] .= sqrt.(s[index_collide])
+    end
+    s .= atom_z .+ s .- probe_r
+    if any(index_not_collide)
+        s[index_not_collide] .= 0.0
+    end
+    s_max = maximum(s, dims=1)
+    stage .= max.(stage, s_max)
+
+    # collision with circular thruster
+    dist_xy2 .= sqrt.(dist_xy2)
+    dist_collision = probe_r .+ atom_r .* cos(probe_angle)
+    index_side   = dist_collision .< dist_xy2
+    index_corner = (probe_r .< dist_xy2) .& .!index_side
+    index_not_collide = .!(index_corner .| index_side)
+    s[index_side] .= (atom_r .* sin.(probe_angle) .- (dist_xy2 .- dist_collision) ./ tan.(probe_angle))[index_side]
+    s[index_corner] .= sqrt.( (atom_r.^2 .- (dist_xy2 .- probe_r).^2)[index_corner]  )
+    s .= s .+ atom_z .- probe_r
+    s[index_not_collide] .= 0.0
+    s_max = maximum(s, dims=1)
+    stage .= max.(stage, s_max)
+
+    stage_reshape = reshape(stage, (height, width))
+    return stage_reshape
+end
+
 function translateafm(afm, (dx, dy))
     afm_translated = zeros(eltype(afm), size(afm))
     (nx, ny) = size(afm)
@@ -318,7 +382,7 @@ function translateafm_periodic(afm, (dx, dy))
         for y in 1:ny
             xx = x + dx
             yy = y + dy
-            if xx > nx 
+            if xx > nx
                 xx -= nx
             end
             if yy > ny
@@ -463,16 +527,16 @@ function getafmposteriors_alpha(afm_frames, model_array, quate_array, param_arra
         best_param = param_array[1]
         best_afm = zeros(size(afm_frames[1]))
         posterior_results = zeros(model_num)
-        push!(results, posteriorResult(posteriors, 
-                                        each_best, 
-                                        afm_results, 
+        push!(results, posteriorResult(posteriors,
+                                        each_best,
+                                        afm_results,
                                         posterior_results,
-                                        (0, 0), 
-                                        best_posterior, 
-                                        best_model, 
+                                        (0, 0),
+                                        best_posterior,
+                                        best_model,
                                         best_quate,
-                                        best_model_rotated, 
-                                        best_param, 
+                                        best_model_rotated,
+                                        best_param,
                                         best_afm))
     end
 
