@@ -413,19 +413,22 @@ function fft_convolution(observed, calculated)
     return real.(ifft(fft(observed).*conj.(fft(calculated))))
 end
 
-function calcLogProb(observed, calculated, convolution_func)
-    npix = Float64(size(observed, 1) * size(observed, 2))
+function calcLogProb(observed::AbstractMatrix{T}, calculated::AbstractMatrix{T}, convolution_func) where {T}
+    npix = eltype(observed)(size(observed, 1) * size(observed, 2))
+    @show npix
     C_o  = sum(observed)
     C_c  = sum(calculated)
     C_cc = sum(calculated.^2)
     C_oo = sum(observed.^2)
     C_oc = convolution_func(observed, calculated)
 
-    log01 = npix .* (C_cc .* C_oo .- C_oc.^2) .+ 2.0 .* C_o .* C_oc .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
-    log01[log01 .<= 0.0] .= eps(Float64)
-    log02 = (npix .- 2.0) .* (npix .* C_cc .- C_c.^2)
-    log02 = log02 <= 0 ? eps(Float64) : log02
-    logprob = 0.5 .* (3.0 .- npix) .* log.(log01) .+ (0.5 .* npix .- 2.0) .* log.(log02)
+    log01 = npix .* (C_cc .* C_oo .- C_oc.^2) .+ eltype(observed)(2) .* C_o .* C_oc .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
+    #log01[Array(log01 .< log(eps(eltype(observed))))] .= eps(eltype(observed))
+    log02 = (npix .- eltype(observed)(2)) .* (npix .* C_cc .- C_c.^2)
+    #log02 = log02 <= log(eps(eltype(observed))) ? eps(eltype(observed)) : log02
+    @show typeof(log01)
+    @show typeof(log02)
+    logprob = eltype(observed)(0.5) .* (eltype(observed)(3.0) .- npix) .* log.(log01) .+ (eltype(observed)(0.5) .* npix .- eltype(observed)(2.0)) .* log(log02)
 
     return logprob
 end
