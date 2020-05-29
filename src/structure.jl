@@ -284,32 +284,52 @@ function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} w
     y = similar(ta.y, ta.nframe, ta.natom)
     z = similar(ta.z, ta.nframe, ta.natom)
     rot = similar(quater, 9)
-    rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3];
-    rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4]);
-    rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4]);
-    rot[4] = 2 * (quater[1] * quater[2] - quater[3] * quater[4]);
-    rot[5] = 1 - 2 * quater[1] * quater[1] - 2 * quater[3] * quater[3];
-    rot[6] = 2 * (quater[2] * quater[3] + quater[1] * quater[4]);
-    rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
-    rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
-    rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
+    rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3]
+    rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4])
+    rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4])
+    rot[4] = 2 * (quater[1] * quater[2] - quater[3] * quater[4])
+    rot[5] = 1 - 2 * quater[1] * quater[1] - 2 * quater[3] * quater[3]
+    rot[6] = 2 * (quater[2] * quater[3] + quater[1] * quater[4])
+    rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4])
+    rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4])
+    rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2]
     x .= rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
     y .= rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
     z .= rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
     return TrjArray(x, y, z, ta)
 end
 
+function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
+    x = similar(ta_single.x, size(quater, 1), ta_single.natom)
+    y = similar(ta_single.y, size(quater, 1), ta_single.natom)
+    z = similar(ta_single.z, size(quater, 1), ta_single.natom)
+    rot = similar(quater, size(quater, 1), 9)
+    rot[:, 1:1] .= 1 .- 2 .* quater[:, 2:2] .* quater[:, 2:2] .- 2.0 .* quater[:, 3:3] .* quater[:, 3:3]
+    rot[:, 2:2] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .+ quater[:, 3:3] .* quater[:, 4:4])
+    rot[:, 3:3] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .- quater[:, 2:2] .* quater[:, 4:4])
+    rot[:, 4:4] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .- quater[:, 3:3] .* quater[:, 4:4])
+    rot[:, 5:5] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 3:3] .* quater[:, 3:3]
+    rot[:, 6:6] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .+ quater[:, 1:1] .* quater[:, 4:4])
+    rot[:, 7:7] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .+ quater[:, 2:2] .* quater[:, 4:4])
+    rot[:, 8:8] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .- quater[:, 1:1] .* quater[:, 4:4])
+    rot[:, 9:9] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 2:2] .* quater[:, 2:2]
+    x .= rot[:, 1:1] .* ta_single.x[1:1, :] .+ rot[:, 2:2] .* ta_single.y[1:1, :] .+ rot[:, 3:3] .* ta_single.z[1:1, :]
+    y .= rot[:, 4:4] .* ta_single.x[1:1, :] .+ rot[:, 5:5] .* ta_single.y[1:1, :] .+ rot[:, 6:6] .* ta_single.z[1:1, :]
+    z .= rot[:, 7:7] .* ta_single.x[1:1, :] .+ rot[:, 8:8] .* ta_single.y[1:1, :] .+ rot[:, 9:9] .* ta_single.z[1:1, :]
+    return TrjArray(x, y, z, ta_single)
+end
+
 function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
     rot = similar(quater, 9)
-    rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3];
-    rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4]);
-    rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4]);
-    rot[4] = 2 * (quater[1] * quater[2] - quater[3] * quater[4]);
-    rot[5] = 1 - 2 * quater[1] * quater[1] - 2 * quater[3] * quater[3];
-    rot[6] = 2 * (quater[2] * quater[3] + quater[1] * quater[4]);
-    rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4]);
-    rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4]);
-    rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2];
+    rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3]
+    rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4])
+    rot[3] = 2 * (quater[1] * quater[3] - quater[2] * quater[4])
+    rot[4] = 2 * (quater[1] * quater[2] - quater[3] * quater[4])
+    rot[5] = 1 - 2 * quater[1] * quater[1] - 2 * quater[3] * quater[3]
+    rot[6] = 2 * (quater[2] * quater[3] + quater[1] * quater[4])
+    rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4])
+    rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4])
+    rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2]
     x = rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
     y = rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
     z = rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
