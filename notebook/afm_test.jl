@@ -37,17 +37,17 @@ function make_rand_tada(seed, sigmam, num)
     return ret
 end
 
-param_array = [];
-for r in [15, 20, 25, 30]
-  param_array = [param_array; AfmizeConfig(10.0 * (pi / 180),
-                                            r, 
-                                            MDToolbox.Point2D(-250, -200), 
-                                            MDToolbox.Point2D(250, 200), 
-                                            MDToolbox.Point2D(6.25, 6.25), 
-                                            MDToolbox.defaultParameters())]
-end
+param_array = [AfmizeConfig(10.0 * (pi / 180),
+                            r, 
+                            MDToolbox.Point2D(-250, -200), 
+                            MDToolbox.Point2D(250, 200), 
+                            MDToolbox.Point2D(6.25, 6.25), 
+                            MDToolbox.defaultParameters())
+                            for r in [15, 20, 25, 30]]
 
 frames = make_rand_tada(seed, sigma, num)
-result = getafmposteriors_alpha(frames, model_array, q_array, param_array)
+# 一度やると早くなりそう
+result = getafmposteriors_alpha(frames, model_array[1:2, :], q_array[1:2, :], param_array[1:2])
+result = getafmposteriors_alpha(frames, model_array[, q_array, param_array)
 
 MDToolbox.outputResults(result, "afm_test_seed_$(seed_num)_sigma_$(sigma)_num_$(num).txt")
