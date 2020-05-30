@@ -512,16 +512,19 @@ function outputResults(posteriorResults, fileName)
         frame_h, frame_w = size(posteriorResults[1].best_afm)
         println(out, "$(N) $(model_size)")
         for result in posteriorResults
-            for id in result.each_quate_id
-               print(out, "$(id) ") 
+            for i in 1:model_size
+                if i != 1 print(out, " ") end
+                print(out, "$(result.each_quate_id[i])") 
             end
             println(out, "")
-            for id in result.each_param_id
-               print(out, "$(id) ") 
+            for i in 1:model_size
+                if i != 1 print(out, " ") end
+                print(out, "$(result.each_param_id[i])") 
             end
             println(out, "")
-            for posterior in result.posterior_results
-               print(out, "$(posterior) ") 
+            for i in 1:model_size
+                if i != 1 print(out, " ") end
+                print(out, "$(result.posterior_results[i])") 
             end
             println(out, "")
             println(out, "$(result.best_translate[1]) $(result.best_translate[2])")
@@ -532,7 +535,8 @@ function outputResults(posteriorResults, fileName)
             println(out, "$(frame_h) $(frame_w)")
             for h in 1:frame_h
                 for w in 1:frame_w
-                    print(out, "$(result.best_afm[h, w]) ")
+                    if w != 1 print(out, " ") end
+                    print(out, "$(result.best_afm[h, w])")
                 end
                 println(out, "")
             end
@@ -559,9 +563,9 @@ function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::
         # 各モデルについて、一つの角度と半径ごとのlogprobの最高値を保持しておく
         posteriors = zeros(model_num, quate_num * param_num)
         # 各モデルについて、最も良い値をだした時のafm画像
-        each_quate_id = zeros(model_num)
-        each_param_id = zeros(model_num)
-        each_best = ones(model_num) .* -Inf
+        each_quate_id = zeros(Int, model_num)
+        each_param_id = zeros(Int, model_num)
+        each_best = ones(Float64, model_num) .* -Inf
 
         best_posterior = -Inf
         best_model_id = 1
