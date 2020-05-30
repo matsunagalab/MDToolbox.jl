@@ -47,7 +47,7 @@ param_array = [AfmizeConfig(10.0 * (pi / 180),
 
 frames = make_rand_tada(seed, sigma, num)
 # 一度やると早くなりそう
-result = getafmposteriors_alpha(frames, model_array[1:2, :], q_array[1:2, :], param_array[1:2])
+result = getafmposteriors_alpha(frames[1, :], model_array[1:2, :], q_array[1:2, :], param_array[1:2])
 result = getafmposteriors_alpha(frames, model_array[, q_array, param_array)
 
 MDToolbox.outputResults(result, "afm_test_seed_$(seed_num)_sigma_$(sigma)_num_$(num).txt")
