@@ -2,7 +2,7 @@ using Plots, Printf, DelimitedFiles, BenchmarkTools, DelimitedFiles, Serializati
 include("../src/MDToolbox.jl")
 using .MDToolbox
 
-seed_num, sigma, num = map(x->parse(Int,x),split(readline()))
+seed_num, sigma, num, detail = map(x->parse(Int,x),split(readline()))
 seed = MersenneTwister(seed_num)
 
 q_array = readdlm("data/quaternion/QUATERNION_LIST_576_Orient")
@@ -20,8 +20,8 @@ function make_rand_tada(seed, sigmam, num)
         model = model_array[rand(seed, 1:model_num), :]
         radius = rand(seed, 10:30)
         quate = q_array[rand(seed, 1:q_num), :]
-        dx = rand(seed, 1:25) * 0.25
-        dy = rand(seed, 1:25) * 0.25
+        dx = rand(seed, 1:25) * 0.25 * detail
+        dy = rand(seed, 1:25) * 0.25 * detail
         config = AfmizeConfig(10.0 * (pi / 180), 
                       radius, 
                       MDToolbox.Point2D(-250 + dx, -200 + dy), 
