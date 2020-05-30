@@ -544,6 +544,38 @@ function outputResults(posteriorResults, fileName)
     end
 end
 
+function inputResults(fileName)
+    ret = []
+    open(fileName, "r") do io
+        N, model_size = map(x->parse(Int,x),split(readline(io)))
+        for result in 1:N
+            each_quate_id = map(x->parse(Int,x),split(readline(io)))
+            each_param_id = map(x->parse(Int,x),split(readline(io)))
+            posterior_results = map(x->parse(Float64,x),split(readline(io)))
+            best_translate = Tuple(map(x->parse(Int,x),split(readline(io))))
+            best_posterior = parse(Float64, readline(io))
+            best_model_id = parse(Int, readline(io))
+            best_quate_id = parse(Int, readline(io))
+            best_param_id = parse(Int, readline(io))
+            frame_h, frame_w = map(x->parse(Int,x),split(readline(io)))
+            frame = zeros(Float64, frame_h, frame_w)
+            for h in 1:frame_h
+                frame[h, :] = map(x->parse(Float64,x),split(readline(io)))
+            end
+            push!(ret, posteriorResult(each_quate_id, 
+                                        each_param_id,
+                                        posterior_results,
+                                        best_translate,
+                                        best_posterior,
+                                        best_model_id,
+                                        best_quate_id,
+                                        best_param_id,
+                                        frame))
+        end
+    end
+    return ret
+end
+
 function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::Matrix{Float64}, param_array, opt = "")
     frame_num = size(afm_frames)[1]
     model_num = size(model_array)[1]
