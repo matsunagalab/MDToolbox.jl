@@ -24,7 +24,7 @@ end
 function sp_design_matrix(umbrella_center, sim_all_datas, sigma_g; stride=1)
     nframe = size(sim_all_datas[1], 1)
     subframes = range(1, stop=nframe, step=stride)
-    #design_matrix = CuArrays.zeros(Float64, length(subframes) * size(umbrella_center, 1), size(umbrella_center, 1))
+    #design_matrix = CUDA.zeros(Float64, length(subframes) * size(umbrella_center, 1), size(umbrella_center, 1))
     design_matrix = similar(umbrella_center, length(subframes) * size(umbrella_center, 1), size(umbrella_center, 1))
     design_matrix .= zero(umbrella_center[1])
 
@@ -44,7 +44,7 @@ function sp_design_matrix_atom(umbrella_center, sim_all_datas, sigma_g)
     nframe = size(sim_all_datas[1], 1)
     numbrella = size(umbrella_center, 1)
     natom = Int(size(umbrella_center, 2) / 3)
-    #design_matrix = CuArrays.zeros(Float64, nframe * numbrella, numbrella * natom)
+    #design_matrix = CUDA.zeros(Float64, nframe * numbrella, numbrella * natom)
     design_matrix = similar(umbrella_center, nframe * numbrella, numbrella * natom)
     design_matrix .= zero(umbrella_center[1])
 
@@ -86,9 +86,9 @@ Alternating Direction Method of Multipliers (ADMM) for solving lasso
 """
 function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
     ncolumn = size(X, 2);
-    #beta = CuArrays.zeros(Float64, ncolumn)
-    #gamma = CuArrays.zeros(Float64, ncolumn)
-    #my = CuArrays.zeros(Float64, ncolumn)
+    #beta = CUDA.zeros(Float64, ncolumn)
+    #gamma = CUDA.zeros(Float64, ncolumn)
+    #my = CUDA.zeros(Float64, ncolumn)
     beta = similar(y, ncolumn)
     gamma = similar(y, ncolumn)
     my = similar(y, ncolumn)
@@ -105,8 +105,8 @@ function sp_admm(y, X, lambda=0.1; rho=1.0, condition=1e-5, iter_max=10000)
     B += copyto!(similar(y, size(X, 2), size(X, 2)), I) .* (ncolumn .* rho)
     #U, S, V = svd(X' * X + ((CuArray{Float64}(I, (ncolumn, ncolumn)) .* (ncolumn .* rho))))
     U, S, V = svd(B)
-    #U, S, V = svd(B, CuArrays.CUSOLVER.JacobiAlgorithm)
-    #U, S, V = svd(B, CuArrays.CUSOLVER.QRAlgorithm)
+    #U, S, V = svd(B, CUDA.CUSOLVER.JacobiAlgorithm)
+    #U, S, V = svd(B, CUDA.CUSOLVER.QRAlgorithm)
     pinverse_M = V * inv(Diagonal(S)) * U'
     const_num = pinverse_M
     #const_num = B \ CuArray{Float64}(I, size(B))

@@ -5,7 +5,7 @@ using NetCDF
 using NLsolve
 using FFTW
 using Bio3DView
-using CuArrays
+using CUDA
 
 # satndard library
 using Printf

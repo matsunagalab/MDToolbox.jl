@@ -12,7 +12,7 @@ function viewstruc(ta::TrjArray; kwargs...)
 end
 
 #cpu(m) = fmap(x -> adapt(Array, x), m)
-#gpu(x) = use_cuda[] ? fmap(CuArrays.cu, x) : x
+#gpu(x) = use_cuda[] ? fmap(CUDA.cu, x) : x
 
 function gpu(ta::TrjArray{T, U}) where {T, U}
     TrjArray{T, U}(CuArray(ta.x), CuArray(ta.y), CuArray(ta.z), CuArray(ta.boxsize),
@@ -25,13 +25,13 @@ function gpu(ta::TrjArray{T, U}) where {T, U}
 end
 
 function gpu32(ta::TrjArray)
-    TrjArray{Float32, Int64}(CuArrays.cu(ta.x), CuArrays.cu(ta.y), CuArrays.cu(ta.z), CuArrays.cu(ta.boxsize),
-      ta.chainname, CuArrays.cu(ta.chainid),
-      ta.resname, CuArrays.cu(ta.resid),
-      ta.atomname, CuArrays.cu(ta.atomid),
-      CuArrays.cu(ta.mass), CuArrays.cu(ta.charge),
-      CuArrays.cu(ta.list_bond), CuArrays.cu(ta.list_angle), CuArrays.cu(ta.list_dihedral),
-      CuArrays.cu(ta.list_improper), CuArrays.cu(ta.list_cmap))
+    TrjArray{Float32, Int64}(CUDA.cu(ta.x), CUDA.cu(ta.y), CUDA.cu(ta.z), CUDA.cu(ta.boxsize),
+      ta.chainname, CUDA.cu(ta.chainid),
+      ta.resname, CUDA.cu(ta.resid),
+      ta.atomname, CUDA.cu(ta.atomid),
+      CUDA.cu(ta.mass), CUDA.cu(ta.charge),
+      CUDA.cu(ta.list_bond), CUDA.cu(ta.list_angle), CUDA.cu(ta.list_dihedral),
+      CUDA.cu(ta.list_improper), CUDA.cu(ta.list_cmap))
 end
 
 function cpu(ta::TrjArray{T, U}) where {T, U}
