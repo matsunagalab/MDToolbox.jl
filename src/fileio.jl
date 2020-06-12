@@ -427,7 +427,8 @@ function readpsf(filename::String)
     end
     if isEXT
         #fmt_atom = "%10d| %8s| %8d| %8s| %8s| %4s| %14f|%14f|%8d %*f %*f" %octave
-        fmt_atom = [1:10, 12:19, 21:28, 30:37, 39:46, 48:51, 53:66, 67:80, 81:88]
+        #fmt_atom = [1:10, 12:19, 21:28, 30:37, 39:46, 48:51, 53:66, 67:80, 81:88]
+        fmt_atom = [1:10, 12:19, 21:28, 30:37, 39:46, 48:51, 53:68, 69:80, 81:88]
         #fmt_list = "%10d"
     else
         #fmt_atom = "%8d %4s %4d %4s| %4s| %4s| %14f%14f%8d %*f %*f" #octave
