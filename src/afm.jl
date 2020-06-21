@@ -415,7 +415,7 @@ function fft_convolution(observed, calculated)
     return real.(ifft(fft(observed).*conj.(fft(calculated))))
 end
 
-function calcLogProb(observed::AbstractMatrix{T}, calculated::AbstractMatrix{T}, convolution_func) where {T}
+function calcLogProb(observed::AbstractMatrix{T}, calculated::AbstractMatrix{T}, convolution_func=fft_convolution) where {T}
     npix = eltype(observed)(size(observed, 1) * size(observed, 2))
     C_o  = sum(observed)
     C_c  = sum(calculated)
@@ -435,6 +435,7 @@ end
 function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
     imax_model = 0
     imax_q = 0
+    best_model = model_array[1, :]
     best_param = param_array[1]
     best_translate = [0, 0]
     best_afm = similar(afm)
@@ -445,32 +446,38 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
 
     decenter!(model_array)
 
+    ### loop over models
     Threads.@threads for imodel in 1:size(model_array, 1)
         @show imodel
         model = model_array[imodel, :]
+        ### loop over rotations
         for iq in 1:size(q_array, 1)
             q = q_array[iq, :]
             model_rotated = MDToolbox.rotate(model, q)
+            ### loop over afmize parameters
             for iparam in 1:length(param_array)
                 param = param_array[iparam]
                 calculated = afmize(model_rotated, param)
-                C_o  = sum(observed)
-                C_c  = sum(calculated)
-                #@btime C_oc = sum(observed_translated .* calculated)
-                C_oc = sum(observed .* calculated)
-                C_cc = sum(calculated.^2)
-                C_oo = sum(observed.^2)
-                #@btime C_oc_dxdy = real.(ifftshift(ifft(fft(observed_translated).*conj.(fft(calculated)))))
-                C_oc_dxdy = real.(ifftshift(ifft(fft(observed).*conj.(fft(calculated)))))
-                log01 = npix .* (C_cc .* C_oo .- C_oc_dxdy.^2) .+ 2.0 .* C_o .* C_oc_dxdy .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
-                log01[log01 .<= 0.0] .= eps(Float64)
-                log02 = (npix .- 2.0) .* (npix .* C_cc .- C_c.^2)
-                log02 = log02 <= 0 ? eps(Float64) : log02
-                logprob = 0.5 .* (3.0 .- npix) .* log.(log01) .+ (0.5 .* npix .- 2.0) .* log.(log02)
+                #C_o  = sum(observed)
+                #C_c  = sum(calculated)
+                ##@btime C_oc = sum(observed_translated .* calculated)
+                #C_oc = sum(observed .* calculated)
+                #C_cc = sum(calculated.^2)
+                #C_oo = sum(observed.^2)
+                ##@btime C_oc_dxdy = real.(ifftshift(ifft(fft(observed_translated).*conj.(fft(calculated)))))
+                #C_oc_dxdy = real.(ifftshift(ifft(fft(observed).*conj.(fft(calculated)))))
+                #log01 = npix .* (C_cc .* C_oo .- C_oc_dxdy.^2) .+ 2.0 .* C_o .* C_oc_dxdy .* C_c .- C_cc .* C_o.^2 .- C_oo .* C_c.^2
+                #log01[log01 .<= 0.0] .= eps(Float64)
+                #log02 = (npix .- 2.0) .* (npix .* C_cc .- C_c.^2)
+                #log02 = log02 <= 0 ? eps(Float64) : log02
+                #logprob = 0.5 .* (3.0 .- npix) .* log.(log01) .+ (0.5 .* npix .- 2.0) .* log.(log02)
+
+                logprob = calcLogProb(observed, calculated)
                 maximum_logprob = maximum(logprob)
                 if best_posterior < maximum_logprob
                     best_posterior = maximum_logprob
                     imax_model = imodel
+                    best_model = model
                     imax_q = iq
                     best_param = param
                     x_center = ceil(Int32, (size(observed,1)/2)+1.0)
@@ -513,17 +520,17 @@ function outputResults(posteriorResults, fileName)
         for result in posteriorResults
             for i in 1:model_size
                 if i != 1 print(out, " ") end
-                print(out, "$(result.each_quate_id[i])") 
+                print(out, "$(result.each_quate_id[i])")
             end
             println(out, "")
             for i in 1:model_size
                 if i != 1 print(out, " ") end
-                print(out, "$(result.each_param_id[i])") 
+                print(out, "$(result.each_param_id[i])")
             end
             println(out, "")
             for i in 1:model_size
                 if i != 1 print(out, " ") end
-                print(out, "$(result.posterior_results[i])") 
+                print(out, "$(result.posterior_results[i])")
             end
             println(out, "")
             println(out, "$(result.best_translate[1]) $(result.best_translate[2])")
@@ -561,7 +568,7 @@ function inputResults(fileName)
             for h in 1:frame_h
                 frame[h, :] = map(x->parse(Float64,x),split(readline(io)))
             end
-            push!(ret, posteriorResult(each_quate_id, 
+            push!(ret, posteriorResult(each_quate_id,
                                         each_param_id,
                                         posterior_results,
                                         best_translate,
