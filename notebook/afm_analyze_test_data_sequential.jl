@@ -13,12 +13,16 @@ configs = [AfmizeConfig(10.0 * (pi / 180),
     for r in [10.0, 15.0, 20.0, 25.0, 30.0]]
 
 # single frame
-r = getafmposterior(afms[1], models_template, qs, configs)
+r = []
+@time @showprogress 1 "Computing..." for i = 1:20
+    r2 = getafmposterior(afms[i], models_template, qs, configs)
+    push!(r, r2)
+end
 
 # all frames with parallel map
-r = pmap(x -> getafmposterior(x, models_template, qs, configs), afms[1:20])
+#r = pmap(x -> getafmposterior(x, models_template, qs, configs), afms[1:20])
 
-@save "afm_analyze_test_data.bson" r configs
+@save "afm_analyze_test_data_sequential.bson" r configs
 
 
 
