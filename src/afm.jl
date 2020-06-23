@@ -333,10 +333,10 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     dr = probe_r .+ atom_r
     dr2 = dr.^2
     s = dr2 .- dist_xy2
-    @show typeof(s)
+    #@show typeof(s)
     index_collide = s .> 0.0
     index_not_collide = .!index_collide
-    @show typeof(index_collide)
+    #@show typeof(index_collide)
     if any(index_collide)
         s[Array(index_collide)] .= sqrt.(s[index_collide])
     end
