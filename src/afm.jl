@@ -349,11 +349,14 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
 
     # collision with circular thruster
     dist_xy2 .= sqrt.(dist_xy2)
-    dist_collision = probe_r .+ atom_r .* cos(probe_angle)
+    cos_probe_angle = cos(probe_angle)
+    dist_collision = probe_r .+ atom_r .* cos_probe_angle
     index_side   = dist_collision .< dist_xy2
     index_corner = (probe_r .< dist_xy2) .& .!index_side
     index_not_collide = .!(index_corner .| index_side)
-    s[Array(index_side)] .= (atom_r .* sin.(probe_angle) .- (dist_xy2 .- dist_collision) ./ tan.(probe_angle))[index_side]
+    sin_probe_angle = sin(probe_angle)
+    tan_probe_angle = tan(probe_angle)
+    s[Array(index_side)] .= (atom_r .* sin_probe_angle .- (dist_xy2 .- dist_collision) ./ tan_probe_angle)[index_side]
     s[Array(index_corner)] .= sqrt.( (atom_r.^2 .- (dist_xy2 .- probe_r).^2)[index_corner]  )
     s .= s .+ atom_z .- probe_r
     s[Array(index_not_collide)] .= 0.0
@@ -480,7 +483,7 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
     return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
 end
 
-function getafmposterior_gpu(afm::Matrix{Float64}, model_array::TrjArray, q_array::Matrix{Float64}, param_array)
+function getafmposterior_gpu(afm::CuArray{Float32, 2}, model_array::TrjArray, q_array::CuArray{Float32, 2}, param_array)
     imax_model = 0
     imax_q = 0
     best_model = model_array[1, :]
@@ -499,18 +502,18 @@ function getafmposterior_gpu(afm::Matrix{Float64}, model_array::TrjArray, q_arra
         @show imodel
         ### loop over rotations
         models_rotated = MDToolbox.rotate(model_array[imodel, :], q_array)
-        for model_rotated in models_rotated
+        for imodel = 1:models_rotated.nframe
             ### loop over afmize parameters
             for iparam in 1:length(param_array)
                 param = param_array[iparam]
-                calculated = afmize_gpu(model_rotated, param)
+                calculated = afmize_gpu(models_rotated[imodel, :], param)
                 logprob = calcLogProb(observed, calculated)
                 maximum_logprob = maximum(logprob)
                 if best_posterior < maximum_logprob
                     best_posterior = maximum_logprob
                     imax_model = imodel
-                    best_model = model_rotated
-                    imax_q = iq
+                    best_model = models_rotated[imodel, :]
+                    imax_q = 1
                     best_param = param
                     x_center = ceil(Int32, (size(observed,1)/2)+1.0)
                     y_center = ceil(Int32, (size(observed,2)/2)+1.0)
