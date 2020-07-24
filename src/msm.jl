@@ -25,7 +25,7 @@ function msmgenerate(nframe::Int, T, pi_i)
 
   states[1] = msmsample(pi_i)
   for iframe = 2:nframe
-    observations[iframe] = msmsample(emission[states[iframe], :])
+    states[iframe] = msmsample(T[states[iframe-1], :])
   end
   return states
 end
@@ -55,7 +55,7 @@ function msmgenerate(nframe::Int, T, pi_i, emission)
   return states, observations
 end
 
-function msmforward(data_list, T, emission, pi_i)
+function msmforward(data_list, T, pi_i, emission)
     ndata = length(data_list)
     nstate = length(T[1, :])
     logL = zeros(Float64, ndata)
@@ -81,7 +81,7 @@ function msmforward(data_list, T, emission, pi_i)
     logL, alpha_list, factor_list
 end
 
-function msmbackward(data_list, factor_list, T, emission, pi_i)
+function msmbackward(data_list, factor_list, T, pi_i, emission)
     ndata = length(data_list)
     nstate = length(T[1, :])
     logL = zeros(Float64, ndata)
@@ -101,7 +101,7 @@ function msmbackward(data_list, factor_list, T, emission, pi_i)
     logL, beta_list
 end
 
-function msmbaumwelch(data_list, T0, emission0, pi_i0)
+function msmbaumwelch(data_list, T0, pi_i0, emission0)
     ## setup
     TOLERANCE = 10.0^(-4)
     check_convergence = Inf64
@@ -117,9 +117,9 @@ function msmbaumwelch(data_list, T0, emission0, pi_i0)
     pi_i = similar(pi_i0)
     while check_convergence > TOLERANCE
         ## E-step
-        logL, alpha_list, factor_list = msmforward(data_list, T0, emission0, pi_i0)
+        logL, alpha_list, factor_list = msmforward(data_list, T0, pi_i0, emission0)
         #print("1"); println(logL)
-        logL2, beta_list = msmbackward(data_list, factor_list, T0, emission0, pi_i0)
+        logL2, beta_list = msmbackward(data_list, factor_list, T0, pi_i0, emission0)
         #print("2"); println(logL2)
         log_alpha_list = []
         for a in alpha_list
@@ -178,5 +178,81 @@ function msmbaumwelch(data_list, T0, emission0, pi_i0)
         emission0 = emission
         T0 = T
     end
-    T, emission, pi_i
+    T, pi_i, emission
+end
+
+"""
+msmviterbi(T, pi_i, emission, observation) -> states
+
+estimate most probable hidden state sequence from observation
+
+Examples
+≡≡≡≡≡≡≡≡≡≡
+
+julia> states, observations = msmgenerate(1000, T, pi_i, emission)
+
+julia> states_estimated = msmviterbi(T, pi_i, emission, observation)
+"""
+function msmviterbi(observation, T, pi_i, emission)
+    nframe = size(observation, 1)
+    nstate = size(T, 1)
+    P = zeros(eltype(T), nstate, nframe)
+    I = zeros(eltype(T), nstate, nframe)
+    state_estimated = zeros(eltype(observation), nframe)
+
+    # initialization
+    P[:, 1] .= log.(pi_i) .+ log.(emission[:, observation[1]])
+    I[:, 1] .= zeros(eltype(T), nstate)
+
+    # argmax forward
+    Z = zeros(eltype(T), nstate, nstate)
+    for t = 2:nframe
+        Z .= P[:, t-1] .+ log.(T)
+        I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
+        P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
+    end
+
+    # termination
+    P_star = maximum(P[:, nframe])
+    state_estimated[nframe] = argmax(P[:, nframe])
+    #@show P
+
+    # decoding
+    for t = (nframe-1):-1:1
+        state_estimated[t] = I[state_estimated[t+1], t+1]
+    end
+
+    return state_estimated
+end
+
+function msmviterbi_original(observation, T, pi_i, emission)
+    nframe = size(observation, 1)
+    nstate = size(T, 1)
+    P = zeros(eltype(T), nstate, nframe)
+    I = zeros(eltype(T), nstate, nframe)
+    state_estimated = zeros(eltype(observation), nframe)
+
+    # initialization
+    P[:, 1] .= pi_i .* emission[:, observation[1]]
+    I[:, 1] .= zeros(eltype(T), nstate)
+
+    # argmax forward
+    Z = zeros(eltype(T), nstate, nstate)
+    for t = 2:nframe
+        Z .= P[:, t-1] .* T
+        I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
+        P[:, t] .= maximum(Z, dims=1)[:] .* emission[:, observation[t]]
+    end
+
+    # termination
+    P_star = maximum(P[:, nframe])
+    state_estimated[nframe] = argmax(P[:, nframe])
+    #@show P
+
+    # decoding
+    for t = (nframe-1):-1:1
+        state_estimated[t] = I[state_estimated[t+1], t+1]
+    end
+
+    return state_estimated
 end
