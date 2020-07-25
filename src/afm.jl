@@ -449,7 +449,6 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
     posterior = zeros(Float64, size(model_array, 1))
 
     ### loop over models(structures)
-    @show size(model_array, 1)
     Threads.@threads for imodel in 1:size(model_array, 1)
         @show imodel
         icount = 0
