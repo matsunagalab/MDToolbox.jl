@@ -137,7 +137,7 @@ function checkConfig(tra::TrjArray ,config::AfmizeConfig)::Union{String, Nothing
 
     for name in tra.atomname
         if !haskey(config.atomRadiusDict, name)
-            return "config dosen't know atom name $(name)"
+            return "config doesn't know atom name $(name)"
         end
     end
 
@@ -333,10 +333,10 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
     dr = probe_r .+ atom_r
     dr2 = dr.^2
     s = dr2 .- dist_xy2
-    #@show typeof(s)
+    @show typeof(s)
     index_collide = s .> 0.0
     index_not_collide = .!index_collide
-    #@show typeof(index_collide)
+    @show typeof(index_collide)
     if any(index_collide)
         s[Array(index_collide)] .= sqrt.(s[index_collide])
     end
@@ -349,14 +349,11 @@ function afmize_gpu(tra::TrjArray, config::AfmizeConfig)
 
     # collision with circular thruster
     dist_xy2 .= sqrt.(dist_xy2)
-    cos_probe_angle = cos(probe_angle)
-    dist_collision = probe_r .+ atom_r .* cos_probe_angle
+    dist_collision = probe_r .+ atom_r .* cos(probe_angle)
     index_side   = dist_collision .< dist_xy2
     index_corner = (probe_r .< dist_xy2) .& .!index_side
     index_not_collide = .!(index_corner .| index_side)
-    sin_probe_angle = sin(probe_angle)
-    tan_probe_angle = tan(probe_angle)
-    s[Array(index_side)] .= (atom_r .* sin_probe_angle .- (dist_xy2 .- dist_collision) ./ tan_probe_angle)[index_side]
+    s[Array(index_side)] .= (atom_r .* sin.(probe_angle) .- (dist_xy2 .- dist_collision) ./ tan.(probe_angle))[index_side]
     s[Array(index_corner)] .= sqrt.( (atom_r.^2 .- (dist_xy2 .- probe_r).^2)[index_corner]  )
     s .= s .+ atom_z .- probe_r
     s[Array(index_not_collide)] .= 0.0
@@ -445,32 +442,38 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
     best_posterior = -Inf
 
     observed = afm
-    npix = Float64(size(observed, 1) * size(observed, 2))
-
+    npix = size(observed, 1) * size(observed, 2)
     decenter!(model_array)
 
-    ### loop over models
+    posterior_all = zeros(Float64, size(q_array, 1)*length(param_array)*npix, size(model_array, 1))
+    posterior = zeros(Float64, size(model_array, 1))
+
+    ### loop over models(structures)
+    @show size(model_array, 1)
     Threads.@threads for imodel in 1:size(model_array, 1)
         @show imodel
+        icount = 0
         model = model_array[imodel, :]
         ### loop over rotations
         for iq in 1:size(q_array, 1)
             q = q_array[iq, :]
-            model_rotated = MDToolbox.rotate(model, q)
+            MDToolbox.rotate!(model, q)
             ### loop over afmize parameters
             for iparam in 1:length(param_array)
                 param = param_array[iparam]
-                calculated = afmize(model_rotated, param)
+                calculated = afmize(model, param)
                 logprob = calcLogProb(observed, calculated)
+                posterior_all[(icount+1):(icount+npix), imodel] .= logprob[:]
+                icount += npix
                 maximum_logprob = maximum(logprob)
                 if best_posterior < maximum_logprob
                     best_posterior = maximum_logprob
                     imax_model = imodel
-                    best_model = model_rotated
+                    best_model = model
                     imax_q = iq
                     best_param = param
-                    x_center = ceil(Int32, (size(observed,1)/2)+1.0)
-                    y_center = ceil(Int32, (size(observed,2)/2)+1.0)
+                    x_center = ceil(Int64, (size(observed,1)/2)+1.0)
+                    y_center = ceil(Int64, (size(observed,2)/2)+1.0)
                     dx_estimated = argmax(logprob)[1] - x_center
                     dy_estimated = argmax(logprob)[2] - y_center
                     best_translate = (dx_estimated, dy_estimated)
@@ -480,40 +483,44 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
         end
     end
 
-    return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
+    for imodel in 1:size(model_array, 1)
+        posterior[imodel] = logsumexp(posterior_all[:, imodel])
+    end
+    posterior .= posterior .- maximum(posterior)
+    posterior .= exp.(posterior)
+    posterior .= posterior ./ sum(posterior)
+
+    return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior, posterior
 end
 
-function getafmposterior_gpu(afm::CuArray{Float32, 2}, model_array::TrjArray, q_array::CuArray{Float32, 2}, param_array)
+function getafmposterior_gpu(afm::AbstractMatrix{T}, model_array::TrjArray{T, U}, q_array::AbstractMatrix{T}, param_array) where {T, U}
     imax_model = 0
     imax_q = 0
-    best_model = model_array[1, :]
     best_param = param_array[1]
     best_translate = [0, 0]
     best_afm = similar(afm)
     best_posterior = -Inf
 
     observed = afm
-    npix = Float64(size(observed, 1) * size(observed, 2))
-
     decenter!(model_array)
 
-    ### loop over models
     for imodel in 1:size(model_array, 1)
         @show imodel
-        ### loop over rotations
-        models_rotated = MDToolbox.rotate(model_array[imodel, :], q_array)
-        for imodel = 1:models_rotated.nframe
-            ### loop over afmize parameters
+        model = model_array[imodel, :]
+        models_rotated = MDToolbox.rotate(model, q_array)
+        for iq in 1:size(q_array, 1)
+            model_rotated = models_rotated[iq, :]
             for iparam in 1:length(param_array)
                 param = param_array[iparam]
-                calculated = afmize_gpu(models_rotated[imodel, :], param)
-                logprob = calcLogProb(observed, calculated)
+                #@show typeof(model_rotated.x)
+                calculated = MDToolbox.afmize_gpu(model_rotated, param)
+                #@show typeof(calculated)
+                logprob = MDToolbox.calcLogProb(observed, calculated, MDToolbox.fft_convolution)
                 maximum_logprob = maximum(logprob)
                 if best_posterior < maximum_logprob
                     best_posterior = maximum_logprob
                     imax_model = imodel
-                    best_model = models_rotated[imodel, :]
-                    imax_q = 1
+                    imax_q = iq
                     best_param = param
                     x_center = ceil(Int32, (size(observed,1)/2)+1.0)
                     y_center = ceil(Int32, (size(observed,2)/2)+1.0)
