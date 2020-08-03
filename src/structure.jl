@@ -453,11 +453,11 @@ end
 
 ############################################################################
 """
-calcrmsd
+compute_rmsd
 
 rmsd (root mean square deviation)
 """
-function getrmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
+function compute_rmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0))::Vector{T} where {T, U}
     nframe = ta.nframe
     natom = ta.natom
@@ -505,7 +505,7 @@ function meanstructure(ta::TrjArray{T, U};
         ref_old = ref;
         ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
         ref = TrjArray{T, U}(x=mean(ta2.x, dims=1), y=mean(ta2.y, dims=1), z=mean(ta2.z, dims=1)) # TODO: mean(ta) should be available in the futre
-        r .= getrmsd(ref_old, ref, isweight=isweight, index=index)
+        r .= compute_rmsd(ref_old, ref, isweight=isweight, index=index)
         println("rmsd from the previous mean structure: ", r[1])
     end
 
@@ -516,12 +516,11 @@ end
 
 ############################################################################
 """
-calcrmsf
+compute_rmsf
 
 rmsf (root mean square fluctuation)
 """
-function getrmsf(ta::TrjArray{T, U};
-    isweight::Bool=true)::Vector{T} where {T, U}
+function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where {T, U}
     nframe = ta.nframe
     natom = ta.natom
     if isweight && length(ta.mass) == natom
@@ -548,27 +547,49 @@ end
 
 ############################################################################
 """
-calcbond
+compute_distance
 
 distance between two atoms or groups of atoms
 """
-function getdistance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U})::Vector{T} where {T, U}
-    # TODO: support for PBC
-    # TODO: hypot
+function compute_distance(ta::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where {T, U}
+    nframe = ta.nframe
+    npair = size(index, 1)
+    dx = view(ta.x, :, index[:, 1]) .- view(ta.x, :, index[:, 2])
+    dy = view(ta.y, :, index[:, 1]) .- view(ta.y, :, index[:, 2])
+    dz = view(ta.z, :, index[:, 1]) .- view(ta.z, :, index[:, 2])
+    if !isempty(ta.boxsize)
+        dx .= dx .- (ta.boxsize[:, 1] .* round.(dx./ta.boxsize[:, 1]))
+        dy .= dy .- (ta.boxsize[:, 2] .* round.(dy./ta.boxsize[:, 2]))
+        dz .= dz .- (ta.boxsize[:, 3] .* round.(dx./ta.boxsize[:, 3]))
+    end
+    d = zeros(T, nframe, npair)
+    d .= sqrt.(dx.^2 .+ dy.^2 .+ dz.^2)
+    return d
+end
+
+function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where {T, U}
     nframe = ta1.nframe
-    com1 = centerofmass(ta1, isweight=true)
-    com2 = centerofmass(ta2, isweight=true)
-    dist = sqrt.((com1.x .- com2.x).^2 .+ (com1.y .- com2.y).^2 .+ (com1.z .- com2.z).^2)
-    reshape(dist, nframe)
+    npair = size(index, 1)
+    dx = view(ta1.x, :, index[:, 1]) .- view(ta2.x, :, index[:, 2])
+    dy = view(ta1.y, :, index[:, 1]) .- view(ta2.y, :, index[:, 2])
+    dz = view(ta1.z, :, index[:, 1]) .- view(ta2.z, :, index[:, 2])
+    if !isempty(ta1.boxsize)
+        dx .= dx .- (ta1.boxsize[:, 1] .* round.(dx./ta1.boxsize[:, 1]))
+        dy .= dy .- (ta1.boxsize[:, 2] .* round.(dy./ta1.boxsize[:, 2]))
+        dz .= dz .- (ta1.boxsize[:, 3] .* round.(dx./ta1.boxsize[:, 3]))
+    end
+    d = zeros(T, nframe, npair)
+    d .= sqrt.(dx.^2 .+ dy.^2 .+ dz.^2)
+    return d
 end
 
 ############################################################################
 """
-calcangle
+compute_angle
 
 angle of three atoms or groups of atoms
 """
-function getangle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, U})::Vector{T} where {T, U}
+function compute_angle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, U})::Vector{T} where {T, U}
     nframe = ta1.nframe
     com1 = centerofmass(ta1, isweight=true)
     com2 = centerofmass(ta2, isweight=true)
@@ -585,11 +606,11 @@ end
 
 ############################################################################
 """
-calcdihedral
+compute_dihedral
 
 dihedral of four atoms or groups of atoms
 """
-function getdihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, U}, ta4::TrjArray{T, U})::Vector{T} where {T, U}
+function compute_dihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, U}, ta4::TrjArray{T, U})::Vector{T} where {T, U}
     nframe = ta1.nframe
     com1 = centerofmass(ta1, isweight=true)
     com2 = centerofmass(ta2, isweight=true)
@@ -610,4 +631,56 @@ function getdihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, 
         end
     end
     a = (a ./ pi) .* T(180)
+end
+
+############################################################################
+function compute_qscore(native::TrjArray{T, U}, ta::TrjArray{T, U})::Vector{T} where {T, U}
+    natom = native.natom
+    index_all = zeros(U, U(natom*(natom-1)/2), 2)
+    count = 1
+    for i = 1:natom
+        for j = (i+1):natom
+            index_all[count, 1] = i
+            index_all[count, 2] = j
+            count += 1
+        end
+    end
+    id = abs.(native.resid[index_all[:, 1]] .- native.resid[index_all[:, 2]]) .> 3
+    index_all = index_all[id, :]
+    d = compute_distance(native[1, :], index_all)
+    id = (d .< 4.5)[:]
+    index_contact = index_all[id, :]
+    d_contact = d[:, id]
+
+    d = compute_distance(ta, index_contact)
+    BETA = 5.0
+    LAMBDA = 1.8
+    # qscore = mean(1.0./(1.0 + exp(BETA * bsxfun(@minus, dist, LAMBDA*dist0))), 2);
+    qscore = mean(1.0 ./ (1.0 .+ exp.(BETA .* (d .- (LAMBDA .* d_contact)))), dims=2)[:]
+    return qscore
+end
+
+############################################################################
+function compute_drms(native1::TrjArray{T, U}, native2::TrjArray{T, U}, ta1::TrjArray{T, U}, ta2::TrjArray{T, U})::Vector{T} where {T, U}
+    natom1 = native1.natom
+    natom2 = native2.natom
+    index_all = zeros(U, natom1*natom2, 2)
+    count = 1
+    for i = 1:natom1
+        for j = 1:natom2
+            index_all[count, 1] = i
+            index_all[count, 2] = j
+            count += 1
+        end
+    end
+    d = compute_distance(native1[1, :], native2[1, :], index_all)
+    id = (1.0 .< d)[:] .& (d .< 6.0)[:]
+    index_contact = index_all[id, :]
+    d_contact = d[:, id]
+
+    d = compute_distance(ta1, ta2, index_contact)
+    ncontact = T(size(index_contact, 1))
+    drms = sum((d_contact .- d).^2, dims=2)[:]
+    drms .= drms ./ ncontact
+    return drms
 end

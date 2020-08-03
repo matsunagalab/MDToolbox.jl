@@ -4,7 +4,6 @@ import Base: convert, copy, show, getindex, lastindex, isempty,
 abstract type AbstractTrajectory end
 
 struct TrjArray{T, U} <: AbstractTrajectory
-
     #DONE: support for x, y, z = nothing, nothing, nothing
     #DONE: natom, nframe
     #TODO: revert to parametric type, fix slowness of constructor
@@ -75,20 +74,6 @@ struct TrjArray{T, U} <: AbstractTrajectory
             end
         end
         natom = Int64(natom)
-
-        # check type
-        # x2 = typeof(x) == Matrix{Float64} ? x : map(Float64, x)
-        # y2 = typeof(x) == Matrix{Float64} ? y : map(Float64, y)
-        # z2 = typeof(x) == Matrix{Float64} ? z : map(Float64, z)
-        # boxsize2 = typeof(boxsize) == Matrix{Float64} ? boxsize : map(Float64, boxsize)
-        # chainname2 = typeof(chainname) == Vector{String} ? chainname : map(strip, map(string, chainname))
-        # chainid2 = typeof(chainid) == Vector{Int64} ? chainid : map(Int64, chainid)
-        # resname2 = typeof(resname) == Vector{String} ? resname : map(strip, map(string, resname))
-        # resid2 = typeof(resid) == Vector{Int64} ? resid : map(Int64, resid)
-        # atomname2 = typeof(atomname) == Vector{String} ? atomname : map(strip, map(string, atomname))
-        # atomid2 = typeof(atomid) == Vector{Int64} ? atomid : map(Int64, atomid)
-        # mass2 = typeof(mass) == Vector{Float64} ? mass : map(Float64, mass)
-        # charge2 = typeof(charge) == Vector{Float64} ? charge : map(Float64, charge)
 
         # return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, natom, nframe)
         return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
@@ -394,6 +379,70 @@ end
 
 function select_atom(ta::TrjArray, s::AbstractString)
     #s = strip(s)
+
+    # alias
+    s = replace(s, "waters" => "water")
+    s = replace(s, "solvents" => "solvent")
+    s = replace(s, "proteins" => "protein")
+
+    s = replace(s, "water" => "resname H2O SOL WAT HHO OHH HOH OH2 TIP TIP2 TIP3 TIP4")
+
+    s = replace(s, "hydrogen" => "atomname 1H 2H 3H H1 H2 H3 H4 H5 H HA 1HA 2HA HB 1HB " *
+    "2HB 3HB HG 1HG 2HG 1HG1 2HG1 3HG1 1HG2 2HG2 3HG2 1HD 2HD 1HD1 2HD1 3HD1 1HD2 2HD2 " *
+    "3HD2 1HH1 2HH1 1HH2 2HH2 HE 1HE 2HE 3HE 1HE1 2HE1 1HE2 2HE2 HD1 HD2 HE1 HNZ1 HNZ2 " *
+    "HNZ3 HG1 HH HH1 HH2 ")
+
+    s = replace(s, "solvent" => "resname 118 119 1AL 1CU 2FK 2HP 2OF 3CO 3MT 3NI 3OF 4MO " * 
+    "543 6MO ACT AG AL ALF ATH AU AU3 AUC AZI Ag BA BAR BCT BEF BF4 BO4 BR BS3 BSY Be CA " *
+    "CA+2 Ca+2 CAC CAD CAL CD CD1 CD3 CD5 CE CES CHT CL CL- CLA Cl- CO CO3 CO5 CON CR CS " *
+    "CSB CU CU1 CU3 CUA CUZ CYN Cl- Cr DME DMI DSC DTI DY E4N EDR EMC ER3 EU EU3 F FE FE2 " *
+    "FPO GA GD3 GEP HAI HG HGC HOH IN IOD ION IR IR3 IRI IUM K K+ KO4 LA LCO LCP LI LIT LU " *
+    "MAC MG MH2 MH3 MLI MMC MN MN3 MN5 MN6 MO1 MO2 MO3 MO4 MO5 MO6 MOO MOS MOW MW1 MW2 MW3 " *
+    "NA NA+2 NA2 NA5 NA6 NAO NAW Na+2 NET NH4 NI NI1 NI2 NI3 NO2 NO3 NRU Na+ O4M OAA OC1 OC2 " *
+    "OC3 OC4 OC5 OC6 OC7 OC8 OCL OCM OCN OCO OF1 OF2 OF3 OH OS OS4 OXL PB PBM PD PER PI PO3 " *
+    "PO4 POT PR PT PT4 PTN RB RH3 RHD RU RUB Ra SB SCN SE4 SEK SM SMO SO3 SO4 SOD SR Sm Sn " *
+    "T1A TB TBA TCN TEA THE TL TMA TRA UNX V V2+ VN3 VO4 W WO5 Y1 YB YB2 YH YT3 ZN ZN2 ZN3 ZNA ZNO ZO3")
+
+    s = replace(s, "protein" => "resname ACE NME 00C 01W 02K 02L 03Y 07O 08P 0A0 0A1 0A2 " *
+    "0A8 0AA 0AB 0AC 0AF 0AG 0AH 0AK 0BN 0CS 0E5 0EA 0FL 0NC 0WZ 0Y8 143 193 1OP 1PA 1PI " *
+    "1TQ 1TY 1X6 200 23F 23S 26B 2AD 2AG 2AO 2AS 2CO 2DO 2FM 2HF 2KK 2KP 2LU 2ML 2MR 2MT " *
+    "2OR 2PI 2QZ 2R3 2SI 2TL 2TY 2VA 2XA 32S 32T 33X 3AH 3AR 3CF 3GA 3MD 3NF 3QN 3TY 3XH " *
+    "4BF 4CF 4CY 4DP 4FB 4FW 4HT 4IN 4MM 4PH 4U7 56A 5AB 5CS 5CW 5HP 6CL 6CW 6GL 6HN 7JA " *
+    "9NE 9NF 9NR 9NV A5N A66 AA3 AA4 AAR AB7 ABA ACB ACL ADD AEA AEI AFA AGM AGT AHB AHH " *
+    "AHO AHP AHS AHT AIB AKL AKZ ALA ALC ALM ALN ALO ALS ALT ALV ALY AN8 APE APH API APK " *
+    "APM APP AR2 AR4 AR7 ARG ARM ARO ARV AS2 AS9 ASA ASB ASI ASK ASL ASM ASN ASP ASQ ASX " *
+    "AVN AYA AZK AZS AZY B1F B2A B2F B2I B2V B3A B3D B3E B3K B3L B3M B3Q B3S B3T B3U B3X " *
+    "B3Y BB6 BB7 BB8 BB9 BBC BCS BE2 BFD BG1 BH2 BHD BIF BIL BIU BJH BL2 BLE BLY BMT BNN " *
+    "BNO BOR BPE BSE BTA BTC BTR BUC BUG C1X C22 C3Y C4R C5C C66 C6C CAF CAL CAS CAV CAY " *
+    "CCL CCS CDE CDV CEA CGA CGU CHF CHG CHP CHS CIR CLE CLG CLH CME CMH CML CMT CPC CPI " *
+    "CR5 CS0 CS1 CS3 CS4 CSA CSB CSD CSE CSJ CSO CSP CSR CSS CSU CSW CSX CSZ CTE CTH CUC " *
+    "CWR CXM CY0 CY1 CY3 CY4 CYA CYD CYF CYG CYJ CYM CYQ CYR CYS CZ2 CZZ D11 D3P D4P DA2 " *
+    "DAB DAH DAL DAR DAS DBB DBS DBU DBY DBZ DC2 DCL DCY DDE DFI DFO DGH DGL DGN DHA DHI " *
+    "DHL DHN DHP DHV DI7 DIL DIR DIV DLE DLS DLY DM0 DMH DMK DMT DNE DNL DNP DNS DOA DOH " *
+    "DON DPL DPN DPP DPQ DPR DSE DSG DSN DSP DTH DTR DTY DVA DYS ECC EFC EHP ESB ESC EXY " *
+    "EYS F2F FAK FB5 FB6 FCL FGA FGL FGP FH7 FHL FHO FLA FLE FLT FME FOE FP9 FRD FT6 FTR " *
+    "FTY FVA FZN GAU GCM GFT GGL GHG GHP GL3 GLH GLJ GLK GLM GLN GLQ GLU GLX GLY GLZ GMA " *
+    "GND GPL GSC GSU GT9 GVL H14 H5M HAC HAR HBN HCS HFA HGL HHI HIA HIC HIP HIQ HIS HL2 " *
+    "HLU HMR HPC HPE HPH HPQ HQA HRG HRP HS8 HS9 HSE HSL HSO HTI HTN HTR HV5 HVA HY3 HYP " *
+    "HZP I2M I58 IAM IAR IAS IEL IGL IIL ILE ILG ILX IML IOY IPG IT1 IYR IYT IZO JJJ JJK " *
+    "JJL K1R KCX KGC KNB KOR KPI KST KYN KYQ L2A LA2 LAA LAL LBY LCK LCX LCZ LDH LED LEF " *
+    "LEH LEI LEM LEN LET LEU LEX LHC LLP LLY LME LMF LMQ LP6 LPD LPG LPL LPS LSO LTA LTR " *
+    "LVG LVN LYF LYK LYM LYN LYR LYS LYX LYZ M0H M2L M2S M30 M3L MA MAA MAI MBQ MC1 MCG " *
+    "MCL MCS MD3 MD6 MDF MDH MEA MED MEG MEN MEQ MET MEU MF3 MGG MGN MGY MHL MHO MHS MIS " *
+    "MK8 ML3 MLE MLL MLY MLZ MME MMO MND MNL MNV MOD MP8 MPH MPJ MPQ MSA MSE MSL MSO MSP " *
+    "MT2 MTY MVA N10 N2C N7P N80 N8P NA8 NAL NAM NB8 NBQ NC1 NCB NCY NDF NEM NEP NFA NHL " *
+    "NIY NLE NLN NLO NLP NLQ NMC NMM NNH NPH NPI NSK NTR NTY NVA NYS NZH O12 OAR OAS OBF " *
+    "OBS OCS OCY OHI OHS OIC OLE OLT OLZ OMT ONH ONL OPR ORN ORQ OSE OTB OTH OXX P1L P2Y " *
+    "PAQ PAS PAT PAU PBB PBF PCA PCC PCE PCS PDL PEC PF5 PFF PFX PG1 PG9 PGL PGY PH6 PHA " *
+    "PHD PHE PHI PHL PHM PIV PLE PM3 POM PPN PR3 PR9 PRO PRS PSA PSH PTA PTH PTM PTR PVH " *
+    "PVL PYA PYL PYX QCS QMM QPA QPH R1A R4K RE0 RE3 RON RVX RZ4 S1H S2C S2D S2P SAC SAH " *
+    "SAR SBL SCH SCS SCY SD2 SDP SE7 SEB SEC SEG SEL SEM SEN SEP SER SET SGB SHC SHP SHR " *
+    "SIB SLR SLZ SMC SME SMF SNC SNN SOC SOY SRZ STY SUB SUN SVA SVV SVW SVX SVY SVZ SYS " *
+    "T11 T66 TA4 TAV TBG TBM TCQ TCR TDD TFQ TH6 THC THO THR THZ TIH TMB TMD TNB TNR TOQ " *
+    "TPH TPL TPO TPQ TQI TQQ TRF TRG TRN TRO TRP TRQ TRW TRX TRY TST TTQ TTS TXY TY1 TY2 " *
+    "TY3 TY5 TYB TYI TYJ TYN TYO TYQ TYR TYS TYT TYW TYX TYY TZB TZO UMA UN1 UN2 UNK VAD " *
+    "VAF VAL VB1 VDL VLL VLM VMS VOL WLU WPA WRP WVL X2W XCN XCP XDT XPL XPR XSN XX1 YCM " *
+    "YOF YTH Z01 ZAL ZCL ZFB ZU0 ZZJ")
 
     # attributes for selection
     s = replace(s, "chainid" => "match_query(chainid, \" ")

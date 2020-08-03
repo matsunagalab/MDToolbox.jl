@@ -1,8 +1,8 @@
-function logsumexp(x)
-    max_x = maximum(x)
-    exp_x = exp.(x .- max_x)
-    log(sum(exp_x)) .+ max_x
-end
+#function logsumexp(x)
+#    max_x = maximum(x)
+#    exp_x = exp.(x .- max_x)
+#    log(sum(exp_x)) .+ max_x
+#end
 
 function mbar_equation!(F, f_k, K, N_max, N_k, u_kln, idx, log_wi_jn, log_term, FlogN)
     for k = 1:K
@@ -42,7 +42,7 @@ function mbar(u_kl; ftol=1e-8, iterations=10^2)
         N_k[k] = length(u_kl[k, 1])
     end
     N_max = maximum(N_k)
-
+    
     # conversion from array of array (u_kl) to array (u_kln)
     u_kln = zeros(Float64, K, K, N_max)
     for k = 1:K

@@ -18,18 +18,19 @@ using Base.Threads
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, select_atom
 export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readcrd
-export centerofmass, decenter, decenter!, superimpose, superimpose_serial, getrmsd, meanstructure, getrmsf, rotate, rotate!
-export getdistance, getangle, getdihedral
-export getmsd
+export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
+export rotate, rotate!
+export compute_distance, compute_angle, compute_dihedral
+export compute_qscore, compute_drms, compute_pairlist_exhaustive, compute_pairlist
 export propagate_mcmc, propagate_md
-export ksdensity, ksdensity_serial, getpmf
+export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
 export mbar
 export msmgenerate, msmforward, msmbackward, msmbaumwelch, msmviterbi
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export afmize, AfmizeConfig, translateafm, getafmposterior, getafmposteriors_alpha
 export Asd, readasd
-export viewstruc, gpu, gpu32, cpu, cpu64
+export get_residues, viewstruc, gpu, gpu32, cpu, cpu64, logsumexp
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
