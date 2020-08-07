@@ -6,8 +6,8 @@ MDToolbox: A Julia toolbox for statistical analysis of molecular dynamics trajec
 Being ported into Julia from the original MATLAB version https://github.com/ymatsunaga/mdtoolbox
 
 Julia version 1.0 or later is required. 
-```julia
-pkg> add https://github.com/ymatsunaga/MDToolbox.jl.git
+```
+julia> ]add https://github.com/ymatsunaga/MDToolbox.jl.git
 julia> using MDToolbox
 ```
 
