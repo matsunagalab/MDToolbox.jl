@@ -684,3 +684,197 @@ function compute_drms(native1::TrjArray{T, U}, native2::TrjArray{T, U}, ta1::Trj
     drms .= drms ./ ncontact
     return drms
 end
+
+############################################################################
+function wrap_x!(x, boxsize)
+    x .= x .- floor.(x./boxsize).*boxsize
+end
+
+function wrap_dx!(dx, boxsize)
+    dx .= dx .- round.(x./boxsize).*boxsize
+end
+
+minimum_image(n::Int, N::Int) = n - N * sign(n) * floor(typeof(n), (Float64(abs(n)) + 0.5*Float64(N)) / Float64(N))
+
+function pairwise_distance(x, y, z, index, rcut2)
+    n = length(index)
+    pair = zeros(eltype(index), Int(n*(n-1)/2), 2)
+    dist = zeros(eltype(x), Int(n*(n-1)/2))
+    count = 0
+    @inbounds for i = 1:n
+        ii = index[i]
+        for j = (i + 1):n
+            jj = index[j]
+            r2 = (x[ii] - x[jj])^2 + (y[ii] - y[jj])^2 + (z[ii] - z[jj])^2
+            count += 1
+            pair[count, 1] = ii
+            pair[count, 2] = jj
+            dist[count] = r2
+        end
+    end
+    logical_index = dist .< rcut2
+    pair[logical_index, :], sqrt.(dist[logical_index])
+end
+
+function pairwise_distance(x, y, z, index1, index2, rcut2)
+    n1 = length(index1)
+    n2 = length(index2)
+    pair = zeros(eltype(index1), n1*n2, 2)
+    dist = zeros(eltype(x), n1*n2)
+    count = 0
+    @inbounds for i = 1:n1
+        ii = index1[i]
+        for j = 1:n2
+            jj = index2[j]
+            r2 = (x[ii] - x[jj])^2 + (y[ii] - y[jj])^2 + (z[ii] - z[jj])^2
+            count += 1
+            pair[count, 1] = ii
+            pair[count, 2] = jj
+            dist[count] = r2
+        end
+    end
+    logical_index = dist .< rcut2
+    pair[logical_index, :], sqrt.(dist[logical_index])
+end
+
+function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Matrix{U}, Vector{T}} where {T, U}
+    # TODO: PBC support
+    natom = ta.natom
+    rcut2 = rcut^2
+    is_pbc = !isempty(ta.boxsize)
+    x = ta.x[iframe, :]
+    y = ta.y[iframe, :]
+    z = ta.z[iframe, :]
+    boxsize = zeros(T, 3)
+
+    if is_pbc
+        boxsize .= ta.boxsize[iframe, :]
+        wrap_x!(x, boxsize[1])
+        wrap_x!(y, boxsize[2])
+        wrap_x!(z, boxsize[3])
+    else
+        x .= x .- minimum(x)
+        y .= y .- minimum(y)
+        z .= z .- minimum(z)
+        boxsize[1] = maximum(x .+ one(T))
+        boxsize[2] = maximum(y .+ one(T))
+        boxsize[3] = maximum(z .+ one(T))
+    end
+
+    rcell = map(x -> max(x, rcut), T.([8.0, 8.0, 8.0]))
+    ncell = floor.(U, boxsize./T.(rcell))
+    rcell .= boxsize./T.(ncell)
+
+    nx = floor.(U, x./rcell[1])
+    ny = floor.(U, y./rcell[2])
+    nz = floor.(U, z./rcell[3])
+
+    m = (ncell[1]*ncell[2]).*nz .+ ncell[3].*ny .+ nx .+ 1
+    M = prod(ncell)
+    
+    # calculate cell mask
+    dm = collect(U, 1:(M-1))
+    dmx = mod.(dm, ncell[1])
+    dmy = floor.(U, mod.(dm, ncell[1]*ncell[2]) ./ ncell[1])
+    dmz = floor.(U, dm ./ (ncell[1]*ncell[2]))
+    dnx = abs.(minimum_image.(dmx, ncell[1]))
+    dny = similar(dmy)
+    logical_index = iszero.(dmx) .| (isequal.(dmy, ncell[2] .- one(U)) .& isequal.(dmz, ncell[3] .- one(U)))
+    dny[logical_index] .= abs.(minimum_image.(dmy[logical_index], ncell[2]))
+    dny[.~logical_index] .= min.(abs.(minimum_image.(dmy[.~logical_index], ncell[2])), abs.(minimum_image.(dmy[.~logical_index] .+ 1, ncell[2])))
+    dnz = similar(dmz)
+    logical_index = isequal.(dmz, ncell[3] .- one(U)) .| (iszero.(dmx) .& iszero.(dmy))
+    dnz[logical_index] .= abs.(minimum_image.(dmz[logical_index], ncell[3]))
+    dnz[.~logical_index] .= min.(abs.(minimum_image.(dmz[.~logical_index], ncell[3])), abs.(minimum_image.(dmz[.~logical_index] .+ 1, ncell[3])))
+    mask = T.((max.(dnx, one(U)) .- one(U)).^2) .* rcell[1].^2 .+ 
+           T.((max.(dny, one(U)) .- one(U)).^2) .* rcell[2].^2 .+ 
+           T.((max.(dnz, one(U)) .- one(U)).^2) .* rcell[3].^2 .< rcut2
+    mask_index = findall(mask)
+
+    # calculate cell mask pointer
+    K = round(U, natom/M * 2)
+    cell_pointer = zeros(U, M)
+    cell_atom = zeros(U, K, M)
+    @inbounds for iatom = 1:natom
+        cell_pointer[m[iatom]] += 1
+        cell_atom[cell_pointer[m[iatom]], m[iatom]] = iatom
+    end
+    
+    # calculate distances of atoms in masked cells
+    pair = Matrix{U}(undef, natom*1000, 2)
+    dist = Vector{T}(undef, natom*1000)
+    count = 0
+    @inbounds for m1 = 1:M
+        m1_index = cell_atom[1:cell_pointer[m1], m1]
+        if isempty(m1_index)
+            continue
+        else
+            pair_local, dist_local = pairwise_distance(x, y, z, m1_index, rcut2)
+            n = length(dist_local)
+            pair[(count+1):(count+n), :] .= pair_local
+            dist[(count+1):(count+n)] .= dist_local
+            count += n
+        end
+
+        for m2 = (m1 .+ mask_index)
+            if m2 > M
+                break
+            else
+                m2_index = cell_atom[1:cell_pointer[m2], m2]
+                pair_local, dist_local = pairwise_distance(x, y, z, m1_index, m2_index, rcut2)
+                n = length(dist_local)
+                pair[(count+1):(count+n), :] .= pair_local
+                dist[(count+1):(count+n)] .= dist_local
+                count += n    
+            end
+        end        
+    end
+    pair[1:count, :], dist[1:count]
+end
+
+############################################################################
+function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
+    rcut2 = rcut^2
+    natom = ta.natom
+    npair = U(natom*(natom-1)/2)
+    pair = zeros(U, npair, 2)
+    dist = zeros(T, npair)
+    id_bool = falses(npair)
+    is_pbc = !isempty(ta.boxsize)
+    x = ta.x[iframe, :]
+    y = ta.y[iframe, :]
+    z = ta.z[iframe, :]
+    boxsize = zeros(T, 3)
+    if(is_pbc)
+        boxsize .= ta.boxsize[iframe, :]
+    end
+
+    Threads.@threads for ipair = 1:npair
+        i = 1
+        t = natom - i
+        while ipair > t
+            i = i + 1
+            t = t + (natom - i)
+        end
+        j = natom - (t - ipair)
+        dx = x[i] - x[j]
+        dy = y[i] - y[j]
+        dz = z[i] - z[j]
+        if is_pbc
+            wrap_dx!(dx, boxsize[1])
+            wrap_dx!(dy, boxsize[2])
+            wrap_dx!(dz, boxsize[3])
+        end
+        if (abs(dx) < rcut) & (abs(dy) < rcut) & (abs(dz) < rcut)
+            d2 = dx^2 + dy^2 + dz^2
+            if d2 < rcut2
+                pair[ipair, 1] = i
+                pair[ipair, 2] = j
+                dist[ipair] = sqrt(d2)
+                id_bool[ipair] = true
+            end
+        end
+    end
+
+    return pair[id_bool, :], dist[id_bool]
+end

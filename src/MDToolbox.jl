@@ -21,7 +21,7 @@ export readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, r
 export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
 export rotate, rotate!
 export compute_distance, compute_angle, compute_dihedral
-export compute_qscore, compute_drms, compute_pairlist_exhaustive, compute_pairlist
+export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
