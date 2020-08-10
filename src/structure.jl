@@ -685,12 +685,12 @@ function wrap_x!(x, boxsize)
 end
 
 function wrap_dx!(dx, boxsize)
-    dx .= dx .- round.(x./boxsize).*boxsize
+    dx .= dx .- round.(dx./boxsize).*boxsize
 end
 
 minimum_image(n::Int, N::Int) = n - N * sign(n) * floor(typeof(n), (Float64(abs(n)) + 0.5*Float64(N)) / Float64(N))
 
-function pairwise_distance(x, y, z, index, rcut2)
+function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVector, index::AbstractVector, rcut2::Real)
     n = length(index)
     npair = Int(n*(n-1)/2)
     pair = zeros(eltype(index), npair, 2)
@@ -711,7 +711,34 @@ function pairwise_distance(x, y, z, index, rcut2)
     pair[logical_index, :], sqrt.(dist[logical_index])
 end
 
-function pairwise_distance(x, y, z, index1, index2, rcut2)
+function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVector, index::AbstractVector, rcut2::Real, boxsize::AbstractVector)
+    n = length(index)
+    npair = Int(n*(n-1)/2)
+    pair = zeros(eltype(index), npair, 2)
+    dist = zeros(eltype(x), npair)
+    count = 0
+    for i = 1:n
+        ii = index[i]
+        for j = (i + 1):n
+            jj = index[j]
+            dx = x[ii] - x[jj]
+            dy = y[ii] - y[jj]
+            dz = z[ii] - z[jj]
+            dx = dx - round(dx/boxsize[1])*boxsize[1]
+            dy = dy - round(dy/boxsize[2])*boxsize[2]
+            dz = dz - round(dz/boxsize[3])*boxsize[3]
+            r2 = dx^2 + dy^2 + dz^2
+            count += 1
+            pair[count, 1] = ii
+            pair[count, 2] = jj
+            dist[count] = r2
+        end
+    end
+    logical_index = dist .< rcut2
+    pair[logical_index, :], sqrt.(dist[logical_index])
+end
+
+function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVector, index1::AbstractVector, index2::AbstractVector, rcut2::Real)
     n1 = length(index1)
     n2 = length(index2)
     npair = n1*n2
@@ -722,10 +749,35 @@ function pairwise_distance(x, y, z, index1, index2, rcut2)
         ii = index1[i]
         for j = 1:n2
             jj = index2[j]
-            #if ii == jj 
-            #    error("conflicted at $ii $jj")
-            #end
             r2 = (x[ii] - x[jj])^2 + (y[ii] - y[jj])^2 + (z[ii] - z[jj])^2
+            count += 1
+            pair[count, 1] = ii
+            pair[count, 2] = jj
+            dist[count] = r2
+        end
+    end
+    logical_index = dist .< rcut2
+    pair[logical_index, :], sqrt.(dist[logical_index])
+end
+
+function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVector, index1::AbstractVector, index2::AbstractVector, rcut2::Real, boxsize::AbstractVector)
+    n1 = length(index1)
+    n2 = length(index2)
+    npair = n1*n2
+    pair = zeros(eltype(index1), npair, 2)
+    dist = zeros(eltype(x), npair)
+    count = 0
+    @inbounds for i = 1:n1
+        ii = index1[i]
+        for j = 1:n2
+            jj = index2[j]
+            dx = x[ii] - x[jj]
+            dy = y[ii] - y[jj]
+            dz = z[ii] - z[jj]
+            dx = dx - round(dx/boxsize[1])*boxsize[1]
+            dy = dy - round(dy/boxsize[2])*boxsize[2]
+            dz = dz - round(dz/boxsize[3])*boxsize[3]
+            r2 = dx^2 + dy^2 + dz^2
             count += 1
             pair[count, 1] = ii
             pair[count, 2] = jj
@@ -758,6 +810,11 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
         boxsize[1] = maximum(x) + one(T)
         boxsize[2] = maximum(y) + one(T)
         boxsize[3] = maximum(z) + one(T)
+    end
+
+    if any(boxsize .< (2.0*rcut))
+        println("working with brute-force search...")
+        return compute_pairlist_bruteforce(ta, rcut, iframe=iframe)
     end
 
     rcell = map(x -> max(x, rcut), T.([8.0, 8.0, 8.0]))
@@ -814,9 +871,12 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
         if isempty(m1_index)
             continue
         elseif length(m1_index) > 1
-            pair_local, dist_local = pairwise_distance(x, y, z, m1_index, rcut2)
+            if is_pbc
+                pair_local, dist_local = pairwise_distance(x, y, z, m1_index, rcut2, boxsize)
+            else
+                pair_local, dist_local = pairwise_distance(x, y, z, m1_index, rcut2)
+            end
             num = length(dist_local)
-            #@show num
             if (num > 0)
                 pair[(count+1):(count+num), :] .= pair_local
                 dist[(count+1):(count+num)] .= dist_local
@@ -832,7 +892,11 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
                 continue
             end
             m2_index = cell_atom[1:cell_pointer[m2], m2]
-            pair_local, dist_local = pairwise_distance(x, y, z, m1_index, m2_index, rcut2)
+            if is_pbc
+                pair_local, dist_local = pairwise_distance(x, y, z, m1_index, m2_index, rcut2, boxsize)
+            else
+                pair_local, dist_local = pairwise_distance(x, y, z, m1_index, m2_index, rcut2)
+            end
             num = length(dist_local)
             if (num > 0)
                 pair[(count+1):(count+num), :] .= pair_local
@@ -851,6 +915,13 @@ function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)
     y = ta.y[iframe, :]
     z = ta.z[iframe, :]
     index = collect(U, 1:ta.natom)
-    pairwise_distance(x, y, z, index, rcut2)
+    is_pbc = !isempty(ta.boxsize)
+    boxsize = zeros(T, 3)
+    if is_pbc
+        boxsize .= ta.boxsize[iframe, :]
+        pairwise_distance(x, y, z, index, rcut2, boxsize)
+    else
+        pairwise_distance(x, y, z, index, rcut2)
+    end
 end
 
