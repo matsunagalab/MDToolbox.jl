@@ -698,8 +698,9 @@ minimum_image(n::Int, N::Int) = n - N * sign(n) * floor(typeof(n), (Float64(abs(
 
 function pairwise_distance(x, y, z, index, rcut2)
     n = length(index)
-    pair = zeros(eltype(index), Int(n*(n-1)/2), 2)
-    dist = zeros(eltype(x), Int(n*(n-1)/2))
+    npair = Int(n*(n-1)/2)
+    pair = zeros(eltype(index), npair, 2)
+    dist = zeros(eltype(x), npair)
     count = 0
     @inbounds for i = 1:n
         ii = index[i]
@@ -719,13 +720,17 @@ end
 function pairwise_distance(x, y, z, index1, index2, rcut2)
     n1 = length(index1)
     n2 = length(index2)
-    pair = zeros(eltype(index1), n1*n2, 2)
-    dist = zeros(eltype(x), n1*n2)
+    npair = n1*n2
+    pair = zeros(eltype(index1), npair, 2)
+    dist = zeros(eltype(x), npair)
     count = 0
     @inbounds for i = 1:n1
         ii = index1[i]
         for j = 1:n2
             jj = index2[j]
+            #if ii == jj 
+            #    error("hogehoge $ii $jj")
+            #end
             r2 = (x[ii] - x[jj])^2 + (y[ii] - y[jj])^2 + (z[ii] - z[jj])^2
             count += 1
             pair[count, 1] = ii
@@ -756,9 +761,9 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
         x .= x .- minimum(x)
         y .= y .- minimum(y)
         z .= z .- minimum(z)
-        boxsize[1] = maximum(x .+ one(T))
-        boxsize[2] = maximum(y .+ one(T))
-        boxsize[3] = maximum(z .+ one(T))
+        boxsize[1] = maximum(x) + one(T)
+        boxsize[2] = maximum(y) + one(T)
+        boxsize[3] = maximum(z) + one(T)
     end
 
     rcell = map(x -> max(x, rcut), T.([8.0, 8.0, 8.0]))
@@ -769,7 +774,7 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
     ny = floor.(U, y./rcell[2])
     nz = floor.(U, z./rcell[3])
 
-    m = (ncell[1]*ncell[2]).*nz .+ ncell[3].*ny .+ nx .+ 1
+    m = (ncell[1]*ncell[2]).*nz .+ ncell[1].*ny .+ nx .+ one(U)
     M = prod(ncell)
     
     # calculate cell mask
@@ -792,12 +797,15 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
     mask_index = findall(mask)
 
     # calculate cell mask pointer
-    K = round(U, natom/M * 2)
+    K = round(U, (natom/M) * 10)
     cell_pointer = zeros(U, M)
     cell_atom = zeros(U, K, M)
-    @inbounds for iatom = 1:natom
+    for iatom = 1:natom
         cell_pointer[m[iatom]] += 1
         cell_atom[cell_pointer[m[iatom]], m[iatom]] = iatom
+    end
+    if any(cell_pointer .> K)
+        error("# of atoms in a cell greater than expected")
     end
     
     # calculate distances of atoms in masked cells
@@ -805,29 +813,39 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
     dist = Vector{T}(undef, natom*1000)
     count = 0
     @inbounds for m1 = 1:M
+        if iszero(cell_pointer[m1])
+            continue
+        end
         m1_index = cell_atom[1:cell_pointer[m1], m1]
         if isempty(m1_index)
             continue
-        else
+        elseif length(m1_index) > 1
             pair_local, dist_local = pairwise_distance(x, y, z, m1_index, rcut2)
-            n = length(dist_local)
-            pair[(count+1):(count+n), :] .= pair_local
-            dist[(count+1):(count+n)] .= dist_local
-            count += n
+            num = length(dist_local)
+            #@show num
+            if (num > 0)
+                pair[(count+1):(count+num), :] .= pair_local
+                dist[(count+1):(count+num)] .= dist_local
+                count += num
+            end
         end
 
         for m2 = (m1 .+ mask_index)
             if m2 > M
                 break
-            else
-                m2_index = cell_atom[1:cell_pointer[m2], m2]
-                pair_local, dist_local = pairwise_distance(x, y, z, m1_index, m2_index, rcut2)
-                n = length(dist_local)
-                pair[(count+1):(count+n), :] .= pair_local
-                dist[(count+1):(count+n)] .= dist_local
-                count += n    
             end
-        end        
+            if iszero(cell_pointer[m2])
+                continue
+            end
+            m2_index = cell_atom[1:cell_pointer[m2], m2]
+            pair_local, dist_local = pairwise_distance(x, y, z, m1_index, m2_index, rcut2)
+            num = length(dist_local)
+            if (num > 0)
+                pair[(count+1):(count+num), :] .= pair_local
+                dist[(count+1):(count+num)] .= dist_local
+                count += num    
+            end
+        end
     end
     pair[1:count, :], dist[1:count]
 end
