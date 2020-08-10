@@ -552,34 +552,28 @@ compute_distance
 distance between two atoms or groups of atoms
 """
 function compute_distance(ta::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where {T, U}
-    nframe = ta.nframe
-    npair = size(index, 1)
     dx = view(ta.x, :, index[:, 1]) .- view(ta.x, :, index[:, 2])
     dy = view(ta.y, :, index[:, 1]) .- view(ta.y, :, index[:, 2])
     dz = view(ta.z, :, index[:, 1]) .- view(ta.z, :, index[:, 2])
     if !isempty(ta.boxsize)
-        dx .= dx .- (ta.boxsize[:, 1] .* round.(dx./ta.boxsize[:, 1]))
-        dy .= dy .- (ta.boxsize[:, 2] .* round.(dy./ta.boxsize[:, 2]))
-        dz .= dz .- (ta.boxsize[:, 3] .* round.(dx./ta.boxsize[:, 3]))
+        wrap_dx!(dx, ta.boxsize[:, 1])
+        wrap_dx!(dy, ta.boxsize[:, 2])
+        wrap_dx!(dz, ta.boxsize[:, 3])
     end
-    d = zeros(T, nframe, npair)
-    d .= sqrt.(dx.^2 .+ dy.^2 .+ dz.^2)
+    d = sqrt.(dx.^2 .+ dy.^2 .+ dz.^2)
     return d
 end
 
 function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where {T, U}
-    nframe = ta1.nframe
-    npair = size(index, 1)
     dx = view(ta1.x, :, index[:, 1]) .- view(ta2.x, :, index[:, 2])
     dy = view(ta1.y, :, index[:, 1]) .- view(ta2.y, :, index[:, 2])
     dz = view(ta1.z, :, index[:, 1]) .- view(ta2.z, :, index[:, 2])
     if !isempty(ta1.boxsize)
-        dx .= dx .- (ta1.boxsize[:, 1] .* round.(dx./ta1.boxsize[:, 1]))
-        dy .= dy .- (ta1.boxsize[:, 2] .* round.(dy./ta1.boxsize[:, 2]))
-        dz .= dz .- (ta1.boxsize[:, 3] .* round.(dx./ta1.boxsize[:, 3]))
+        wrap_dx!(dx, ta1.boxsize[:, 1])
+        wrap_dx!(dy, ta1.boxsize[:, 2])
+        wrap_dx!(dz, ta1.boxsize[:, 3])
     end
-    d = zeros(T, nframe, npair)
-    d .= sqrt.(dx.^2 .+ dy.^2 .+ dz.^2)
+    d = sqrt.(dx.^2 .+ dy.^2 .+ dz.^2)
     return d
 end
 
@@ -729,7 +723,7 @@ function pairwise_distance(x, y, z, index1, index2, rcut2)
         for j = 1:n2
             jj = index2[j]
             #if ii == jj 
-            #    error("hogehoge $ii $jj")
+            #    error("conflicted at $ii $jj")
             #end
             r2 = (x[ii] - x[jj])^2 + (y[ii] - y[jj])^2 + (z[ii] - z[jj])^2
             count += 1
@@ -853,46 +847,10 @@ end
 ############################################################################
 function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     rcut2 = rcut^2
-    natom = ta.natom
-    npair = U(natom*(natom-1)/2)
-    pair = zeros(U, npair, 2)
-    dist = zeros(T, npair)
-    id_bool = falses(npair)
-    is_pbc = !isempty(ta.boxsize)
     x = ta.x[iframe, :]
     y = ta.y[iframe, :]
     z = ta.z[iframe, :]
-    boxsize = zeros(T, 3)
-    if(is_pbc)
-        boxsize .= ta.boxsize[iframe, :]
-    end
-
-    Threads.@threads for ipair = 1:npair
-        i = 1
-        t = natom - i
-        while ipair > t
-            i = i + 1
-            t = t + (natom - i)
-        end
-        j = natom - (t - ipair)
-        dx = x[i] - x[j]
-        dy = y[i] - y[j]
-        dz = z[i] - z[j]
-        if is_pbc
-            wrap_dx!(dx, boxsize[1])
-            wrap_dx!(dy, boxsize[2])
-            wrap_dx!(dz, boxsize[3])
-        end
-        if (abs(dx) < rcut) & (abs(dy) < rcut) & (abs(dz) < rcut)
-            d2 = dx^2 + dy^2 + dz^2
-            if d2 < rcut2
-                pair[ipair, 1] = i
-                pair[ipair, 2] = j
-                dist[ipair] = sqrt(d2)
-                id_bool[ipair] = true
-            end
-        end
-    end
-
-    return pair[id_bool, :], dist[id_bool]
+    index = collect(U, 1:ta.natom)
+    pairwise_distance(x, y, z, index, rcut2)
 end
+
