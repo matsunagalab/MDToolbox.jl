@@ -456,7 +456,7 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
         ### loop over rotations
         for iq in 1:size(q_array, 1)
             q = q_array[iq, :]
-            MDToolbox.rotate!(model, q)
+            model = MDToolbox.rotate(model, q)
             ### loop over afmize parameters
             for iparam in 1:length(param_array)
                 param = param_array[iparam]
@@ -491,6 +491,7 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
 
     return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior, posterior
 end
+
 
 function getafmposterior_gpu(afm::AbstractMatrix{T}, model_array::TrjArray{T, U}, q_array::AbstractMatrix{T}, param_array) where {T, U}
     imax_model = 0
@@ -534,6 +535,7 @@ function getafmposterior_gpu(afm::AbstractMatrix{T}, model_array::TrjArray{T, U}
 
     return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
 end
+
 
 mutable struct posteriorResult
     each_quate_id
