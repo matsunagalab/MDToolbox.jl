@@ -140,7 +140,7 @@ size(ta::TrjArray) = (ta.nframe, ta.natom)
 
 size(ta::TrjArray, dim::Int) = (dim == 1) ? ta.nframe : (dim == 2) ? ta.natom : 1
 
-length(ta::TrjArray) = prod(size(ta))
+length(ta::TrjArray) = ta.nframe
 
 ###### getindex #################
 # all element indexing

@@ -368,10 +368,10 @@ end
 
 function translateafm(afm, (dx, dy))
     afm_translated = zeros(eltype(afm), size(afm))
-    (nx, ny) = size(afm)
+    (ny, nx) = size(afm)
     for i in maximum([1, 1-dx]):minimum([nx, nx-dx])
         for j in maximum([1, 1-dy]):minimum([ny, ny-dy])
-            afm_translated[i+dx, j+dy] = afm[i, j]
+            afm_translated[i+dy, j+dx] = afm[i, j]
         end
     end
     afm_translated
@@ -412,7 +412,8 @@ function direct_convolution(observed, calculated)
 end
 
 function fft_convolution(observed, calculated)
-    return real.(ifft(fft(observed).*conj.(fft(calculated))))
+    #return real.(ifft(fft(observed).*conj.(fft(calculated))))
+    return real.(ifftshift(ifft(fft(observed).*conj.(fft(calculated)))))
 end
 
 function calcLogProb(observed::AbstractMatrix{T}, calculated::AbstractMatrix{T}, convolution_func=fft_convolution) where {T}
@@ -456,11 +457,11 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
         ### loop over rotations
         for iq in 1:size(q_array, 1)
             q = q_array[iq, :]
-            model = MDToolbox.rotate(model, q)
+            model_rotated = MDToolbox.rotate(model, q)
             ### loop over afmize parameters
             for iparam in 1:length(param_array)
                 param = param_array[iparam]
-                calculated = afmize(model, param)
+                calculated = afmize(model_rotated, param)
                 logprob = calcLogProb(observed, calculated)
                 posterior_all[(icount+1):(icount+npix), imodel] .= logprob[:]
                 icount += npix
@@ -468,7 +469,7 @@ function getafmposterior(afm::Matrix{Float64}, model_array::TrjArray, q_array::M
                 if best_posterior < maximum_logprob
                     best_posterior = maximum_logprob
                     imax_model = imodel
-                    best_model = model
+                    best_model = model_rotated
                     imax_q = iq
                     best_param = param
                     x_center = ceil(Int64, (size(observed,1)/2)+1.0)
@@ -534,6 +535,101 @@ function getafmposterior_gpu(afm::AbstractMatrix{T}, model_array::TrjArray{T, U}
     end
 
     return imax_model, imax_q, best_param, best_translate, best_afm, best_posterior
+end
+
+
+function logprob_eachmodel(model::TrjArray, afm_array, q_array::Matrix{Float64}, param_array)
+    nq = size(q_array, 1)
+    nparam = length(param_array)
+    nafm = length(afm_array)
+    npix = size(afm_array[1], 1) * size(afm_array[1], 2)
+    logprob_array = zeros(eltype(afm_array[1]), nafm, nq, nparam)
+    dxdy_array = Array{Tuple{Int,Int}}(undef, nafm, nq, nparam)
+    dxdy = Array{Tuple{Int,Int}}(undef, nafm)
+    x_center = ceil(Int64, (size(afm_array[1],2)/2)+1.0)
+    y_center = ceil(Int64, (size(afm_array[2],1)/2)+1.0)
+
+    decenter!(model)    
+    ### loop over rotations
+    Threads.@threads for iq in 1:nq
+        q = q_array[iq, :]
+        model_rotated = MDToolbox.rotate(model, q)
+        ### loop over afmize parameters
+        for iparam in 1:nparam
+            param = param_array[iparam]
+            calculated = afmize(model_rotated, param)
+            for iafm in 1:nafm
+                observed = afm_array[iafm]
+                logprob = calcLogProb(observed, calculated)
+                logprob_array[iafm, iq, iparam] = logsumexp(logprob)
+                dx = argmax(logprob)[2] - x_center
+                dy = argmax(logprob)[1] - y_center
+                dxdy_array[iafm, iq, iparam] = (dx, dy)
+            end
+        end
+    end
+
+    for iafm in 1:nafm
+        ind = argmax(logprob_array[iafm, :, :])
+        dxdy[iafm] = dxdy_array[iafm, :, :][ind]
+    end
+
+    return (logprob_array=logprob_array, dxdy=dxdy)
+end
+
+
+function getposterior_parallel(models::TrjArray, afm_array, q_array::Matrix{Float64}, param_array)
+    nmodel = models.nframe
+    nafm = length(afm_array)
+    nq = size(q_array, 1)
+    nparam = length(param_array)
+
+    p = @showprogress pmap(x -> logprob_eachmodel(x, afm_array, q_array, param_array), models)
+
+    logprob_all = []
+    logprob_model = []
+    logprob_q = []
+    logprob_param = []
+    dxdy_best = []
+    for iafm = 1:nafm
+        pp = zeros(Float64, nmodel, nq, nparam)
+        for imodel = 1:nmodel
+            for iq = 1:nq
+                for iparam = 1:nparam
+                    pp[imodel, iq, iparam] = p[imodel].logprob_array[iafm, iq, iparam]
+                end
+            end
+        end
+
+        push!(logprob_all, pp)
+
+        t = zeros(Float64, nmodel)
+        for imodel = 1:nmodel
+            t[imodel] = logsumexp(pp[imodel, :, :][:])
+        end
+        push!(logprob_model, t)
+
+        imax = argmax(t)
+        push!(dxdy_best, p[imax].dxdy[iafm])
+
+        t = zeros(Float64, nq)
+        for iq = 1:nq
+            t[iq] = logsumexp(pp[:, iq, :][:])
+        end
+        push!(logprob_q, t)
+
+        t = zeros(Float64, nparam)
+        for iparam = 1:nparam
+            t[iparam] = logsumexp(pp[:, :, iparam][:])
+        end
+        push!(logprob_param, t)
+    end
+
+    return (all=logprob_all, 
+            model=logprob_model, 
+            q=logprob_q, 
+            param=logprob_param,
+            dxdy=dxdy_best)
 end
 
 

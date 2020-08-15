@@ -6,12 +6,14 @@ using NLsolve
 using FFTW
 using Bio3DView
 using CUDA
+using ProgressMeter
 
 # satndard library
 using Printf
 using Statistics
 using LinearAlgebra
 using Dates
+using Distributed
 using Base.Threads
 
 # package code goes here
@@ -28,7 +30,7 @@ export wham, wham_iteration
 export mbar
 export msmgenerate, msmforward, msmbackward, msmbaumwelch, msmviterbi
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
-export afmize, AfmizeConfig, translateafm, getafmposterior, getafmposteriors_alpha
+export afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
 export Asd, readasd
 export get_residues, viewstruc, gpu, gpu32, cpu, cpu64, logsumexp
 
