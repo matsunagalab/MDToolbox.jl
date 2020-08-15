@@ -16,7 +16,7 @@ params = [AfmizeConfig(10.0 * (pi / 180),
 # p = MDToolbox.logprob_eachmodel(models[1], afms, qs, params)
 
 # all models with parallel map
-r = getposterior_parallel(models, afms, qs, params)
+@time r = getposterior_parallel(models, afms, qs, params)
 
 @save "afm_analyze_test_data_parallel.bson" params r
 
