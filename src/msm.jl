@@ -10,14 +10,10 @@ end
 
 """
 msmgenerate(nframe, T, pi_i) -> states
-
 generate a discrete-state trajectory from given transition matrix, and equilibrium probabilities of states.
-
 Examples
 ≡≡≡≡≡≡≡≡≡≡
-
 julia> T, pi_i = msmtransitionmatrix(C)
-
 julia> states = msmgenerate(1000, T, pi_i)
 """
 function msmgenerate(nframe::Int, T, pi_i)
@@ -32,14 +28,10 @@ end
 
 """
 msmgenerate(nframe, T, pi_i, emission) -> states, observations
-
 generate a discrete-state trajectory and observations from given transition matrix, equilibrium probabilities of states, and emissions.
-
 Examples
 ≡≡≡≡≡≡≡≡≡≡
-
 julia> T, pi_i = msmtransitionmatrix(C)
-
 julia> states, observations = msmgenerate(1000, T, pi_i, emission)
 """
 function msmgenerate(nframe::Int, T, pi_i, emission)
@@ -183,14 +175,10 @@ end
 
 """
 msmviterbi(T, pi_i, emission, observation) -> states
-
 estimate most probable hidden state sequence from observation
-
 Examples
 ≡≡≡≡≡≡≡≡≡≡
-
 julia> states, observations = msmgenerate(1000, T, pi_i, emission)
-
 julia> states_estimated = msmviterbi(T, pi_i, emission, observation)
 """
 function msmviterbi(observation, T, pi_i, emission)
@@ -252,6 +240,173 @@ function msmviterbi_original(observation, T, pi_i, emission)
     # decoding
     for t = (nframe-1):-1:1
         state_estimated[t] = I[state_estimated[t+1], t+1]
+    end
+
+    return state_estimated
+end
+
+mutable struct Edge
+    to::Int64
+    value::Float64
+end
+
+function msmgenerate_edge(nframe, state_num, E, pi_i, emission)
+    states = zeros(typeof(nframe), nframe)
+    observations = zeros(typeof(nframe), nframe)
+
+    states[1] = msmsample(pi_i)
+    observations[1] = msmsample(emission[states[1], :])
+    for iframe = 2:nframe
+        tmp = []
+        for edge in E[states[iframe - 1]]
+            push!(tmp, edge.value)
+        end
+        states[iframe] = E[states[iframe - 1]][msmsample(tmp)].to
+        observations[iframe] = msmsample(emission[states[iframe], :])
+    end
+    return states, observations
+end
+
+function msmforward_edge(data_list, state_num, E, pi_i, emission)
+    alpha_list = []
+    alpha_sum_list = []
+    for data in data_list
+        alpha_sum = []
+        data_size = size(data, 1)
+        alpha = zeros(Float64, (data_size, state_num))
+        alpha[1, :] = pi_i .* emission[:, data[1]]
+        push!(alpha_sum, sum(alpha[1, :]))
+        alpha[1, :] ./= alpha_sum[1]
+        
+        for frame in 2:data_size
+            for state in 1:state_num
+                for edge in E[state]
+                    to = edge.to
+                    trans_prob = edge.value
+                    alpha[frame, to] += alpha[frame - 1, state] * trans_prob * emission[to, data[frame]]
+                end
+            end
+            push!(alpha_sum, sum(alpha[frame, :]))
+            alpha[frame, :] ./= alpha_sum[frame]
+        end
+        push!(alpha_list, alpha)
+        push!(alpha_sum_list, alpha_sum)
+    end
+    
+    return alpha_list, alpha_sum_list
+end
+
+function msmbackward_edge(data_list, state_num, E, pi_i, emission, alpha_sum_list)
+    beta_list = []
+    data_num = length(data_list)
+    for (data, data_id) in zip(data_list, 1:data_num)
+        data_size = size(data, 1)
+        beta = zeros(Float64, (data_size, state_num))
+        # 全ての状態が最終状態となることを仮定
+        beta[data_size, :] .= 1
+        
+        for frame in (data_size - 1):-1:1
+            for state in 1:state_num
+                for edge in E[state]
+                    to = edge.to
+                    trans_prob = edge.value
+                    beta[frame, state] += beta[frame + 1, to] * trans_prob * emission[to, data[frame + 1]]
+                end
+            end
+            beta[frame, :] ./= alpha_sum_list[data_id][frame + 1]
+        end
+        
+        push!(beta_list, beta)
+    end
+    
+    return beta_list
+end
+
+function msmbaumwelch_edge(data_list, state_num, E, pi_i, emission)
+    ## setup
+    tolerance = 10.0^(-4)
+    check_convergence = Inf64
+    count_iteration = 0
+    data_num = length(data_list)
+    obs_num = length(emission[1, :])
+    while check_convergence > tolerance
+        alpha_list, alpha_sum_list = msmforward_edge(data_list, state_num, E, pi_i, emission)
+        beta_list = msmbackward_edge(data_list, state_num, E, pi_i, emission, alpha_sum_list)
+        
+        E_nxt = deepcopy(E)
+        pi_nxt = deepcopy(pi_i)
+        emission_nxt = deepcopy(emission)
+        
+        diff_sum = 0
+        for state in 1:state_num
+            state_sum = 0
+            for edge_id in 1:size(E_nxt[state], 1)
+                to = E_nxt[state][edge_id].to
+                E_nxt[state][edge_id].value = 0
+                for (data, data_id) in zip(data_list, 1:data_num)
+                    data_size = size(data, 1)
+                    for frame in 1:(data_size - 1)
+                        E_nxt[state][edge_id].value += (alpha_list[data_id][frame, state]
+                                                    * E[state][edge_id].value
+                                                    * emission[to, data[frame + 1]]
+                                                    * beta_list[data_id][frame + 1, to]
+                                                    / alpha_sum_list[data_id][frame + 1])
+                    end
+                end
+                
+                state_sum += E_nxt[state][edge_id].value
+            end
+            
+            for edge_id in 1:size(E_nxt[state], 1)
+                # println("$(state) $(edge_id) $(E_nxt[state][edge_id].value) $(state_sum)")
+                E_nxt[state][edge_id].value /= state_sum
+                # println("$(state) $(edge_id) $(E_nxt[state][edge_id].value) $(state_sum)")
+                diff_sum += abs(E[state][edge_id].value - E_nxt[state][edge_id].value)
+            end
+            
+        end
+        
+        E = E_nxt
+        pi_i = pi_nxt
+        emission = emission_nxt
+        check_convergence = diff_sum
+        count_iteration += 1
+        
+        if count_iteration % 20 == 0
+            println("count: ", count_iteration, " diff_sum: ", diff_sum)
+        end
+    end
+    
+    return E, pi_i, emission
+end
+
+function msmviterbi_edge(observation, state_num, E, pi_i, emission)
+    # initialization
+    frame_num = size(observation, 1)
+    prob = zeros(eltype(observation), frame_num, state_num)
+    fill!(prob, -1e8)
+    prob[1, :] .= log.(pi_i) .+ log.(emission[:, observation[1]])
+    from = zeros(Int64, frame_num, state_num)
+
+    for frame in 1:(frame_num - 1)
+        for state in 1:state_num
+            for edge in E[state]
+                tmp = prob[frame, state] + log(edge.value) + log(emission[edge.to, observation[frame + 1]])
+                if prob[frame + 1, edge.to] < tmp
+                    prob[frame + 1, edge.to] = tmp
+                    from[frame + 1, edge.to] = state
+                end
+            end
+        end
+    end
+
+    # termination
+    state_estimated = zeros(Int64, frame_num)
+    state_estimated[frame_num] = argmax(prob[frame_num, :])
+
+    # decoding
+    for frame = (frame_num - 1):-1:1
+        state_estimated[frame] = from[frame + 1, state_estimated[frame + 1]]
     end
 
     return state_estimated
