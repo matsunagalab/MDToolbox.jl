@@ -245,6 +245,8 @@ function msmviterbi_original(observation, T, pi_i, emission)
     return state_estimated
 end
 
+####################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################
+
 mutable struct Edge
     to::Int64
     value::Float64
@@ -383,7 +385,7 @@ end
 function msmviterbi_edge(observation, state_num, E, pi_i, emission)
     # initialization
     frame_num = size(observation, 1)
-    prob = zeros(eltype(observation), frame_num, state_num)
+    prob = zeros(Float64, frame_num, state_num)
     fill!(prob, -1e8)
     prob[1, :] .= log.(pi_i) .+ log.(emission[:, observation[1]])
     from = zeros(Int64, frame_num, state_num)
