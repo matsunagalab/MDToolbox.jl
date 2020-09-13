@@ -577,6 +577,22 @@ function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index::Matri
     return d
 end
 
+function compute_distancevec(ta::TrjArray{T, U})::Matrix{T} where {T, U}
+    natom = ta.natom
+    nframe = ta.nframe
+    index_all = zeros(U, U(natom*(natom-1)/2), 2)
+    count = 1
+    for i = 1:natom
+        for j = (i+1):natom
+            index_all[count, 1] = i
+            index_all[count, 2] = j
+            count += 1
+        end
+    end
+    d = compute_distance(ta, index_all)
+    return d
+end
+
 ############################################################################
 """
 compute_angle
@@ -596,7 +612,6 @@ function compute_angle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T
     end
     a = (a ./ pi) .* T(180)
 end
-
 
 ############################################################################
 """
@@ -624,7 +639,33 @@ function compute_dihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArra
             a[iframe] = -a[iframe]
         end
     end
-    a = (a ./ pi) .* T(180)
+    a .= (a ./ pi) .* T(180)
+end
+
+function compute_dihedral(ta::TrjArray{T, U}, array_index) where {T, U}
+    nframe = ta.nframe
+    ntorsion = length(array_index)
+    a = zeros(T, nframe, ntorsion)
+    for itorsion = 1:ntorsion
+        id = array_index[itorsion]
+        for iframe in 1:nframe
+            d1 = [ta.x[iframe, id[1]] - ta.x[iframe, id[2]]; ta.y[iframe, id[1]] - ta.y[iframe, id[2]]; ta.z[iframe, id[1]] - ta.z[iframe, id[2]]]
+            d2 = [ta.x[iframe, id[3]] - ta.x[iframe, id[2]]; ta.y[iframe, id[3]] - ta.y[iframe, id[2]]; ta.z[iframe, id[3]] - ta.z[iframe, id[2]]]
+            d3 = [ta.x[iframe, id[3]] - ta.x[iframe, id[4]]; ta.y[iframe, id[3]] - ta.y[iframe, id[4]]; ta.z[iframe, id[3]] - ta.z[iframe, id[4]]]
+            m1 = cross(d1, d2)
+            m2 = cross(d2, d3)
+            a[iframe, itorsion] = acos(dot(m1, m2)/(norm(m1)*norm(m2)))
+            rotdirection = dot(d2,cross(m1,m2))
+            if rotdirection < zero(T)
+                a[iframe, itorsion] = -a[iframe, itorsion]
+            end
+        end
+    end
+    a .= (a ./ pi) .* T(180)
+end
+
+function compute_phi(ta::TrjArray{T, U}) where {T, U}
+    return 0
 end
 
 ############################################################################
