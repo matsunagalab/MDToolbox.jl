@@ -569,11 +569,13 @@ function outputResults(posteriorResults, fileName)
                 print(out, "$(result.each_param_id[i])")
             end
             println(out, "")
-            for i in 1:model_size
-                if i != 1 print(out, " ") end
-                print(out, "$(result.posterior_results[i])")
+            for i in 1:size(result.posterior_results, 1)
+                for j in 1:size(result.posterior_results, 2)
+                    if j != 1 print(out, " ") end
+                    print(out, "$(result.posterior_results[i, j])")
+                end
+                println(out, "")
             end
-            println(out, "")
             println(out, "$(result.best_translate[1]) $(result.best_translate[2])")
             println(out, "$(result.best_posterior)")
             println(out, "$(result.best_model_id)")
@@ -623,6 +625,42 @@ function inputResults(fileName)
     return ret
 end
 
+function inputResults_v2(fileName, quate_num)
+    ret = []
+    open(fileName, "r") do io
+        N, model_size = map(x->parse(Int,x),split(readline(io)))
+        for result in 1:N
+            each_quate_id = map(x->parse(Int,x),split(readline(io)))
+            each_param_id = map(x->parse(Int,x),split(readline(io)))
+            posterior_results = zeros(model_size, quate_num)
+            for model_id in 1:model_size
+                posterior_results[model_id, :] = map(x->parse(Float64,x),split(readline(io)))
+            end
+            best_translate = Tuple(map(x->parse(Int,x),split(readline(io))))
+            best_posterior = parse(Float64, readline(io))
+            best_model_id = parse(Int, readline(io))
+            best_quate_id = parse(Int, readline(io))
+            best_param_id = parse(Int, readline(io))
+            frame_h, frame_w = map(x->parse(Int,x),split(readline(io)))
+            frame = zeros(Float64, frame_h, frame_w)
+            for h in 1:frame_h
+                frame[h, :] = map(x->parse(Float64,x),split(readline(io)))
+            end
+            push!(ret, posteriorResult(each_quate_id,
+                                        each_param_id,
+                                        posterior_results,
+                                        best_translate,
+                                        best_posterior,
+                                        best_model_id,
+                                        best_quate_id,
+                                        best_param_id,
+                                        frame))
+        end
+    end
+    return ret
+end
+
+
 function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::Matrix{Float64}, param_array, opt = "")
     frame_num = size(afm_frames)[1]
     model_num = size(model_array)[1]
@@ -639,8 +677,8 @@ function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::
     results = []
     tmpData = []
     for i in 1:frame_num
-        # 各モデルについて、一つの角度と半径ごとのlogprobの最高値を保持しておく
-        posteriors = zeros(model_num, quate_num * param_num)
+        # 各モデルについて、角度ごとのlogprobの最高値を保持しておく
+        posteriors = ones(model_num, quate_num) .* -Inf
         # 各モデルについて、最も良い値をだした時のafm画像
         each_quate_id = zeros(Int, model_num)
         each_param_id = zeros(Int, model_num)
@@ -651,7 +689,8 @@ function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::
         best_quate_id = 1
         best_param_id = 1
         best_afm = zeros(size(afm_frames[1]))
-        posterior_results = zeros(model_num)
+        # posterior_results = zeros(model_num)
+        posterior_results = zeros(model_num, quate_num)
         push!(results, posteriorResult( each_quate_id,
                                         each_param_id,
                                         posterior_results,
@@ -675,7 +714,7 @@ function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::
                     prob_mat = calcLogProb(afm_frames[frame_id], cal_frame, convolution_func)
                     max_prob = maximum(prob_mat)
                     id = (quate_id - 1) * param_num + param_id
-                    tmpData[frame_id].posteriors[model_id, id] = max_prob
+                    tmpData[frame_id].posteriors[model_id, quate_id] = max(tmpData[frame_id].posteriors[model_id, quate_id], max_prob)
 
                     if tmpData[frame_id].each_best[model_id] < max_prob
                         tmpData[frame_id].each_best[model_id] = max_prob
@@ -699,7 +738,8 @@ function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::
     for frame_id in 1:frame_num
         tmpData[frame_id].posteriors .-= maximum(tmpData[frame_id].posteriors)
         tmpData[frame_id].posteriors = exp.(tmpData[frame_id].posteriors)
-        results[frame_id].posterior_results = sum(tmpData[frame_id].posteriors, dims = 2)
+        # results[frame_id].posterior_results = sum(tmpData[frame_id].posteriors, dims = 2)
+        results[frame_id].posterior_results = tmpData[frame_id].posteriors
         results[frame_id].posterior_results ./= sum(results[frame_id].posterior_results)
     end
 

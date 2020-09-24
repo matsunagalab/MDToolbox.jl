@@ -391,7 +391,7 @@ function msmviterbi_edge(observation, state_num, E, pi_i, emission)
     from = zeros(Int64, frame_num, state_num)
 
     for frame in 1:(frame_num - 1)
-        for state in 1:state_num
+        Threads.@threads for state in 1:state_num
             for edge in E[state]
                 tmp = prob[frame, state] + log(edge.value) + log(emission[edge.to, observation[frame + 1]])
                 if prob[frame + 1, edge.to] < tmp
