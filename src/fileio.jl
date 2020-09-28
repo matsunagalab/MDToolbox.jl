@@ -1,7 +1,7 @@
 """
 load xplor or charmm (namd) format dcd file
 """
-function readdcd(filename::String; index=nothing, stride=1)
+function readdcd(filename::String; index=nothing, stride=1, isbox=true)
     #TODO: endian
     header_ischarmm_4dims = false
     header_ischarmm_extrablock = false
@@ -185,7 +185,7 @@ function readdcd(filename::String; index=nothing, stride=1)
         end
     end
 
-    if isempty(boxsize)
+    if isempty(boxsize) | !isbox
         TrjArray{Float64, Int64}(x=x, y=y, z=z)
     else
         TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
@@ -786,6 +786,12 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             Printf.@printf(io, "%2s", "  "); #element
             Printf.@printf(io, "%2s", "  "); #charge
             Printf.@printf(io, "\n")
+
+            if !isempty(ta.chainname)
+                if (iatom < ta.natom) && (ta.chainname[iatom] != ta.chainname[iatom+1])
+                    Printf.@printf(io, "TER\n");
+                end
+            end
         end
         if nframe > 1
             Printf.@printf(io, "TER\n");
