@@ -34,16 +34,60 @@ function defaultParameters()
     "HE" => 1.40,
      "B" => 1.92,
      "C" => 1.70,
+     "CA" => 1.70,
+     "CB" => 1.70,
+     "CG" => 1.70,
+     "CG1" => 1.70,
+     "CG2" => 1.70,
+     "CG3" => 1.70,
+     "CD" => 1.70,
+     "CD1" => 1.70,
+     "CD2" => 1.70,
+     "CD3" => 1.70,
+     "CZ" => 1.70,
+     "CZ1" => 1.70,
+     "CZ2" => 1.70,
+     "CZ3" => 1.70,
+     "CD" => 1.70,
+     "CD1" => 1.70,
+     "CD2" => 1.70,
+     "CD3" => 1.70,
+     "CE" => 1.70,
+     "CE1" => 1.70,
+     "CE2" => 1.70,
+     "CE3" => 1.70,
+     "CH" => 1.70,
+     "CH1" => 1.70,
+     "CH2" => 1.70,
+     "CH3" => 1.70,
      "N" => 1.55,
-     "O" => 1.52,
+     "NE" => 1.55,
+     "NZ" => 1.55,
+     "ND1" => 1.55,
+     "ND2" => 1.55,
+     "NE1" => 1.55,
+     "NE2" => 1.55,
+     "NH1" => 1.55,
+     "NH2" => 1.55,
+      "O" => 1.52,
+     "OH" => 1.52,
+     "OG" => 1.52,
+     "OE1" => 1.52,
+     "OE2" => 1.52,
+     "OG1" => 1.52,
+     "OG2" => 1.52,
+     "OD1" => 1.52,
+     "OD2" => 1.52,
+     "OXT" => 1.52,
      "F" => 1.47,
-    "NE" => 1.54,
-    "NA" => 2.27,
+    #"NE" => 1.54,
     "MG" => 1.73,
     "AL" => 1.84,
     "SI" => 2.10,
      "P" => 1.80,
      "S" => 1.80,
+     "SD" => 1.80,
+     "SG" => 1.80,
     "CL" => 1.75,
     "AR" => 1.88,
      "K" => 2.75,
@@ -371,7 +415,7 @@ function translateafm(afm, (dx, dy))
     (ny, nx) = size(afm)
     for i in maximum([1, 1-dx]):minimum([nx, nx-dx])
         for j in maximum([1, 1-dy]):minimum([ny, ny-dy])
-            afm_translated[i+dy, j+dx] = afm[i, j]
+            afm_translated[j+dy, i+dx] = afm[j, i]
         end
     end
     afm_translated
@@ -552,6 +596,7 @@ function logprob_eachmodel(model::TrjArray, afm_array, q_array::Matrix{Float64},
     decenter!(model)    
     ### loop over rotations
     Threads.@threads for iq in 1:nq
+        @show iq
         q = q_array[iq, :]
         model_rotated = MDToolbox.rotate(model, q)
         ### loop over afmize parameters

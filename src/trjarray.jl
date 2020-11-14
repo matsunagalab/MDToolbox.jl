@@ -20,6 +20,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
     atomname::AbstractArray{String}
     atomid::AbstractArray{U}
     mass::AbstractArray{T}
+    radius::AbstractArray{T}
     charge::AbstractArray{T}
     list_bond::AbstractArray{U}
     list_angle::AbstractArray{U}
@@ -29,7 +30,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
     natom::Int64
     nframe::Int64
 
-    function TrjArray{T, U}(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+    function TrjArray{T, U}(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, 
                       list_bond, list_angle, list_dihedral, list_improper, list_cmap) where {T, U}
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
@@ -52,7 +53,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
         # check size and define natom
         natom = 0
         mat_collection = [x, y, z]
-        vec_collection = [chainname, chainid, resname, resid, atomname, atomid, mass, charge]
+        vec_collection = [chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge]
         if !isempty(x)
             natom = size(x, 2)
         else
@@ -75,8 +76,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
         end
         natom = Int64(natom)
 
-        # return new(x2, y2, z2, boxsize2, chainname2, chainid2, resname2, resid2, atomname2, atomid2, mass2, charge2, natom, nframe)
-        return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+        return new(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, 
                    list_bond, list_angle, list_dihedral, list_improper, list_cmap, natom, nframe)
     end
 end
@@ -87,40 +87,50 @@ function TrjArray{T, U}(;x = Matrix{T}(undef, 0, 0), y = Matrix{T}(undef, 0, 0),
                   chainname = Vector{String}(undef, 0), chainid = Vector{U}(undef, 0),
                   resname = Vector{String}(undef, 0), resid = Vector{U}(undef, 0),
                   atomname = Vector{String}(undef, 0), atomid = Vector{U}(undef, 0),
-                  mass = Vector{T}(undef, 0), charge = Vector{T}(undef, 0),
+                  mass = Vector{T}(undef, 0), radius = Vector{T}(undef, 0), charge = Vector{T}(undef, 0),
                   list_bond = Matrix{U}(undef, 0, 0), list_angle = Matrix{U}(undef, 0, 0),
                   list_dihedral = Matrix{U}(undef, 0, 0), list_improper = Matrix{U}(undef, 0, 0),
                   list_cmap = Matrix{U}(undef, 0, 0)) where {T, U}
-    # if typeof(x) <: AbstractVector
-    #     x2 = reshape(x, length(x), 1)
-    # else
-    #     x2 = x
-    # end
-    # if typeof(y) <: AbstractVector
-    #     y2 = reshape(y, length(y), 1)
-    # else
-    #     y2 = y
-    # end
-    # if typeof(z) <: AbstractVector
-    #     z2 = reshape(z, length(z), 1)
-    # else
-    #     z2 = z
-    # end
-    # TrjArray(x2, y2, z2, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge)
-    TrjArray{T, U}(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, charge,
+    TrjArray{T, U}(x, y, z, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge,
              list_bond, list_angle, list_dihedral, list_improper, list_cmap)
 end
 
-function TrjArray()
-    TrjArray{Float64, Int64}()
-end
+TrjArray(ta::TrjArray{T, U}; x = Matrix{T}(undef, 0, 0), y = Matrix{T}(undef, 0, 0), z = Matrix{T}(undef, 0, 0),
+    boxsize = Matrix{T}(undef, 0, 0),
+    chainname = Vector{String}(undef, 0), chainid = Vector{U}(undef, 0),
+    resname = Vector{String}(undef, 0), resid = Vector{U}(undef, 0),
+    atomname = Vector{String}(undef, 0), atomid = Vector{U}(undef, 0),
+    mass = Vector{T}(undef, 0), radius = Vector{T}(undef, 0), charge = Vector{T}(undef, 0),
+    list_bond = Matrix{U}(undef, 0, 0), list_angle = Matrix{U}(undef, 0, 0),
+    list_dihedral = Matrix{U}(undef, 0, 0), list_improper = Matrix{U}(undef, 0, 0),
+    list_cmap = Matrix{U}(undef, 0, 0)) where {T, U} = TrjArray{T, U}(
+        x = isempty(x) ? ta.x : x,
+        y = isempty(y) ? ta.y : y,
+        z = isempty(z) ? ta.z : z,
+        boxsize = isempty(boxsize) ? ta.boxsize : boxsize,
+        chainname = isempty(chainname) ? ta.chainname : chainname,
+        chainid = isempty(chainid) ? ta.chainid : chainid,
+        resname = isempty(resname) ? ta.resname : resname,
+        resid = isempty(resid) ? ta.resid : resid,
+        atomname = isempty(atomname) ? ta.atomname : atomname,
+        atomid = isempty(atomid) ? ta.atomid : atomid,
+        mass = isempty(mass) ? ta.mass : mass, 
+        radius = isempty(radius) ? ta.radius : radius, 
+        charge = isempty(charge) ? ta.charge : charge,
+        list_bond = isempty(list_bond) ? ta.list_bond : list_bond, 
+        list_angle = isempty(list_angle) ? ta.list_angle : list_angle, 
+        list_dihedral = isempty(list_dihedral) ? ta.list_dihedral : list_dihedral, 
+        list_improper = isempty(list_improper) ? ta.list_improper : list_improper, 
+        list_cmap = isempty(list_cmap) ? ta.list_cmap : list_cmap)
+
+TrjArray() = TrjArray{Float64, Int64}()
 
 TrjArray(x::AbstractArray{T}, y::AbstractArray{T}, z::AbstractArray{T}, boxsize::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
        TrjArray{T, U}(x = x, y = y, z = z, boxsize = boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
-                      mass = ta.mass, charge = ta.charge,
+                      mass = ta.mass, radius = ta.radius, charge = ta.charge,
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
                       list_cmap = ta.list_cmap)
@@ -130,7 +140,7 @@ TrjArray(x::AbstractArray{T}, y::AbstractArray{T}, z::AbstractArray{T}, ta::TrjA
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
-                      mass = ta.mass, charge = ta.charge,
+                      mass = ta.mass, radius = ta.radius, charge = ta.charge,
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
                       list_cmap = ta.list_cmap)
@@ -150,11 +160,11 @@ getindex(ta::TrjArray, ::Colon, ::Colon) = ta
 # single row
 function getindex(ta::TrjArray{T, U}, n::Int) where {T, U}
     if iszero(n)
-        return TrjArray(Array{T, 2}(undef, 0, 0), Array{T, 2}(undef, 0, 0), Array{T, 2}(undef, 0, 0), Array{T, 2}(undef, 0, 0), ta)
+        return TrjArray(ta, x = Array{T, 2}(undef, 0, 0), y = Array{T, 2}(undef, 0, 0), z = Array{T, 2}(undef, 0, 0), boxsize = Array{T, 2}(undef, 0, 0)) ## TODO need to fix here
     elseif !isempty(ta.boxsize)
-        return TrjArray(ta.x[n:n, :], ta.y[n:n, :], ta.z[n:n, :], ta.boxsize[n:n, :], ta)
+        return TrjArray(ta, x = ta.x[n:n, :], y = ta.y[n:n, :], z = ta.z[n:n, :], boxsize = ta.boxsize[n:n, :])
     else
-        return TrjArray(ta.x[n:n, :], ta.y[n:n, :], ta.z[n:n, :], ta)
+        return TrjArray(ta, x = ta.x[n:n, :], y = ta.y[n:n, :], z = ta.z[n:n, :])
     end
 end
 getindex(ta::TrjArray{T, U}, n::Int, ::Colon) where {T, U} = getindex(ta, n)
@@ -162,9 +172,9 @@ getindex(ta::TrjArray{T, U}, n::Int, ::Colon) where {T, U} = getindex(ta, n)
 # range of rows
 function getindex(ta::TrjArray{T, U}, r::UnitRange{Int}) where {T, U}
     if !isempty(ta.boxsize)
-        TrjArray(ta.x[r, :], ta.y[r, :], ta.z[r, :], ta.boxsize[r, :], ta)
+        TrjArray(ta, x = ta.x[r, :], y = ta.y[r, :], z = ta.z[r, :], boxsize = ta.boxsize[r, :])
     else
-        TrjArray(ta.x[r, :], ta.y[r, :], ta.z[r, :], ta)
+        TrjArray(ta, x = ta.x[r, :], y = ta.y[r, :], z = ta.z[r, :])
     end
 end
 getindex(ta::TrjArray{T, U}, r::UnitRange{Int}, ::Colon) where {T, U} = getindex(ta, r)
@@ -172,9 +182,9 @@ getindex(ta::TrjArray{T, U}, r::UnitRange{Int}, ::Colon) where {T, U} = getindex
 # array of rows (integer)
 function getindex(ta::TrjArray{T, U}, a::AbstractVector{S}) where {T, U, S <: Integer}
     if !isempty(ta.boxsize)
-        TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta.boxsize[a, :], ta)
+        TrjArray(ta, x = ta.x[a, :], y = ta.y[a, :], z = ta.z[a, :], boxsize = ta.boxsize[a, :])
     else
-        TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
+        TrjArray(ta, x = ta.x[a, :], y = ta.y[a, :], z = ta.z[a, :])
     end
 end
 getindex(ta::TrjArray{T, U}, a::AbstractVector{S}, ::Colon) where {T, U, S <: Integer} = getindex(ta, a)
@@ -184,9 +194,9 @@ getindex(ta::TrjArray{T, U}, a::AbstractVector{S}, ::Colon) where {T, U, S <: In
 #getindex(ta::TrjArray, a::AbstractVector{S}, ::Colon) where {S <: Bool} = getindex(ta, a)
 function getindex(ta::TrjArray{T, U}, a::AbstractVector{Bool}) where {T, U}
     if !isempty(ta.boxsize)
-        TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta.boxsize[a, :], ta)
+        TrjArray(ta, x = ta.x[a, :], y = ta.y[a, :], z = ta.z[a, :], boxsize = ta.boxsize[a, :])
     else
-        TrjArray(ta.x[a, :], ta.y[a, :], ta.z[a, :], ta)
+        TrjArray(ta, x = ta.x[a, :], y = ta.y[a, :], z = ta.z[a, :])
     end
 end
 getindex(ta::TrjArray{T, U}, a::AbstractVector{Bool}, ::Colon) where {T, U} = getindex(ta, a)
@@ -235,7 +245,8 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::Int) where {T, U} = TrjArray{T, U}(
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r],
              #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
              atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:1),
-             mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r],
+             mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r], 
+             radius = isempty(ta.radius) ? ta.radius : ta.radius[r:r], 
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r:r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r:r),
@@ -257,6 +268,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::UnitRange{Int}) where {T, U} = TrjArray
              #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
+             radius = isempty(ta.radius) ? ta.radius : ta.radius[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
@@ -278,6 +290,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{S}) where {T, U, S <: In
              #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
+             radius = isempty(ta.radius) ? ta.radius : ta.radius[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
@@ -299,6 +312,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
              #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:sum(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
+             radius = isempty(ta.radius) ? ta.radius : ta.radius[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
@@ -310,7 +324,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
 getindex(ta::TrjArray{T, U}, rows, cols) where {T, U} = ta[rows, :][:, cols]
 
 # end index
-lastindex(ta::TrjArray, dim::Int = 1) = (dim == 1) ? ta.nframe : (dim == 2) ? ta.natom : 1
+lastindex(ta::TrjArray, dims::Int = 1) = (dims == 1) ? ta.nframe : (dims == 2) ? ta.natom : 1
 
 ###### atom selection #################
 function unfold(A)
@@ -499,7 +513,7 @@ copy(ta::TrjArray)::TrjArray =
              ta.chainname, ta.chainid,
              ta.resname, ta.resid,
              ta.atomname, ta.atomid,
-             ta.mass, ta.charge,
+             ta.mass, ta.radius, ta.charge,
              ta.list_bond, ta.list_angle, ta.list_dihedral, ta.list_improper, ta.list_cmap)
 
 ###### accessors to field values #################
@@ -543,7 +557,7 @@ function vcat(ta_collection::TrjArray...)
             end
         end
     end
-    TrjArray(x, y, z, boxsize, ta_collection[1])
+    TrjArray(ta_collection[1], x = x, y = y, z = z, boxsize = boxsize)
 end
 
 ###### end keyword #################

@@ -12,6 +12,7 @@ using ProgressMeter
 using Printf
 using Statistics
 using LinearAlgebra
+#using SparseArrays
 using Dates
 using Distributed
 using Base.Threads
@@ -50,6 +51,7 @@ include("msm.jl")
 include("sparse.jl")
 include("afm.jl")
 include("asd.jl")
+include("docking.jl")
 include("utils.jl")
 
 end # module

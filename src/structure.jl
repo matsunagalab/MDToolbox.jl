@@ -42,7 +42,7 @@ remove center of mass
 function decenter(ta::TrjArray{T, U};
     isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
-    TrjArray(ta.x .- com.x, ta.y .- com.y, ta.z .- com.z, ta), com
+    TrjArray(ta, x = ta.x .- com.x, y = ta.y .- com.y, z = ta.z .- com.z), com
 end
 
 """
@@ -296,7 +296,7 @@ function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} w
     x .= rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
     y .= rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
     z .= rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
-    return TrjArray(x, y, z, ta)
+    return TrjArray(ta, x=x, y=y, z=z)
 end
 
 function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
@@ -316,7 +316,7 @@ function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{
     x .= rot[:, 1:1] .* ta_single.x[1:1, :] .+ rot[:, 2:2] .* ta_single.y[1:1, :] .+ rot[:, 3:3] .* ta_single.z[1:1, :]
     y .= rot[:, 4:4] .* ta_single.x[1:1, :] .+ rot[:, 5:5] .* ta_single.y[1:1, :] .+ rot[:, 6:6] .* ta_single.z[1:1, :]
     z .= rot[:, 7:7] .* ta_single.x[1:1, :] .+ rot[:, 8:8] .* ta_single.y[1:1, :] .+ rot[:, 9:9] .* ta_single.z[1:1, :]
-    return TrjArray(x, y, z, ta_single)
+    return TrjArray(ta_single, x=x, y=y, z=z)
 end
 
 function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
@@ -393,7 +393,7 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
         y = y .+ com.y
         z = z .+ com.z
     end
-    ta_fit = TrjArray(x, y, z, ta)
+    ta_fit = TrjArray(ta, x=x, y=y, z=z)
     #rmsd, ta_fit
 end
 
@@ -446,7 +446,7 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
         y = y .+ com.y
         z = z .+ com.z
     end
-    ta_fit = TrjArray(x, y, z, ta)
+    ta_fit = TrjArray(ta, x=x, y=y, z=z)
     #rmsd, ta_fit
 end
 
@@ -551,7 +551,7 @@ compute_distance
 
 distance between two atoms or groups of atoms
 """
-function compute_distance(ta::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where {T, U}
+function compute_distance(ta::TrjArray{T, U}, index=[1 2]::Matrix{U})::Matrix{T} where {T, U}
     dx = view(ta.x, :, index[:, 1]) .- view(ta.x, :, index[:, 2])
     dy = view(ta.y, :, index[:, 1]) .- view(ta.y, :, index[:, 2])
     dz = view(ta.z, :, index[:, 1]) .- view(ta.z, :, index[:, 2])
@@ -564,7 +564,7 @@ function compute_distance(ta::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where
     return d
 end
 
-function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index::Matrix{U})::Matrix{T} where {T, U}
+function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index=[1 1]::Matrix{U})::Matrix{T} where {T, U}
     dx = view(ta1.x, :, index[:, 1]) .- view(ta2.x, :, index[:, 2])
     dy = view(ta1.y, :, index[:, 1]) .- view(ta2.y, :, index[:, 2])
     dz = view(ta1.z, :, index[:, 1]) .- view(ta2.z, :, index[:, 2])
@@ -829,7 +829,7 @@ function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVect
     pair[logical_index, :], sqrt.(dist[logical_index])
 end
 
-function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Matrix{U}, Vector{T}} where {T, U}
+function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     # TODO: PBC support
     natom = ta.natom
     rcut2 = rcut^2
@@ -946,7 +946,7 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)::Tuple{Mat
             end
         end
     end
-    pair[1:count, :], dist[1:count]
+    return (pair=pair[1:count, :], dist=dist[1:count])
 end
 
 ############################################################################
@@ -960,9 +960,10 @@ function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)
     boxsize = zeros(T, 3)
     if is_pbc
         boxsize .= ta.boxsize[iframe, :]
-        pairwise_distance(x, y, z, index, rcut2, boxsize)
+        pair, dist = pairwise_distance(x, y, z, index, rcut2, boxsize)
     else
-        pairwise_distance(x, y, z, index, rcut2)
+        pair, dist = pairwise_distance(x, y, z, index, rcut2)
     end
+    return (pair=pair, dist=dist)
 end
 
