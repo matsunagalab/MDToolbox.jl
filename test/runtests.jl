@@ -115,7 +115,7 @@ end
         x = A[:, 1]
         y = A[:, 2]
         z = A[:, 3]
-        ref = TrjArray{Float64, Int64}(x=x', y=y', z=z', mass=1:7)
+        ref = TrjArray{Float64, Int64}(x=x', y=y', z=z', mass=collect(1:7))
         A = [-14.739  -18.673   15.040;
              -12.473  -15.810   16.074;
              -14.802  -13.307   14.408;
@@ -126,11 +126,11 @@ end
         x = A[:, 1]
         y = A[:, 2]
         z = A[:, 3]
-        ta = TrjArray{Float64, Int64}(x=x', y=y', z=z', mass=1:7)
+        ta = TrjArray{Float64, Int64}(x=x', y=y', z=z', mass=collect(1:7))
         # r, ta_fit = superimpose(ref, ta, isweight=true)
         ta_fit = superimpose(ref, ta, isweight=true)
         #@test r[1] ≈ 0.7450161471
-        r2 = getrmsd(ref, ta_fit)
+        r2 = compute_rmsd(ref, ta_fit)
         #@test r2[1] ≈ r[1]
         @test r2[1] ≈ 0.7450161471
     end
@@ -140,7 +140,7 @@ end
         y = [0.0 0.0]
         z = [0.0 0.0]
         ta = TrjArray{Float64, Int64}(x=x, y=y, z=z)
-        d = getdistance(ta[:, 1], ta[:, 2])
+        d = compute_distance(ta[:, 1], ta[:, 2])
         @test d ≈ [1.0]
     end
 
@@ -149,7 +149,7 @@ end
         y = [0.0 0.0 1.0]
         z = [0.0 0.0 0.0]
         ta = TrjArray{Float64, Int64}(x=x, y=y, z=z)
-        a = getangle(ta[:, 1], ta[:, 2], ta[:, 3])
+        a = compute_angle(ta[:, 1], ta[:, 2], ta[:, 3])
         @test a ≈ [90.0]
     end
 
@@ -158,7 +158,7 @@ end
         y = [-1.0  0.0 0.0 1.0]
         z = [ 0.0  0.0 0.0 0.0]
         ta = TrjArray{Float64, Int64}(x=x, y=y, z=z)
-        a = getdihedral(ta[:, 1], ta[:, 2], ta[:, 3], ta[:, 4])
+        a = compute_dihedral(ta[:, 1], ta[:, 2], ta[:, 3], ta[:, 4])
         @test a ≈ [180.0]
     end
 end
