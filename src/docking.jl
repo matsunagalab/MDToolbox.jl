@@ -99,6 +99,7 @@ end
 function assign_shape_complementarity!(thread_id, grid_space, rcut1, rcut2, 
     x, y, z, x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
 
+    rcut = rcut1 > rcut2 ? rcut1 : rcut2
     dx = x - x_grid[1]
     ix_min = floor(Int, (dx - rcut)/grid_space) + 1
     ix_min = ix_min >= 1 ? ix_min : 1
@@ -122,7 +123,7 @@ function assign_shape_complementarity!(thread_id, grid_space, rcut1, rcut2,
             for iz = iz_min:iz_max
                 dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
                 if dist < rcut1
-                    grid_private[ix, iy, iz, thread_id] = 9.0 im
+                    grid_private[ix, iy, iz, thread_id] = 9.0im
                 elseif dist < rcut2
                     grid_private[ix, iy, iz, thread_id] = 1.0
                 end
@@ -149,52 +150,58 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     y_grid = collect((y_min - grid_space):grid_space:(y_max + grid_space))
     z_grid = collect((z_min - grid_space):grid_space:(z_max + grid_space))
 
-    nx = length(x_grid)
-    ny = length(y_grid)
-    nz = length(z_grid)
-    ngrid = nx*ny*nz
-    grid = zeros(T, nx, ny, nz)
+    nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
 
-    x_gpoints = zeros(T, ngrid, 1)
-    y_gpoints = zeros(T, ngrid, 1)
-    z_gpoints = zeros(T, ngrid, 1)
-    for iz = 1:nz, iy = 1:ny, ix = 1:nx
-        ipoint = ix + (iy-1)*nx + (iz-1)*nx*ny
-        x_gpoints[ipoint] = x_grid[ix]
-        y_gpoints[ipoint] = y_grid[iy]
-        z_gpoints[ipoint] = z_grid[iz]
-    end
+    sasa_receptor = receptor2.mass
+    sasa_ligand = ligand2.mass
 
-    x_receptor = zeros(T, 1, receptor2.natom)
-    x_receptor[1, :] .= receptor2.x[iframe, :]
-
-    y_receptor = zeros(T, 1, receptor2.natom)
-    y_receptor[1, :] .= receptor2.y[iframe, :]
-
-    z_receptor = zeros(T, 1, receptor2.natom)
-    z_receptor[1, :] .= receptor2.z[iframe, :]
-
-    radius_receptor = zeros(T, 1, receptor2.natom)
-    radius_receptor[1, :] .= receptor2.radius
-
-    sasa_receptor = zeros(T, 1, receptor2.natom)
-    sasa_receptor[1, :] .= receptor2.mass
-
-    # spape complementarity
-    d = zeros(T, ngrid, receptor2.natom)
-    d .= (x_gpoints .- x_receptor).^2 .+ (y_gpoints .- y_receptor).^2 .+ (z_gpoints .- z_receptor).^2
-
+    # spape complementarity of receptor
     iatom_surface = sasa_receptor .> 1.0
     iatom_core = .!iatom_surface
+    rcut1 = zeros(T, receptor2.natom)
+    rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
+    rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
+    rcut2 = zeros(T, receptor2.natom)
+    rcut2[iatom_core] .= 0.0
+    rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
     
-    grid_RSC = zeros(complex(T), nx, ny, nz)
-    id = iatom_core .& (d .< (radius_receptor .* sqrt(1.5) ))
-    #grid_RSC[ ] .= 1.0
+    nthread = Threads.nthreads()
+    grid_private = zeros(complex(T), nx, ny, nz, nthread)
+    Threads.@threads for iatom = 1:receptor2.natom
+        tid = Threads.threadid()
+        assign_shape_complementarity!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
+                                      receptor2.x[iframe, iatom], receptor2.y[iframe, iatom], receptor2.z[iframe, iatom], 
+                                      x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
+    end
+    grid_RSC = dropdims(sum(grid_private, dims=4), dims=4)
 
+    # spape complementarity of ligand
+    iatom_surface = sasa_ligand .> 1.0
+    iatom_core = .!iatom_surface
+    rcut1 = zeros(T, ligand2.natom)
+    rcut1[iatom_core] .= ligand2.radius[iatom_core] * sqrt(1.5)
+    rcut1[iatom_surface] .= 0.0
+    rcut2 = zeros(T, ligand2.natom)
+    rcut2[iatom_core] .= 0.0
+    rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
 
-    # generate grid coordinates for ligand with quaternions
+    grid_LSC = zeros(complex(T), nx, ny, nz)
+    score = zeros(T, nx, ny, nz, size(quaternions, 1))
+    for iq in 1:size(quaternions, 1)
+        ligand2_rotated = rotate(ligand2, quaternions[iq, :])
+        grid_private .= 0.0
+        Threads.@threads for iatom = 1:ligand2.natom
+            tid = Threads.threadid()
+            assign_shape_complementarity!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
+                                          ligand2_rotated.x[iframe, iatom], ligand2_rotated.y[iframe, iatom], ligand2_rotated.z[iframe, iatom], 
+                                          x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
+        end
+        grid_LSC .= dropdims(sum(grid_private, dims=4), dims=4)    
+        #@show iq sum(grid_LSC)
 
-        # convolution
-    
-    return id
+        t = ifft(ifft(grid_RSC) .* fft(grid_LSC))
+        score[:, :, :, iq] .= real(t) .- imag(t)
+    end
+
+    return score
 end
