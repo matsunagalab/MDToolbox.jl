@@ -456,7 +456,7 @@ function ksdensity(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64};
 end
 
 """
-computer_pmf
+compute_pmf
 
 Potential of mean force estimator by a kernel density estimator
 """

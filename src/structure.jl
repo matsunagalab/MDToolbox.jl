@@ -39,8 +39,7 @@ decenter
 
 remove center of mass
 """
-function decenter(ta::TrjArray{T, U};
-    isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
+function decenter(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
     TrjArray(ta, x = ta.x .- com.x, y = ta.y .- com.y, z = ta.z .- com.z), com
 end
@@ -50,8 +49,7 @@ decenter!
 
 remove center of mass
 """
-function decenter!(ta::TrjArray{T, U};
-    isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0)) where {T, U}
+function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0)) where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
     ta.x .= ta.x .- com.x
     ta.y .= ta.y .- com.y
@@ -889,7 +887,7 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, 
     mask_index = findall(mask)
 
     # calculate cell mask pointer
-    K = round(U, (natom/M) * 10)
+    K = round(U, (natom/M) * 20) ######### TODO, 20 is really OK?
     cell_pointer = zeros(U, M)
     cell_atom = zeros(U, K, M)
     for iatom = 1:natom
