@@ -193,33 +193,44 @@ julia> states, observations = msmgenerate(1000, T, pi_i, emission)
 
 julia> states_estimated = msmviterbi(T, pi_i, emission, observation)
 """
-function msmviterbi(observation, T, pi_i, emission)
+
+function msmviterbi(observation, T, pi_i, emission, candidate = 1)
     nframe = size(observation, 1)
     nstate = size(T, 1)
-    P = zeros(eltype(T), nstate, nframe)
-    I = zeros(eltype(T), nstate, nframe)
-    state_estimated = zeros(eltype(observation), nframe)
+    P = ones(eltype(T), nframe, nstate, candidate) * -Inf
+    I = ones(Int64, nframe, nstate, candidate, 2) .* -1
+    state_estimated = zeros(eltype(observation), nframe, candidate)
 
     # initialization
-    P[:, 1] .= log.(pi_i) .+ log.(emission[:, observation[1]])
-    I[:, 1] .= zeros(eltype(T), nstate)
+    P[1, :, 1] .= log.(pi_i) .+ log.(emission[:, observation[1]])
 
     # argmax forward
     Z = zeros(eltype(T), nstate, nstate)
-    for t = 2:nframe
-        Z .= P[:, t-1] .+ log.(T)
-        I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
-        P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
+    for t = 1:(nframe-1)
+        for s_from = 1:nstate
+            for c_from = 1:candidate
+                for s_to = 1:nstate
+                    tmp_p = P[t, s_from, c_from] + log(T[s_from, s_to]) + log(emission[s_to, observation[t+1]])
+                    tmp_i = [s_from, c_from]
+                    for c_to = 1:candidate
+                        if P[t+1, s_to, c_to] < tmp_p
+                            P[t+1, s_to, c_to], tmp_p = tmp_p,  P[t+1, s_to, c_to]
+                            I[t+1, s_to, c_to, :], tmp_i = tmp_i,  I[t+1, s_to, c_to, :]
+                        end
+                    end
+                end
+            end
+        end
     end
-
-    # termination
-    P_star = maximum(P[:, nframe])
-    state_estimated[nframe] = argmax(P[:, nframe])
-    #@show P
-
-    # decoding
-    for t = (nframe-1):-1:1
-        state_estimated[t] = I[state_estimated[t+1], t+1]
+    
+    for e = 1:candidate
+        i = argmax(P[nframe, :, :])
+        state_estimated[nframe, e] = i[1]
+        P[nframe, i[1], i[2]] = -Inf
+        for t = (nframe-1):-1:1
+            i = I[t+1, i[1], i[2], :]
+            state_estimated[t, e] = i[1]
+        end
     end
 
     return state_estimated
