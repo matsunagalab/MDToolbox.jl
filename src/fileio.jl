@@ -772,7 +772,11 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             Printf.@printf(io, "%8.3f", ta.y[iframe, iatom])
             Printf.@printf(io, "%8.3f", ta.z[iframe, iatom])
             Printf.@printf(io, "%6.2f", 0.0)
-            Printf.@printf(io, "%6.2f", ta.charge[iatom])
+            if isempty(ta.charge)
+                Printf.@printf(io, "%6s", "      ")
+            else
+                Printf.@printf(io, "%6.2f", ta.charge[iatom])
+            end
             Printf.@printf(io, "%1s", " ")
             Printf.@printf(io, "%1s", " ")
             Printf.@printf(io, "%1s", " ")
