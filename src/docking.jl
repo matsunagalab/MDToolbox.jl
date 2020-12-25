@@ -45,7 +45,7 @@ function set_radius(ta::TrjArray{T, U}) where {T, U}
     return TrjArray(ta, radius=radius)
 end
 
-function compute_sasa(ta::TrjArray{T, U}, probe_radius=8.0::T; npoint=960::Int, iframe=1::Int) where {T, U}
+function compute_sasa(ta::TrjArray{T, U}, probe_radius=8.0::T; npoint=960::Int, iframe=1::Int, candicate = 10) where {T, U}
     # construct neighbor rist
     max_radius = 2.0 * maximum(ta.radius) + 2.0 * probe_radius ############# TODO
     pairlist = compute_pairlist(ta[iframe, :], max_radius)
@@ -172,34 +172,23 @@ function assign_desolvation_free_energy!(thread_id, grid_space, rcut1, rcut2,
     for ix = ix_min:ix_max
         for iy = iy_min:iy_max
             for iz = iz_min:iz_max
-                if grid_private[ix, iy, iz, thread_id] != 9.0im
-                    if     grid_private[ix-1, iy+1, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy+1, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy+1, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy-1, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy-1, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix-1, iy-1, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy+1, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy+1, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy+1, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy-1, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy-1, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix, iy-1, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy+1, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy+1, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy+1, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy-1, iz+1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy-1, iz, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    elseif grid_private[ix+1, iy-1, iz-1, thread_id] == 9.0im  grid_private[ix, iy, iz, thread_id] += 1
-                    @show ix iy iz
+                if grid_private[ix, iy, iz, thread_id] == 9.0im continue end
+                
+                for dx in -1:1
+                    for dy in -1:1
+                        for dz in -1:1
+                            if dx == 0 && dy == 0 && dz == 0 continue end
+                            now_x = ix + dx
+                            now_y = iy + dy
+                            now_z = iz + dz
+                            if now_x < 1 || now_y < 1 || now_z < 1 continue end
+                            if now_x > size(grid_private, 1) || now_y > size(grid_private, 2) || now_z > size(grid_private, 3) continue end
+                            
+                            if grid_private[now_x, now_y, now_z, thread_id] == 9.0im
+                                # println("in $(now_x) $(now_y) $(now_z)")
+                                grid_private[ix, iy, iz, thread_id] += 1
+                            end
+                        end
                     end
                 end
             end
@@ -208,7 +197,7 @@ function assign_desolvation_free_energy!(thread_id, grid_space, rcut1, rcut2,
 
 end
 
-function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1) where {T, U}
+function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
     # generate grid coordinates for receptor
     receptor2, = decenter(receptor)
     ligand2, = decenter(ligand)
@@ -272,7 +261,6 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
         rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
     end
 
-
     grid_LSC = zeros(complex(T), nx, ny, nz)
     score = zeros(T, nx, ny, nz, size(quaternions, 1))
     for iq in 1:size(quaternions, 1)
@@ -286,10 +274,9 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
                                           x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
         end
         grid_LSC .= dropdims(sum(grid_private, dims=4), dims=4)    
-        @show iq sum(grid_LSC)
+        #@show iq sum(grid_LSC)
 
-        t = ifft(ifft(grid_RSC) .* fft(grid_LSC))
-        @show maximum(real(t))
+        t = ifftshift(ifft(fft(grid_RSC) .* conj.(fft(grid_LSC))))
         score[:, :, :, iq] .= real(t) .- imag(t)
     end
 
@@ -336,7 +323,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
 
 
     grid_LDS = zeros(complex(T), nx, ny, nz)
-    #score = zeros(T, nx, ny, nz, size(quaternions, 1))
+    score = zeros(T, nx, ny, nz, size(quaternions, 1))
     for iq in 1:size(quaternions, 1)
         ligand2_rotated = rotate(ligand2, quaternions[iq, :])
         grid_private .= 0.0
@@ -348,12 +335,32 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
                                           x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
         end
         grid_LDS .= dropdims(sum(grid_private, dims=4), dims=4)    
-        #@show iq sum(grid_LSC)
+        #@show iq sum(grid_LDS)
 
-        t = ifft(ifft(grid_RDS) .* fft(grid_LDS))
-        score[:, :, :, iq] .= score[:, :, :, iq] .+ (imag(t)/2)
+        t = ifftshift(ifft(fft(grid_RDS) .* conj.(fft(grid_LDS))))
+        score[:, :, :, iq] .= score[:, :, :, iq] .+ (imag(t) ./ 2)
     end
+    
+    score_tops = zeros(T, tops)
+    trans_tops = zeros(Int64, tops, 3)
+    quate_tops = zeros(Float64, tops, 4)
+    x_center = ceil(Int64, (nx/2)+1.0)
+    y_center = ceil(Int64, (ny/2)+1.0)
+    z_center = ceil(Int64, (nz/2)+1.0)
+     
+    for t in 1:tops
+        id = argmax(score)
+        dx_estimated = id[1] - x_center
+        dy_estimated = id[2] - y_center  
+        dz_estimated = id[3] - z_center 
+        
+        score_tops[t] = score[id]
+        trans_tops[t, :] = [dx_estimated, dy_estimated, dz_estimated]
+        quate_tops[t, :] = quaternions[id[4], :]
+        
+        score[id] = -Inf
+    end
+        
 
-    return score
-    #return receptor2, ligands, scores
+    return (receptor = receptor2, ligand = ligand2, score = score_tops, trans = trans_tops, quate = quate_tops)
 end
