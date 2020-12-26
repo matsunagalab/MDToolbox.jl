@@ -97,7 +97,7 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=8.0::T; npoint=960::Int, 
 end
 
 function assign_shape_complementarity!(thread_id, grid_space, rcut1, rcut2, 
-    x, y, z, x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
+    x, y, z, x_grid, y_grid, z_grid, nx, ny, nz, grid_private, real_score, imag_score)
 
     rcut = rcut1 > rcut2 ? rcut1 : rcut2
     dx = x - x_grid[1]
@@ -123,56 +123,48 @@ function assign_shape_complementarity!(thread_id, grid_space, rcut1, rcut2,
             for iz = iz_min:iz_max
                 dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
                 if dist < rcut1
-                    grid_private[ix, iy, iz, thread_id] = 9.0im
-                elseif dist < rcut2
-                    grid_private[ix, iy, iz, thread_id] = 1.0
+                    grid_private[ix, iy, iz, thread_id] = imag_score
+                elseif grid_private[ix, iy, iz, thread_id] != imag_score && dist < rcut2
+                    grid_private[ix, iy, iz, thread_id] = real_score
                 end
             end
         end
     end
 end
 
-function assign_desolvation_free_energy!(thread_id, grid_space, rcut1, rcut2, 
-    x, y, z, x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
-
-    rcut = rcut1 > rcut2 ? rcut1 : rcut2
-    dx = x - x_grid[1]
-    ix_min = floor(Int, (dx - rcut)/grid_space) + 1
-    ix_min = ix_min >= 1 ? ix_min : 1
-    ix_max = floor(Int, (dx + rcut)/grid_space) + 2
-    ix_max = ix_max <= nx ? ix_max : nx
-
-    dy = y - y_grid[1]
-    iy_min = floor(Int, (dy - rcut)/grid_space) + 1
-    iy_min = iy_min >= 1 ? iy_min : 1
-    iy_max = floor(Int, (dy + rcut)/grid_space) + 2
-    iy_max = iy_max <= ny ? iy_max : ny
-
-    dz = z - z_grid[1]
-    iz_min = floor(Int, (dz - rcut)/grid_space) + 1
-    iz_min = iz_min >= 1 ? iz_min : 1
-    iz_max = floor(Int, (dz + rcut)/grid_space) + 2
-    iz_max = iz_max <= nz ? iz_max : nz
-
-    for ix = ix_min:ix_max
-        for iy = iy_min:iy_max
-            for iz = iz_min:iz_max
-                dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
-                if dist < rcut1
-                    grid_private[ix, iy, iz, thread_id] = 9.0im
-                elseif dist < rcut2
-                    grid_private[ix, iy, iz, thread_id] = 1.0
+function make_grid(model::TrjArray{T, U}, rcut1, rcut2, nx, ny, nz, x_grid, y_grid, z_grid, grid_space, iframe) where {T, U}
+    nthread = Threads.nthreads()
+    real_score = 1.0
+    imag_score = 9.0im
+    grid_private = zeros(complex(T), nx, ny, nz, nthread)
+    Threads.@threads for iatom = 1:model.natom
+        tid = Threads.threadid()
+        assign_shape_complementarity!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
+                                      model.x[iframe, iatom], model.y[iframe, iatom], model.z[iframe, iatom], 
+                                      x_grid, y_grid, z_grid, nx, ny, nz, grid_private, real_score, imag_score)
+    end
+    grid_SC = zeros(complex(T), nx, ny, nz)
+    for ix in 1:nx
+        for iy in 1:ny
+            for iz in 1:nz
+                value = 0.0
+                for thr in 1:nthread
+                    if grid_private[ix, iy, iz, thr] == imag_score
+                        value = imag_score
+                    elseif value != imag_score && grid_private[ix, iy, iz, thr] == real_score
+                        value = real_score
+                    end
                 end
+                grid_SC[ix, iy, iz] = value
             end
         end
     end
-
-
-    # buffer
-    for ix = ix_min:ix_max
-        for iy = iy_min:iy_max
-            for iz = iz_min:iz_max
-                if grid_private[ix, iy, iz, thread_id] == 9.0im continue end
+    
+    grid_DS = deepcopy(grid_SC)
+    for ix in 1:nx
+        for iy in 1:ny
+            for iz in 1:nz
+                if grid_DS[ix, iy, iz] == imag_score continue end
                 
                 for dx in -1:1
                     for dy in -1:1
@@ -182,11 +174,10 @@ function assign_desolvation_free_energy!(thread_id, grid_space, rcut1, rcut2,
                             now_y = iy + dy
                             now_z = iz + dz
                             if now_x < 1 || now_y < 1 || now_z < 1 continue end
-                            if now_x > size(grid_private, 1) || now_y > size(grid_private, 2) || now_z > size(grid_private, 3) continue end
+                            if now_x > size(grid_DS, 1) || now_y > size(grid_DS, 2) || now_z > size(grid_DS, 3) continue end
                             
-                            if grid_private[now_x, now_y, now_z, thread_id] == 9.0im
-                                # println("in $(now_x) $(now_y) $(now_z)")
-                                grid_private[ix, iy, iz, thread_id] += 1
+                            if grid_DS[now_x, now_y, now_z] == imag_score
+                                grid_DS[ix, iy, iz] += real_score
                             end
                         end
                     end
@@ -194,7 +185,8 @@ function assign_desolvation_free_energy!(thread_id, grid_space, rcut1, rcut2,
             end
         end
     end
-
+    
+    return grid_SC, grid_DS
 end
 
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
@@ -216,6 +208,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     z_grid = collect((z_min - grid_space):grid_space:(z_max + grid_space))
 
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
+    @show nx, ny, nz
 
     sasa_receptor = receptor2.mass
     sasa_ligand = ligand2.mass
@@ -226,118 +219,34 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut1 = zeros(T, receptor2.natom)
     rcut2 = zeros(T, receptor2.natom)
     
-    if size(iatom_core, 1) > 0
-        rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
-        rcut2[iatom_core] .= 0.0
-    end
-    if size(iatom_surface, 1) > 0
-        rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
-        rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
-    end
+    rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
+    rcut2[iatom_core] .= 0.0
+    rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
+    rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
 
-    
-    nthread = Threads.nthreads()
-    grid_private = zeros(complex(T), nx, ny, nz, nthread)
-    Threads.@threads for iatom = 1:receptor2.natom
-        tid = Threads.threadid()
-        assign_shape_complementarity!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
-                                      receptor2.x[iframe, iatom], receptor2.y[iframe, iatom], receptor2.z[iframe, iatom], 
-                                      x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
-    end
-    grid_RSC = dropdims(sum(grid_private, dims=4), dims=4)
+    grid_RSC, grid_RDS = make_grid(receptor2, rcut1, rcut2, nx, ny, nz, x_grid, y_grid, z_grid, grid_space, iframe)
+
 
     # spape complementarity of ligand
     iatom_surface = sasa_ligand .> 1.0
     iatom_core = .!iatom_surface
     rcut1 = zeros(T, ligand2.natom)
     rcut2 = zeros(T, ligand2.natom)
+        
+    rcut1[iatom_core] .= ligand2.radius[iatom_core] * sqrt(1.5)
+    rcut2[iatom_core] .= 0.0
+    rcut1[iatom_surface] .= 0.0
+    rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
     
-    if size(iatom_core, 1) > 0        
-        rcut1[iatom_core] .= ligand2.radius[iatom_core] * sqrt(1.5)
-        rcut2[iatom_core] .= 0.0
-    end
-    if size(iatom_surface, 1) > 0
-        rcut1[iatom_surface] .= 0.0
-        rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
-    end
-
-    grid_LSC = zeros(complex(T), nx, ny, nz)
     score = zeros(T, nx, ny, nz, size(quaternions, 1))
     for iq in 1:size(quaternions, 1)
         ligand2_rotated = rotate(ligand2, quaternions[iq, :])
-        grid_private .= 0.0
-        Threads.@threads for iatom = 1:ligand2.natom
-            tid = Threads.threadid()
-            assign_shape_complementarity!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
-                                          ligand2_rotated.x[iframe, iatom], ligand2_rotated.y[iframe, iatom], 
-                                          ligand2_rotated.z[iframe, iatom], 
-                                          x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
-        end
-        grid_LSC .= dropdims(sum(grid_private, dims=4), dims=4)    
-        #@show iq sum(grid_LSC)
+        grid_LSC, grid_LDS = make_grid(ligand2_rotated, rcut1, rcut2, nx, ny, nz, x_grid, y_grid, z_grid, grid_space, iframe)
 
-        t = ifftshift(ifft(fft(grid_RSC) .* conj.(fft(grid_LSC))))
-        score[:, :, :, iq] .= real(t) .- imag(t)
-    end
-
-    # desolvation_free_energy of receptor
-    iatom_surface = sasa_receptor .> 1.0
-    iatom_core    = .!iatom_surface
-    rcut1                 = zeros(T, receptor2.natom)
-    rcut2                 = zeros(T, receptor2.natom)
-    if size(iatom_core, 1) > 0
-        rcut1[iatom_core]    .= receptor2.radius[iatom_core] * sqrt(1.5)
-        rcut2[iatom_core]    .= 0.0
-    end
-    if size(iatom_surface, 1) > 0
-        rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
-        rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
-    end
-
-
-    nthread = Threads.nthreads()
-    grid_private = zeros(complex(T), nx, ny, nz, nthread)
-    Threads.@threads for iatom = 1:receptor2.natom
-        tid = Threads.threadid()
-        assign_desolvation_free_energy!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
-                                      receptor2.x[iframe, iatom], receptor2.y[iframe, iatom], receptor2.z[iframe, iatom], 
-                                      x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
-    end
-    grid_RDS = dropdims(sum(grid_private, dims=4), dims=4) 
-
-    # desolvation_free_energy of ligand
-    iatom_surface = sasa_ligand .> 1.0
-    iatom_core = .!iatom_surface
-    rcut1 = zeros(T, ligand2.natom)
-    rcut2 = zeros(T, ligand2.natom)
-    
-    if size(iatom_core, 1) > 0
-        rcut1[iatom_core] .= ligand2.radius[iatom_core] * sqrt(1.5)
-        rcut2[iatom_core] .= 0.0
-    end
-
-    if size(iatom_surface, 1) > 0
-        rcut1[iatom_surface] .= 0.0
-        rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
-    end
-
-
-    grid_LDS = zeros(complex(T), nx, ny, nz)
-    score = zeros(T, nx, ny, nz, size(quaternions, 1))
-    for iq in 1:size(quaternions, 1)
-        ligand2_rotated = rotate(ligand2, quaternions[iq, :])
-        grid_private .= 0.0
-        Threads.@threads for iatom = 1:ligand2.natom
-            tid = Threads.threadid()
-            assign_desolvation_free_energy!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
-                                          ligand2_rotated.x[iframe, iatom], ligand2_rotated.y[iframe, iatom],
-                                          ligand2_rotated.z[iframe, iatom], 
-                                          x_grid, y_grid, z_grid, nx, ny, nz, grid_private)
-        end
-        grid_LDS .= dropdims(sum(grid_private, dims=4), dims=4)    
-        #@show iq sum(grid_LDS)
-
-        t = ifftshift(ifft(fft(grid_RDS) .* conj.(fft(grid_LDS))))
+        t = ifftshift(ifft(fft(grid_RSC) .* fft(grid_LSC)))
+        score[:, :, :, iq] .+= real(t)
+        continue
+        t = ifftshift(ifft(fft(grid_RDS) .* fft(grid_LDS)))
         score[:, :, :, iq] .= score[:, :, :, iq] .+ (imag(t) ./ 2)
     end
     
