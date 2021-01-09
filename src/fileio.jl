@@ -264,14 +264,6 @@ function readnetcdf(filename::String; index=nothing)
     TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
 end
 
-function writenetcdf2(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
-    scale_factor = 20.455
-    natom = ta.natom
-    nframe = ta.nframe
-
-    isfile(filename) && rm(filename)
-
-end
 
 ############################################################################
 """
@@ -334,6 +326,7 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
         push!(varlist, ncvar_forces)
     end
 
+    isfile(filename) && rm(filename) # TODO fix me
     NetCDF.create(filename, varlist, gatts=gatts, mode=NetCDF.NC_64BIT_OFFSET) do nc
         # write data
         # you can check by ncread("tmp.nc", "spatial")
