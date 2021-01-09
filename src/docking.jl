@@ -45,7 +45,7 @@ function set_radius(ta::TrjArray{T, U}) where {T, U}
     return TrjArray(ta, radius=radius)
 end
 
-function compute_sasa(ta::TrjArray{T, U}, probe_radius=8.0::T; npoint=960::Int, iframe=1::Int, candicate = 10) where {T, U}
+function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, iframe=1::Int, candicate = 10) where {T, U}
     # construct neighbor rist
     max_radius = 2.0 * maximum(ta.radius) + 2.0 * probe_radius ############# TODO
     pairlist = compute_pairlist(ta[iframe, :], max_radius)
@@ -96,119 +96,115 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=8.0::T; npoint=960::Int, 
     return sasa
 end
 
-function assign_shape_complementarity!(thread_id, grid_space, rcut1, rcut2, 
-    x, y, z, x_grid, y_grid, z_grid, nx, ny, nz, grid_private, real_score, imag_score)
+function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space, 
+                                       rcut1, rcut2, x_grid, y_grid, z_grid, iframe) where {T,U}
+    grid .= 0.0
+    nx, ny, nz = size(grid)
 
-    rcut = rcut1 > rcut2 ? rcut1 : rcut2
-    dx = x - x_grid[1]
-    ix_min = floor(Int, (dx - rcut)/grid_space) + 1
-    ix_min = ix_min >= 1 ? ix_min : 1
-    ix_max = floor(Int, (dx + rcut)/grid_space) + 2
-    ix_max = ix_max <= nx ? ix_max : nx
+    for iatom = 1:ta.natom
+        x = ta.x[iframe, iatom]
+        y = ta.y[iframe, iatom]
+        z = ta.z[iframe, iatom]
 
-    dy = y - y_grid[1]
-    iy_min = floor(Int, (dy - rcut)/grid_space) + 1
-    iy_min = iy_min >= 1 ? iy_min : 1
-    iy_max = floor(Int, (dy + rcut)/grid_space) + 2
-    iy_max = iy_max <= ny ? iy_max : ny
+        rcut = rcut1[iatom]
 
-    dz = z - z_grid[1]
-    iz_min = floor(Int, (dz - rcut)/grid_space) + 1
-    iz_min = iz_min >= 1 ? iz_min : 1
-    iz_max = floor(Int, (dz + rcut)/grid_space) + 2
-    iz_max = iz_max <= nz ? iz_max : nz
+        dx = x - x_grid[1]
+        ix_min = floor(U, (dx - rcut)/grid_space) + 1
+        ix_min = ix_min >= 1 ? ix_min : 1
+        ix_max = floor(U, (dx + rcut)/grid_space) + 2
+        ix_max = ix_max <= nx ? ix_max : nx
 
-    for ix = ix_min:ix_max
-        for iy = iy_min:iy_max
-            for iz = iz_min:iz_max
-                dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
-                if dist < rcut1
-                    grid_private[ix, iy, iz, thread_id] = imag_score
-                elseif grid_private[ix, iy, iz, thread_id] != imag_score && dist < rcut2
-                    grid_private[ix, iy, iz, thread_id] = real_score
-                end
-            end
-        end
-    end
-end
+        dy = y - y_grid[1]
+        iy_min = floor(U, (dy - rcut)/grid_space) + 1
+        iy_min = iy_min >= 1 ? iy_min : 1
+        iy_max = floor(U, (dy + rcut)/grid_space) + 2
+        iy_max = iy_max <= ny ? iy_max : ny
 
-function make_grid(model::TrjArray{T, U}, rcut1, rcut2, nx, ny, nz, x_grid, y_grid, z_grid, grid_space, iframe) where {T, U}
-    nthread = Threads.nthreads()
-    real_score = 1.0
-    imag_score = 9.0im
-    grid_private = zeros(complex(T), nx, ny, nz, nthread)
-    Threads.@threads for iatom = 1:model.natom
-        tid = Threads.threadid()
-        assign_shape_complementarity!(tid, grid_space, rcut1[iatom], rcut2[iatom], 
-                                      model.x[iframe, iatom], model.y[iframe, iatom], model.z[iframe, iatom], 
-                                      x_grid, y_grid, z_grid, nx, ny, nz, grid_private, real_score, imag_score)
-    end
-    grid_SC = zeros(complex(T), nx, ny, nz)
-    for ix in 1:nx
-        for iy in 1:ny
-            for iz in 1:nz
-                value = 0.0
-                for thr in 1:nthread
-                    if grid_private[ix, iy, iz, thr] == imag_score
-                        value = imag_score
-                    elseif value != imag_score && grid_private[ix, iy, iz, thr] == real_score
-                        value = real_score
+        dz = z - z_grid[1]
+        iz_min = floor(U, (dz - rcut)/grid_space) + 1
+        iz_min = iz_min >= 1 ? iz_min : 1
+        iz_max = floor(U, (dz + rcut)/grid_space) + 2
+        iz_max = iz_max <= nz ? iz_max : nz
+
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    if imag(grid[ix, iy, iz]) < 0.0001
+                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
+                        if dist < rcut
+                            grid[ix, iy, iz] = 9.0im
+                        end
                     end
                 end
-                grid_SC[ix, iy, iz] = value
             end
         end
-    end
-    
-    grid_DS = deepcopy(grid_SC)
-    for ix in 1:nx
-        for iy in 1:ny
-            for iz in 1:nz
-                if grid_DS[ix, iy, iz] == imag_score continue end
-                
-                for dx in -1:1
-                    for dy in -1:1
-                        for dz in -1:1
-                            if dx == 0 && dy == 0 && dz == 0 continue end
-                            now_x = ix + dx
-                            now_y = iy + dy
-                            now_z = iz + dz
-                            if now_x < 1 || now_y < 1 || now_z < 1 continue end
-                            if now_x > size(grid_DS, 1) || now_y > size(grid_DS, 2) || now_z > size(grid_DS, 3) continue end
-                            
-                            if grid_DS[now_x, now_y, now_z] == imag_score
-                                grid_DS[ix, iy, iz] += real_score
-                            end
+
+        rcut = rcut2[iatom]
+
+        dx = x - x_grid[1]
+        ix_min = floor(U, (dx - rcut)/grid_space) + 1
+        ix_min = ix_min >= 1 ? ix_min : 1
+        ix_max = floor(U, (dx + rcut)/grid_space) + 2
+        ix_max = ix_max <= nx ? ix_max : nx
+
+        dy = y - y_grid[1]
+        iy_min = floor(U, (dy - rcut)/grid_space) + 1
+        iy_min = iy_min >= 1 ? iy_min : 1
+        iy_max = floor(U, (dy + rcut)/grid_space) + 2
+        iy_max = iy_max <= ny ? iy_max : ny
+
+        dz = z - z_grid[1]
+        iz_min = floor(U, (dz - rcut)/grid_space) + 1
+        iz_min = iz_min >= 1 ? iz_min : 1
+        iz_max = floor(U, (dz + rcut)/grid_space) + 2
+        iz_max = iz_max <= nz ? iz_max : nz
+
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    if imag(grid[ix, iy, iz]) < 0.0001
+                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
+                        if dist < rcut
+                            grid[ix, iy, iz] = 1.0
                         end
                     end
                 end
             end
         end
     end
-    
-    return grid_SC, grid_DS
+end
+
+function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+    ligand2_rotated = rotate(ligand2, quaternion)
+    assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+    t = ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC)))
+    score = real(t) .- imag(t)
+    return score
 end
 
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
     # generate grid coordinates for receptor
-    receptor2, = decenter(receptor)
-    ligand2, = decenter(ligand)
+    receptor2, _dummy = decenter(receptor)
+    ligand2, _dummy = decenter(ligand)
 
     x_min, x_max = minimum(ligand2.x), maximum(ligand2.x)
     y_min, y_max = minimum(ligand2.y), maximum(ligand2.y)
     z_min, z_max = minimum(ligand2.z), maximum(ligand2.z)
     size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
 
-    x_min, x_max = minimum(receptor2.x) - size_ligand, maximum(receptor2.x) + size_ligand
-    y_min, y_max = minimum(receptor2.y) - size_ligand, maximum(receptor2.y) + size_ligand
-    z_min, z_max = minimum(receptor2.z) - size_ligand, maximum(receptor2.z) + size_ligand
+    x_min = minimum(receptor2.x) - size_ligand - grid_space
+    y_min = minimum(receptor2.y) - size_ligand - grid_space
+    z_min = minimum(receptor2.z) - size_ligand - grid_space
 
-    x_grid = collect((x_min - grid_space):grid_space:(x_max + grid_space))
-    y_grid = collect((y_min - grid_space):grid_space:(y_max + grid_space))
-    z_grid = collect((z_min - grid_space):grid_space:(z_max + grid_space))
+    x_max = maximum(receptor2.x) + size_ligand + grid_space
+    y_max = maximum(receptor2.y) + size_ligand + grid_space
+    z_max = maximum(receptor2.z) + size_ligand + grid_space
+
+    x_grid = collect(x_min:grid_space:x_max)
+    y_grid = collect(y_min:grid_space:y_max)
+    z_grid = collect(z_min:grid_space:z_max)
 
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
-    @show nx, ny, nz
 
     sasa_receptor = receptor2.mass
     sasa_ligand = ligand2.mass
@@ -224,8 +220,8 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
     rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
 
-    grid_RSC, grid_RDS = make_grid(receptor2, rcut1, rcut2, nx, ny, nz, x_grid, y_grid, z_grid, grid_space, iframe)
-
+    grid_RSC = zeros(complex(T), nx, ny, nz)
+    assign_shape_complementarity!(grid_RSC, receptor2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
 
     # spape complementarity of ligand
     iatom_surface = sasa_ligand .> 1.0
@@ -238,18 +234,28 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut1[iatom_surface] .= 0.0
     rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
     
-    score = zeros(T, nx, ny, nz, size(quaternions, 1))
-    for iq in 1:size(quaternions, 1)
-        ligand2_rotated = rotate(ligand2, quaternions[iq, :])
-        grid_LSC, grid_LDS = make_grid(ligand2_rotated, rcut1, rcut2, nx, ny, nz, x_grid, y_grid, z_grid, grid_space, iframe)
+    grid_LSC = zeros(complex(T), nx, ny, nz)
 
-        t = ifftshift(ifft(fft(grid_RSC) .* fft(grid_LSC)))
-        score[:, :, :, iq] .+= real(t)
-        continue
-        t = ifftshift(ifft(fft(grid_RDS) .* fft(grid_LDS)))
-        score[:, :, :, iq] .= score[:, :, :, iq] .+ (imag(t) ./ 2)
+    # compute score with FFT
+    nq = size(quaternions, 1)
+    score = zeros(T, nx, ny, nz, nq)
+    score .= -Inf
+    #for iq in 1:size(quaternions, 1)
+    #    ligand2_rotated = rotate(ligand2, quaternions[iq, :])
+    #    assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+    # 
+    #    t = ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC)))
+    #    score[:, :, :, iq] .= real(t) .- imag(t)
+    #end
+    #for iq in 1:size(quaternions, 1)
+    #    s = compute_docking_score_with_fft(quaternions[iq, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+    #    score[:, :, :, iq] .= s
+    #end
+    s = @showprogress pmap(x -> compute_docking_score_with_fft(quaternions[x, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe), 1:nq)
+    for iq = 1:nq
+        score[:, :, :, iq] .= s[iq]
     end
-    
+
     score_tops = zeros(T, tops)
     trans_tops = zeros(Int64, tops, 3)
     quate_tops = zeros(Float64, tops, 4)
@@ -269,7 +275,20 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
         
         score[id] = -Inf
     end
-        
 
-    return (receptor = receptor2, ligand = ligand2, score = score_tops, trans = trans_tops, quate = quate_tops)
+    itop = 1
+    ligand_return = MDToolbox.rotate(ligand2, quate_tops[itop, :])
+    ligand_return.x .+= (trans_tops[itop, 1] * grid_space)
+    ligand_return.y .+= (trans_tops[itop, 2] * grid_space)
+    ligand_return.z .+= (trans_tops[itop, 3] * grid_space)
+
+    for itop = 2:tops
+        ligand_tmp = MDToolbox.rotate(ligand2, quate_tops[itop, :])
+        ligand_tmp.x .+= (trans_tops[itop, 1] * grid_space)
+        ligand_tmp.y .+= (trans_tops[itop, 2] * grid_space)
+        ligand_tmp.z .+= (trans_tops[itop, 3] * grid_space)    
+        ligand_return = [ligand_return; ligand_tmp]
+    end
+
+    return (receptor=receptor2, ligand=ligand_return, score=score_tops)
 end
