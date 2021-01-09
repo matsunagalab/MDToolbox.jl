@@ -264,6 +264,14 @@ function readnetcdf(filename::String; index=nothing)
     TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
 end
 
+function writenetcdf2(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
+    scale_factor = 20.455
+    natom = ta.natom
+    nframe = ta.nframe
+
+    isfile(filename) && rm(filename)
+
+end
 
 ############################################################################
 """
@@ -287,6 +295,7 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
     # dimensions
     ncdim_frame = NcDim("frame", nframe, unlimited=true)
     ncdim_atom = NcDim("atom", natom)
+    #ncdim_dimvalue = NcDim("dimvalue", 1)
     ncdim_spatial = NcDim("spatial", 3)
     ncdim_cell_spatial = NcDim("cell_spatial", 3)
     ncdim_cell_angular = NcDim("cell_angular", 3)
@@ -324,57 +333,58 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
     if force != nothing
         push!(varlist, ncvar_forces)
     end
-    nc = NetCDF.create(filename, varlist, gatts=gatts, mode=NetCDF.NC_64BIT_OFFSET)
 
-    # write data
-    # check by ncread("tmp.nc", "spatial")
-    c = zeros(UInt8, 3); copyto!(c, 1, "xyz", 1); #@show c
-    NetCDF.putvar(nc, "spatial", c)
-    NetCDF.putvar(nc, "time", zeros(Float32, nframe))
-    trj = zeros(Float32, 3, natom, nframe)
-    for iframe in 1:nframe
-        for iatom in 1:natom
-            trj[1, iatom, iframe] = ta.x[iframe, iatom]
-            trj[2, iatom, iframe] = ta.y[iframe, iatom]
-            trj[3, iatom, iframe] = ta.z[iframe, iatom]
-        end
-    end
-    NetCDF.putvar(nc, "coordinates", trj)
-
-    if !isempty(ta.boxsize)
-        c = zeros(UInt8, 3); copyto!(c, 1, "abc", 1); #@show c
-        NetCDF.putvar(nc, "cell_spatial", c)
-        c = zeros(UInt8, 5, 3); copyto!(c, 1, "alpha", 1); copyto!(c, 6, "beta ", 1); copyto!(c, 11, "gamma", 1); #@show c
-        NetCDF.putvar(nc, "cell_angular", c)
-        d = zeros(Float32, 3, nframe)
-        d[:, :] .= ta.boxsize'
-        NetCDF.putvar(nc, "cell_lengths", d)
-        d[:, :] .= 90.0
-        NetCDF.putvar(nc, "cell_angles", d)
-    end
-
-    if velocity != nothing
+    NetCDF.create(filename, varlist, gatts=gatts, mode=NetCDF.NC_64BIT_OFFSET) do nc
+        # write data
+        # you can check by ncread("tmp.nc", "spatial")
+        #c = zeros(UInt8, 3); copyto!(c, 1, "xyz", 1); #@show c
+        NetCDF.putvar(nc, "spatial", nc_string2char(["xyz"])[1:3] )
+        NetCDF.putvar(nc, "time", zeros(Float32, nframe))
+        trj = zeros(Float32, 3, natom, nframe)
         for iframe in 1:nframe
             for iatom in 1:natom
-                trj[1, iatom, iframe] = velocity.x[iframe, iatom]/scale_factor
-                trj[2, iatom, iframe] = velocity.y[iframe, iatom]/scale_factor
-                trj[3, iatom, iframe] = velocity.z[iframe, iatom]/scale_factor
+                trj[1, iatom, iframe] = ta.x[iframe, iatom]
+                trj[2, iatom, iframe] = ta.y[iframe, iatom]
+                trj[3, iatom, iframe] = ta.z[iframe, iatom]
             end
         end
-        NetCDF.putvar(nc, "velocities", trj)
-    end
-    if force != nothing
-        for iframe in 1:nframe
-            for iatom in 1:natom
-                trj[1, iatom, iframe] = force.x[iframe, iatom]; #TODO: scale_factor?
-                trj[2, iatom, iframe] = force.y[iframe, iatom]
-                trj[3, iatom, iframe] = force.z[iframe, iatom]
-            end
+        NetCDF.putvar(nc, "coordinates", trj)
+
+        if !isempty(ta.boxsize)
+            #c = zeros(UInt8, 3); copyto!(c, 1, "abc", 1); #@show c
+            NetCDF.putvar(nc, "cell_spatial", nc_string2char(["abc"])[1:3])
+            #c = zeros(UInt8, 5, 3); copyto!(c, 1, "alpha", 1); copyto!(c, 6, "beta ", 1); copyto!(c, 11, "gamma", 1); #@show c
+            NetCDF.putvar(nc, "cell_angular", nc_string2char(["alpha", "beta ", "gamma"])[1:5, :])
+            d = zeros(Float32, 3, nframe)
+            d[:, :] .= ta.boxsize'
+            NetCDF.putvar(nc, "cell_lengths", d)
+            d[:, :] .= 90.0
+            NetCDF.putvar(nc, "cell_angles", d)
         end
-        NetCDF.putvar(nc, "forces", trj)
+
+        if velocity != nothing
+            for iframe in 1:nframe
+                for iatom in 1:natom
+                    trj[1, iatom, iframe] = velocity.x[iframe, iatom]/scale_factor
+                    trj[2, iatom, iframe] = velocity.y[iframe, iatom]/scale_factor
+                    trj[3, iatom, iframe] = velocity.z[iframe, iatom]/scale_factor
+                end
+            end
+            NetCDF.putvar(nc, "velocities", trj)
+        end
+        if force != nothing
+            for iframe in 1:nframe
+                for iatom in 1:natom
+                    trj[1, iatom, iframe] = force.x[iframe, iatom]; #TODO: scale_factor?
+                    trj[2, iatom, iframe] = force.y[iframe, iatom]
+                    trj[3, iatom, iframe] = force.z[iframe, iatom]
+                end
+            end
+            NetCDF.putvar(nc, "forces", trj)
+        end
     end
 
-    NetCDF.close(nc)
+    return nothing
 end
 
 
