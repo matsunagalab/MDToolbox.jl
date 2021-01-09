@@ -201,16 +201,23 @@ function readnetcdf(filename::String; index=nothing)
     #finfo = ncinfo(filename)
     #attributes = finfo.gatts
     #dimensions = finfo.dims
-    nc = NetCDF.open(filename, mode=NetCDF.NC_64BIT_OFFSET);
-    nframe = Int64(nc.dim["frame"].dimlen)
-    natom = Int64(nc.dim["atom"].dimlen)
 
-    is_trj = haskey(nc.vars, "coordinates") ? true : false
-    is_box = haskey(nc.vars, "cell_lengths") ? true : false
-    is_vel = haskey(nc.vars, "velocities") ? true : false
-    is_temp = haskey(nc.vars, "temp0") ? true : false
+    nframe = 0
+    natom = 0
+    is_trj = false
+    is_box = false
+    is_vel = false
+    is_temp = false
 
-    NetCDF.close(nc)
+    NetCDF.open(filename, mode=NetCDF.NC_64BIT_OFFSET) do nc
+        nframe = Int64(nc.dim["frame"].dimlen)
+        natom = Int64(nc.dim["atom"].dimlen)
+
+        is_trj = haskey(nc.vars, "coordinates") ? true : is_trj
+        is_box = haskey(nc.vars, "cell_lengths") ? true : is_box
+        is_vel = haskey(nc.vars, "velocities") ? true : is_vel
+        is_temp = haskey(nc.vars, "temp0") ? true : is_temp
+    end
 
     if typeof(index) <: AbstractVector{Bool}
         index2 = findall(index)
