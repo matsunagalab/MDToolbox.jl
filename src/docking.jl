@@ -177,8 +177,16 @@ end
 function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
     ligand2_rotated = rotate(ligand2, quaternion)
     assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-    t = ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC)))
-    score = real(t) .- imag(t)
+    if CUDA.functional()
+        grid_RSC_gpu = cu(grid_RSC)
+        grid_LSC_gpu = cu(grid_LSC)
+        t_gpu = ifftshift(ifft(ifft(grid_RSC_gpu) .* fft(grid_LSC_gpu)))
+        score_gpu = real(t_gpu) .- imag(t_gpu)
+        score = Array(score_gpu)
+    else
+        t = ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC)))
+        score = real(t) .- imag(t)
+    end
     return score
 end
 
