@@ -261,8 +261,6 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
 
     # compute score with FFT
     nq = size(quaternions, 1)
-    score = zeros(T, nx, ny, nz, nq)
-    score .= -Inf
     #for iq in 1:size(quaternions, 1)
     #    ligand2_rotated = rotate(ligand2, quaternions[iq, :])
     #    assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
