@@ -174,7 +174,7 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
     end
 end
 
-function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, nx, ny, nz, tops, iq)
     ligand2_rotated = rotate(ligand2, quaternion)
     assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
     if CUDA.functional()
@@ -187,7 +187,22 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
         t = ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC)))
         score = real(t) .- imag(t)
     end
-    return score
+    
+    ret = []
+    x_center = ceil(Int64, (nx/2)+1.0)
+    y_center = ceil(Int64, (ny/2)+1.0)
+    z_center = ceil(Int64, (nz/2)+1.0)
+    for t in 1:tops
+        id = argmax(score)
+        dx_estimated = id[1] - x_center
+        dy_estimated = id[2] - y_center  
+        dz_estimated = id[3] - z_center 
+        
+        push!(ret, (score[id], dx_estimated, dy_estimated, dz_estimated, iq))        
+        score[id] = -Inf
+    end
+    
+    return ret
 end
 
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
@@ -259,29 +274,23 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     #    s = compute_docking_score_with_fft(quaternions[iq, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
     #    score[:, :, :, iq] .= s
     #end
-    s = @showprogress pmap(x -> compute_docking_score_with_fft(quaternions[x, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe), 1:nq)
+    s = @showprogress pmap(x -> compute_docking_score_with_fft(quaternions[x, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, nx, ny, nz, tops, x), 1:nq)
+    
+    result_tops = []
     for iq = 1:nq
-        score[:, :, :, iq] .= s[iq]
+        result_tops = [result_tops; s[iq]]
     end
+    sort!(result_tops, rev=true)
+    resize!(result_tops, tops)
 
     score_tops = zeros(T, tops)
     trans_tops = zeros(Int64, tops, 3)
     quate_tops = zeros(Float64, tops, 4)
-    x_center = ceil(Int64, (nx/2)+1.0)
-    y_center = ceil(Int64, (ny/2)+1.0)
-    z_center = ceil(Int64, (nz/2)+1.0)
-     
+
     for t in 1:tops
-        id = argmax(score)
-        dx_estimated = id[1] - x_center
-        dy_estimated = id[2] - y_center  
-        dz_estimated = id[3] - z_center 
-        
-        score_tops[t] = score[id]
-        trans_tops[t, :] = [dx_estimated, dy_estimated, dz_estimated]
-        quate_tops[t, :] = quaternions[id[4], :]
-        
-        score[id] = -Inf
+        score_tops[t] = result_tops[t][1]
+        trans_tops[t, :] = [result_tops[t][2], result_tops[t][3], result_tops[t][4]]
+        quate_tops[t, :] = quaternions[result_tops[t][5], :]
     end
 
     itop = 1
