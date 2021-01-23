@@ -98,7 +98,7 @@ end
 
 function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space, 
                                        rcut1, rcut2, x_grid, y_grid, z_grid, iframe) where {T,U}
-    grid .= 0.0
+    grid .= 0.0 + 0.0im
     nx, ny, nz = size(grid)
 
     for iatom = 1:ta.natom
@@ -130,9 +130,9 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
             for iy = iy_min:iy_max
                 for iz = iz_min:iz_max
                     if imag(grid[ix, iy, iz]) < 0.0001
-                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
+                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[iy])^2 + (z - z_grid[iz])^2)
                         if dist < rcut
-                            grid[ix, iy, iz] = 9.0im
+                            grid[ix, iy, iz] = 0.0 + 9.0im
                         end
                     end
                 end
@@ -163,9 +163,9 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
             for iy = iy_min:iy_max
                 for iz = iz_min:iz_max
                     if imag(grid[ix, iy, iz]) < 0.0001
-                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[ix])^2 + (z - z_grid[ix])^2)
+                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[iy])^2 + (z - z_grid[iz])^2)
                         if dist < rcut
-                            grid[ix, iy, iz] = 1.0
+                            grid[ix, iy, iz] = 1.0 + 0.0im
                         end
                     end
                 end
