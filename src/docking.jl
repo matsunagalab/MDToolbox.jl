@@ -178,11 +178,11 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     if CUDA.functional()
         grid_RSC_gpu = cu(grid_RSC)
         grid_LSC_gpu = cu(grid_LSC)
-        t_gpu = ifftshift(ifft(ifft(grid_RSC_gpu) .* fft(grid_LSC_gpu)))
+        t_gpu = ifftshift(ifft(fft(grid_RSC_gpu) .* fft(grid_LSC_gpu)))
         score_gpu = real(t_gpu) .- imag(t_gpu)
         score = Array(score_gpu)
     else
-        t = ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC)))
+        t = ifftshift(ifft(fft(grid_RSC) .* fft(grid_LSC)))
         score = real(t) .- imag(t)
     end
     
@@ -193,9 +193,8 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     for t in 1:tops
         id = argmax(score)
         dx_estimated = id[1] - x_center
-        dy_estimated = id[2] - y_center  
-        dz_estimated = id[3] - z_center 
-        
+        dy_estimated = id[2] - y_center
+        dz_estimated = id[3] - z_center
         push!(ret, (score[id], dx_estimated, dy_estimated, dz_estimated, iq))        
         score[id] = -Inf
     end
@@ -205,8 +204,8 @@ end
 
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
     # generate grid coordinates for receptor
-    receptor2, _dummy = decenter(receptor)
-    ligand2, _dummy = decenter(ligand)
+    receptor2, _dummy = decenter(receptor, isweight=false)
+    ligand2, _dummy = decenter(ligand, isweight=false)
 
     x_min, x_max = minimum(ligand2.x), maximum(ligand2.x)
     y_min, y_max = minimum(ligand2.y), maximum(ligand2.y)
