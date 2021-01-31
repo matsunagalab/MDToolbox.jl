@@ -106,38 +106,7 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
         y = ta.y[iframe, iatom]
         z = ta.z[iframe, iatom]
 
-        rcut = rcut1[iatom]^2
-
-        dx = x - x_grid[1]
-        ix_min = floor(U, (dx - rcut)/grid_space) - 2
-        ix_min = max(ix_min, 1)
-        ix_max = floor(U, (dx + rcut)/grid_space) + 2
-        ix_max = min(ix_max, nx)
-
-        dy = y - y_grid[1]
-        iy_min = floor(U, (dy - rcut)/grid_space) - 2
-        iy_min = max(iy_min, 1)
-        iy_max = floor(U, (dy + rcut)/grid_space) + 2
-        iy_max = min(iy_max, ny)
-
-        dz = z - z_grid[1]
-        iz_min = floor(U, (dz - rcut)/grid_space) - 2
-        iz_min = max(iz_min, 1)
-        iz_max = floor(U, (dz + rcut)/grid_space) + 2
-        iz_max = min(iz_max, nz)
-
-        for ix = ix_min:ix_max
-            for iy = iy_min:iy_max
-                for iz = iz_min:iz_max
-                    dist = (x - x_grid[ix])^2 + (y - y_grid[iy])^2 + (z - z_grid[iz])^2
-                    if dist < rcut
-                        grid[ix, iy, iz] = 0.0 + 9.0im
-                    end
-                end
-            end
-        end
-
-        rcut = rcut2[iatom]^2
+        rcut = rcut1[iatom]
 
         dx = x - x_grid[1]
         ix_min = floor(U, (dx - rcut)/grid_space) - 2
@@ -161,7 +130,46 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
             for iy = iy_min:iy_max
                 for iz = iz_min:iz_max
                     if imag(grid[ix, iy, iz]) < 0.0001
-                        dist = (x - x_grid[ix])^2 + (y - y_grid[iy])^2 + (z - z_grid[iz])^2
+                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[iy])^2 + (z - z_grid[iz])^2)
+                        if dist < rcut
+                            grid[ix, iy, iz] = 0.0 + 9.0im
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for iatom = 1:ta.natom
+        x = ta.x[iframe, iatom]
+        y = ta.y[iframe, iatom]
+        z = ta.z[iframe, iatom]
+
+        rcut = rcut2[iatom]
+
+        dx = x - x_grid[1]
+        ix_min = floor(U, (dx - rcut)/grid_space) - 2
+        ix_min = max(ix_min, 1)
+        ix_max = floor(U, (dx + rcut)/grid_space) + 2
+        ix_max = min(ix_max, nx)
+
+        dy = y - y_grid[1]
+        iy_min = floor(U, (dy - rcut)/grid_space) - 2
+        iy_min = max(iy_min, 1)
+        iy_max = floor(U, (dy + rcut)/grid_space) + 2
+        iy_max = min(iy_max, ny)
+
+        dz = z - z_grid[1]
+        iz_min = floor(U, (dz - rcut)/grid_space) - 2
+        iz_min = max(iz_min, 1)
+        iz_max = floor(U, (dz + rcut)/grid_space) + 2
+        iz_max = min(iz_max, nz)
+
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    if imag(grid[ix, iy, iz]) < 0.0001
+                        dist = sqrt((x - x_grid[ix])^2 + (y - y_grid[iy])^2 + (z - z_grid[iz])^2)
                         if dist < rcut
                             grid[ix, iy, iz] = 1.0 + 0.0im
                         end
@@ -179,24 +187,20 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     if CUDA.functional()
         grid_RSC_gpu = cu(grid_RSC)
         grid_LSC_gpu = cu(grid_LSC)
-        t_gpu = ifftshift(ifft(fft(grid_RSC_gpu) .* fft(grid_LSC_gpu)))
+        t_gpu = ifft(fft(grid_RSC_gpu) .* fft(grid_LSC_gpu))
         score_gpu = real(t_gpu) .- imag(t_gpu)
         score = Array(score_gpu)
     else
-        t = ifftshift(ifft(fft(grid_RSC) .* fft(grid_LSC)))
+        t = ifft(fft(grid_RSC) .* fft(grid_LSC))
         score = real(t) .- imag(t)
     end
     
-    nx, ny, nz = size(grid_RSC)
     ret = []
-    x_center = ceil(Int64, (nx/2)+1.0)
-    y_center = ceil(Int64, (ny/2)+1.0)
-    z_center = ceil(Int64, (nz/2)+1.0)
     for t in 1:tops
         id = argmax(score)
-        dx_estimated = id[1] - x_center
-        dy_estimated = id[2] - y_center
-        dz_estimated = id[3] - z_center
+        dx_estimated = id[1]
+        dy_estimated = id[2]
+        dz_estimated = id[3]
         push!(ret, (score[id], dx_estimated, dy_estimated, dz_estimated, iq))        
         score[id] = -Inf
     end
@@ -272,21 +276,47 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
 
     for t in 1:tops
         score_tops[t] = result_tops[t][1]
-        trans_tops[t, :] .= [result_tops[t][2], result_tops[t][3], result_tops[t][4]]
+        trans_tops[t, 1] = result_tops[t][2]
+        trans_tops[t, 2] = result_tops[t][3]
+        trans_tops[t, 3] = result_tops[t][4]
         quate_tops[t, :] .= quaternions[result_tops[t][5], :]
     end
 
     itop = 1
-    ligand_return = MDToolbox.rotate(ligand2, quate_tops[itop, :])
-    ligand_return.x .+= (trans_tops[itop, 1] * grid_space)
-    ligand_return.y .+= (trans_tops[itop, 2] * grid_space)
-    ligand_return.z .+= (trans_tops[itop, 3] * grid_space)
+    ligand_return = rotate(ligand2, quate_tops[itop, :])
+    dx = (trans_tops[itop, 1]-1) * grid_space
+    if dx > (nx*grid_space / 2.0)
+        dx = dx - (nx*grid_space)
+    end
+    dy = (trans_tops[itop, 2]-1) * grid_space
+    if dy > (ny*grid_space / 2.0)
+        dy = dy - (ny*grid_space)
+    end
+    dz = (trans_tops[itop, 3]-1) * grid_space
+    if dz > (nz*grid_space / 2.0)
+        dz = dz - (nz*grid_space)
+    end
+    ligand_return.x .+= dx
+    ligand_return.y .+= dy
+    ligand_return.z .+= dz
 
     for itop = 2:tops
-        ligand_tmp = MDToolbox.rotate(ligand2, quate_tops[itop, :])
-        ligand_tmp.x .+= (trans_tops[itop, 1] * grid_space)
-        ligand_tmp.y .+= (trans_tops[itop, 2] * grid_space)
-        ligand_tmp.z .+= (trans_tops[itop, 3] * grid_space)    
+        ligand_tmp = rotate(ligand2, quate_tops[itop, :])
+        dx = (trans_tops[itop, 1]-1) * grid_space
+        if dx > (nx*grid_space / 2.0)
+            dx = dx - (nx*grid_space)
+        end
+        dy = (trans_tops[itop, 2]-1) * grid_space
+        if dy > (ny*grid_space / 2.0)
+            dy = dy - (ny*grid_space)
+        end
+        dz = (trans_tops[itop, 3]-1) * grid_space
+        if dz > (nz*grid_space / 2.0)
+            dz = dz - (nz*grid_space)
+        end
+        ligand_tmp.x .+= dx
+        ligand_tmp.y .+= dy
+        ligand_tmp.z .+= dz
         ligand_return = [ligand_return; ligand_tmp]
     end
 
