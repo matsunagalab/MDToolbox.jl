@@ -183,6 +183,7 @@ end
 function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, iq)
     ligand2_rotated = rotate(ligand2, quaternion)
     assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+    grid_LSC .= grid_LSC[end:-1:1, end:-1:1, end:-1:1]
 
     if CUDA.functional()
         grid_RSC_gpu = cu(grid_RSC)
@@ -261,7 +262,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
 
     # compute score with FFT
     nq = size(quaternions, 1)
-    s = @showprogress pmap(x -> compute_docking_score_with_fft(quaternions[x, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, x), 1:nq)
+    s = @showprogress pmap(q -> compute_docking_score_with_fft(quaternions[q, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, q), 1:nq)
     
     result_tops = []
     for iq = 1:nq
