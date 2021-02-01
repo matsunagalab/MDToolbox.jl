@@ -102,26 +102,29 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
     nx, ny, nz = size(grid)
 
     for iatom = 1:ta.natom
+        rcut = rcut1[iatom]
+        if rcut < 0.0
+            continue
+        end
+
         x = ta.x[iframe, iatom]
         y = ta.y[iframe, iatom]
         z = ta.z[iframe, iatom]
 
-        rcut = rcut1[iatom]
-
         dx = x - x_grid[1]
-        ix_min = floor(U, (dx - rcut)/grid_space) - 2
+        ix_min = floor(U, (dx - rcut)/grid_space) + 1
         ix_min = max(ix_min, 1)
         ix_max = floor(U, (dx + rcut)/grid_space) + 2
         ix_max = min(ix_max, nx)
 
         dy = y - y_grid[1]
-        iy_min = floor(U, (dy - rcut)/grid_space) - 2
+        iy_min = floor(U, (dy - rcut)/grid_space) + 1
         iy_min = max(iy_min, 1)
         iy_max = floor(U, (dy + rcut)/grid_space) + 2
         iy_max = min(iy_max, ny)
 
         dz = z - z_grid[1]
-        iz_min = floor(U, (dz - rcut)/grid_space) - 2
+        iz_min = floor(U, (dz - rcut)/grid_space) + 1
         iz_min = max(iz_min, 1)
         iz_max = floor(U, (dz + rcut)/grid_space) + 2
         iz_max = min(iz_max, nz)
@@ -141,26 +144,29 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
     end
 
     for iatom = 1:ta.natom
+        rcut = rcut2[iatom]
+        if rcut < 0.0
+            continue
+        end
+
         x = ta.x[iframe, iatom]
         y = ta.y[iframe, iatom]
         z = ta.z[iframe, iatom]
 
-        rcut = rcut2[iatom]
-
         dx = x - x_grid[1]
-        ix_min = floor(U, (dx - rcut)/grid_space) - 2
+        ix_min = floor(U, (dx - rcut)/grid_space) + 1
         ix_min = max(ix_min, 1)
         ix_max = floor(U, (dx + rcut)/grid_space) + 2
         ix_max = min(ix_max, nx)
 
         dy = y - y_grid[1]
-        iy_min = floor(U, (dy - rcut)/grid_space) - 2
+        iy_min = floor(U, (dy - rcut)/grid_space) + 1
         iy_min = max(iy_min, 1)
         iy_max = floor(U, (dy + rcut)/grid_space) + 2
         iy_max = min(iy_max, ny)
 
         dz = z - z_grid[1]
-        iz_min = floor(U, (dz - rcut)/grid_space) - 2
+        iz_min = floor(U, (dz - rcut)/grid_space) + 1
         iz_min = max(iz_min, 1)
         iz_max = floor(U, (dz + rcut)/grid_space) + 2
         iz_max = min(iz_max, nz)
@@ -241,7 +247,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut2 = zeros(T, receptor2.natom)
     
     rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
-    rcut2[iatom_core] .= 0.0
+    rcut2[iatom_core] .= -1.0
     rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
     rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
 
@@ -254,8 +260,8 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut1 = zeros(T, ligand2.natom)
     rcut2 = zeros(T, ligand2.natom)
     rcut1[iatom_core] .= ligand2.radius[iatom_core] * sqrt(1.5)
-    rcut2[iatom_core] .= 0.0
-    rcut1[iatom_surface] .= 0.0
+    rcut2[iatom_core] .= -1.0
+    rcut1[iatom_surface] .= -1.0
     rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
     
     grid_LSC = zeros(complex(T), nx, ny, nz)
