@@ -225,34 +225,3 @@ function msmviterbi(observation, T, pi_i, emission)
     return state_estimated
 end
 
-function msmviterbi_original(observation, T, pi_i, emission)
-    nframe = size(observation, 1)
-    nstate = size(T, 1)
-    P = zeros(eltype(T), nstate, nframe)
-    I = zeros(eltype(T), nstate, nframe)
-    state_estimated = zeros(eltype(observation), nframe)
-
-    # initialization
-    P[:, 1] .= pi_i .* emission[:, observation[1]]
-    I[:, 1] .= zeros(eltype(T), nstate)
-
-    # argmax forward
-    Z = zeros(eltype(T), nstate, nstate)
-    for t = 2:nframe
-        Z .= P[:, t-1] .* T
-        I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
-        P[:, t] .= maximum(Z, dims=1)[:] .* emission[:, observation[t]]
-    end
-
-    # termination
-    P_star = maximum(P[:, nframe])
-    state_estimated[nframe] = argmax(P[:, nframe])
-    #@show P
-
-    # decoding
-    for t = (nframe-1):-1:1
-        state_estimated[t] = I[state_estimated[t+1], t+1]
-    end
-
-    return state_estimated
-end
