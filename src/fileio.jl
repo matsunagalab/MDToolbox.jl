@@ -1,4 +1,43 @@
 """
+common interface for specific read functions
+"""
+function load(filename::AbstractString)
+    if endswith(filename, ".dcd") | endswith(filename, ".veldcd")
+        ta = readdcd(filename)
+    elseif endswith(filename, ".nc") | endswith(filename, ".netcdf")
+        ta = readnetcdf(filename)
+    elseif endswith(filename, ".pdb")
+        ta = readpdb(filename)
+    elseif endswith(filename, ".psf")
+        ta = readpsf(filename)
+    else        
+        ta = read(filename)
+    end
+
+    return ta
+end
+
+"""
+common interface for specific write functions
+"""
+function save(filename::AbstractString, ta::TrjArray)
+    r = 0
+    if endswith(filename, ".dcd") | endswith(filename, ".veldcd")
+        #r = writedcd(filename, ta)
+    elseif endswith(filename, ".nc") | endswith(filename, ".netcdf")
+        r = writenetcdf(filename, ta)
+    elseif endswith(filename, ".pdb")
+        r = writepdb(filename, ta)
+    elseif endswith(filename, ".psf")
+        r = writepsf(filename, ta)
+    else        
+        #r = write(filename)
+    end
+
+    return r
+end
+
+"""
 load xplor or charmm (namd) format dcd file
 """
 function readdcd(filename::String; index=nothing, stride=1, isbox=true)
