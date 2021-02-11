@@ -55,6 +55,103 @@ function msmgenerate(nframe::Int, T, pi_i, emission)
   return states, observations
 end
 
+"""
+%% msmcountmatrix
+% Transition count matrix from a set of binned trajectory data
+% This method calculates count matrix for transitions from state i to state j in a time step of tau
+%
+%% Syntax
+%# c = msmcountmatrix(indexOfCluster);
+%# c = msmcountmatrix(indexOfCluster, tau);
+% 
+"""
+function msmcountmatrix(indexOfCluster; tau=1)
+  nstate = maximum(indexOfCluster)
+  nframe = size(indexOfCluster, 1)
+
+  if typeof(indexOfCluster) <: AbstractArray
+    indexOfCluster2 = [indexOfCluster]
+  else
+    indexOfCluster2 = indexOfCluster
+  end
+
+  ntraj = length(indexOfCluster2)
+  U = typeof(indexOfCluster2[1][1])
+  c = spzeros(U, nstate, nstate)
+  for itraj = 1:ntraj
+    nframe = length(indexOfCluster2[itraj])
+
+    index_from = 1:(nframe-tau)
+    index_to   = (1+tau):nframe
+    indexOfCluster_from = indexOfCluster2[itraj][index_from]
+    indexOfCluster_to   = indexOfCluster2[itraj][index_to]
+
+    s = ones(U, length(indexOfCluster_from))
+    c_1 = sparse(indexOfCluster_from, indexOfCluster_to, s, nstate, nstate)
+    c .= c .+ c_1
+  end
+
+  return Array(c)
+end
+
+"""
+%% msmtransitionmatrix
+% estimate transition probability matrix from count matrix
+%
+%% Syntax
+%# t = msmtransitionmatrix(c);
+%
+%% Description
+% this routines uses the reversible maximum likelihood estimator
+"""
+function msmtransitionmatrix(c; TOLERANCE=10^(-4))
+  nstate = size(c, 1)
+  c_rs = sum(c, dims=2)
+  c_sym = c .+ c'
+  x = c_sym
+  x_rs = sum(x, dims=2)
+
+  logL_old = 2.0*TOLERANCE
+  logL = 0
+  count_iteration = 0
+
+  x = zeros(Float64, nstate, nstate)
+  x_new = zeros(Float64, nstate, nstate)
+
+  while abs(logL_old - logL) > TOLERANCE
+    count_iteration = count_iteration + 1
+    logL_old = logL
+  
+    # fixed-point method
+    for i = 1:nstate
+      for j = 1:nstate
+        denom = (c_rs[i]/x_rs[i]) + (c_rs[j]/x_rs[j])
+        x_new[i, j] = (c[i, j] + c[j, i]) / denom
+      end
+    end
+    
+    # update
+    x_rs = sum(x_new, dims=2);
+    x = x_new;
+    logL = 0;
+    for i = 1:nstate
+      for j = 1:nstate
+        logL = logL + c[i, j] * log(x[i, j] / x_rs[i]);
+      end
+    end
+    
+    if mod(count_iteration, 10) == 0
+      Printf.@printf("%d iteration  LogLikelihood = %8.5e  delta = %8.5e  tolerance = %8.5e\n", count_iteration, logL, abs(logL_old-logL), TOLERANCE)
+    end
+  end
+  
+  pi_i = x_rs./sum(x_rs)
+  pi_i = pi_i[:]
+  t = x ./ x_rs
+
+  return t
+end
+
 function msmforward(data_list, T, pi_i, emission)
     ndata = length(data_list)
     nstate = length(T[1, :])
