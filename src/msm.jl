@@ -1,3 +1,69 @@
+function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing, 
+                 edgewidth_scale=10.0, arrow_scale=0.1, nodesize=0.5, fontsize=10, names=[], dpi=100)
+  n = size(T, 1)
+  g = MetaDiGraph(n, 0.0)
+  U = typeof(T[1, 1])
+  
+  for i = 1:n
+    for j = 1:n
+      if !iszero(T[i, j])
+        add_edge!(g, i, j)
+      end
+     end
+  end
+  
+  for i = 1:n
+    for j = 1:n
+      if !iszero(T[i, j])
+        set_prop!(g, Edge(i, j), :weight, T[i, j])
+      end
+    end
+  end
+
+  if isnothing(pi_i)
+    pi_i = ones(1, n)./n
+    for i = 1:(n*100)
+      pi_i .= pi_i * T
+    end
+    pi_i = pi_i./sum(pi_i)
+    pi_i = pi_i[:]
+  end
+
+  if !isnothing(x)
+    max_xy = maximum([maximum(x),maximum(y)])
+  end
+
+  gr()
+#  pyplot()
+  p = graphplot(g, edge_width=(s,d,w) -> get_prop(g, Edge(s,d), :weight)*edgewidth_scale, 
+            #arrow=arrow(:closed, :head, 0.1, 0.1),
+            arrow=arrow(:closed, :head, arrow_scale, arrow_scale),
+            #markersize = markersize,
+            node_weights = pi_i[:].^2,
+            #node_weights = 1:n,  
+            #markercolor = range(colorant"yellow", stop=colorant"red", length=n),
+            markercolor = :white,
+            names = names,
+            nodesize = nodesize, 
+            fontsize = fontsize,
+            fontcolor = :white, 
+            nodeshape = :circle,
+            linecolor = :darkgrey,
+            #shorten=0.95,
+            x = x[:]./max_xy,
+            y = y[:]./max_xy,
+            curves = true, 
+            curvature_scalar = 0.05,
+            dpi = dpi
+            )
+
+  if !isnothing(filename)
+    savefig(p, filename)
+  end
+
+  return p
+end
+
 function msmsample(p)
   p_cum = cumsum(p) ./ sum(p)
   r = rand()
