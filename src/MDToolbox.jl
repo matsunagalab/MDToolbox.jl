@@ -27,6 +27,7 @@ export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compu
 export rotate, rotate!
 export compute_distance, compute_angle, compute_dihedral
 export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
+export clusterkcenters, pca, tica
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
@@ -45,6 +46,7 @@ const KB_kjpermol = 0.0083144621 #Boltzmann constant taken from wikipedia
 include("trjarray.jl")
 include("fileio.jl")
 include("structure.jl")
+include("reduction.jl")
 include("dynamics.jl")
 include("ksdensity.jl")
 include("wham.jl")

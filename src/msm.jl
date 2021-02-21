@@ -1,3 +1,14 @@
+"""
+    msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing, 
+            edgewidth_scale=10.0, arrow_scale=0.1, nodesize=0.5, fontsize=10, names=[], dpi=100)
+
+Plot the given Markov state model.
+
+# Examples
+```julia-repl
+julia> msmplot(T, pi_i=pi_i, x=x, y=y)
+```
+"""
 function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing, 
                  edgewidth_scale=10.0, arrow_scale=0.1, nodesize=0.5, fontsize=10, names=[], dpi=100)
   n = size(T, 1)
@@ -75,16 +86,16 @@ function msmsample(p)
 end
 
 """
-msmgenerate(nframe, T, pi_i) -> states
+    msmgenerate(nframe::Int, T, pi_i)
+                states = zeros(typeof(nframe), nframe)
 
-generate a discrete-state trajectory from given transition matrix, and equilibrium probabilities of states.
+Generate a discrete-state trajectory from given transition matrix, and equilibrium probabilities of states.
 
-Examples
-≡≡≡≡≡≡≡≡≡≡
-
+# Examples
+```julia-repl
 julia> T, pi_i = msmtransitionmatrix(C)
-
 julia> states = msmgenerate(1000, T, pi_i)
+```
 """
 function msmgenerate(nframe::Int, T, pi_i)
   states = zeros(typeof(nframe), nframe)
