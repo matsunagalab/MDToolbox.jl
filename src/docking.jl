@@ -217,6 +217,21 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     return ret
 end
 
+function compute_docking_score_on_xyplane(grid_RSC, grid_LSC)
+    if CUDA.functional()
+        grid_RSC_gpu = cu(grid_RSC)
+        grid_LSC_gpu = cu(grid_LSC)
+        t_gpu = ifft(fft(grid_RSC_gpu) .* conj.(fft(conj.(grid_LSC_gpu))))
+        score_gpu = real(t_gpu)
+        score = Array(score_gpu)
+    else
+        t = ifft(fft(grid_RSC) .* conj.(fft(conj.(grid_LSC))))
+        score = real(t)
+    end
+    
+    return score[:, :, 1]
+end
+
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
     # generate grid coordinates for receptor
     receptor2, _dummy = decenter(receptor)
@@ -330,4 +345,100 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     end
 
     return (receptor=receptor2, ligand=ligand_return, score=score_tops, grid_RSC=grid_RSC, grid_LSC=grid_LSC)
+end
+
+
+function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:20.0, grid_space=1.2, iframe=1, tops=10, nfold=3) where {T, U}
+    # generate grid coordinates for receptor
+    receptor2, _dummy = decenter(receptor)
+
+    @show "step 1"
+    x_min, x_max = minimum(receptor2.x), maximum(receptor2.x)
+    y_min, y_max = minimum(receptor2.y), maximum(receptor2.y)
+    z_min, z_max = minimum(receptor2.z), maximum(receptor2.z)
+    size_receptor = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
+
+    x_min = minimum(receptor2.x) - size_receptor - grid_space
+    y_min = minimum(receptor2.y) - size_receptor - grid_space
+    z_min = minimum(receptor2.z) - size_receptor - grid_space
+
+    x_max = maximum(receptor2.x) + size_receptor + grid_space
+    y_max = maximum(receptor2.y) + size_receptor + grid_space
+    z_max = maximum(receptor2.z) + size_receptor + grid_space
+
+    x_grid = collect(x_min:grid_space:x_max)
+    y_grid = collect(y_min:grid_space:y_max)
+    z_grid = collect(z_min:grid_space:z_max)
+
+    @show "step 2"
+    nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
+
+    # spape complementarity of receptor
+    @show "step 3"
+    iatom_surface = receptor2.sasa .> 1.0
+    iatom_core = .!iatom_surface
+    rcut1 = zeros(T, receptor2.natom)
+    rcut2 = zeros(T, receptor2.natom)
+    
+    rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
+    rcut2[iatom_core] .= -1.0
+    rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
+    rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
+
+    @show nx ny nz
+    @show "step 4"
+    grid_RSC = zeros(complex(T), nx, ny, nz)
+    grid_LSC = zeros(complex(T), nx, ny, nz)
+    #assign_shape_complementarity!(grid_RSC, receptor2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+
+    @show "step 4.1"
+    # compute score with FFT
+    #nq = size(quaternions, 1)
+    #s = @showprogress pmap(q -> compute_docking_score_with_fft(quaternions[q, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, q), 1:nq)
+    rot_z_pi = collect((0.0:rot_space:360.0)./ 360.0 .* (2.0*pi))
+    rot_x_pi = collect((0.0:rot_space:360.0)./ 360.0 .* (2.0*pi))
+    score_best = -Inf
+    @show "step 4.2"
+    receptor_best = deepcopy(receptor2)
+    ligand_best = deepcopy(receptor2)
+    dx_estimated = 0
+    dy_estimated = 0
+    @show "step 5"
+    for z in rot_z_pi
+        @printf "%f \n" z
+        R = [cos(z) -sin(z) 0.0; sin(z) cos(z) 0.0; 0.0 0.0 1.0]
+        receptor_rot = rotate_with_matrix(receptor2, R)
+        for x in rot_x_pi
+            R = [1.0 0.0 0.0; 0.0 cos(x) -sin(x); 0.0 sin(x) cos(x)]
+            receptor_rot = rotate_with_matrix(receptor_rot, R)
+            R = [cos(2*pi/nfold) -sin(2*pi/nfold) 0.0; sin(2*pi/nfold) cos(2*pi/nfold) 0.0; 0.0 0.0 1.0]
+            ligand_rot = rotate_with_matrix(receptor_rot, R)
+            assign_shape_complementarity!(grid_RSC, receptor_rot, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+            assign_shape_complementarity!(grid_LSC, ligand_rot, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
+            score = compute_docking_score_on_xyplane(grid_RSC, grid_LSC)
+            score_max = maximum(score)
+            if score_best < score_max
+                id = argmax(score)
+                dx_estimated = id[1]
+                dy_estimated = id[2]
+                receptor_best = deepcopy(receptor_rot)
+                ligand_best = deepcopy(ligand_rot)
+                score_best = score_max
+            end
+        end    
+    end
+    
+    ligand_return = deepcopy(ligand_best)
+    dx = (dx_estimated-1) * grid_space
+    if dx > (nx*grid_space / 2.0)
+        dx = dx - (nx*grid_space)
+    end
+    dy = (dy_estimated-1) * grid_space
+    if dy > (ny*grid_space / 2.0)
+        dy = dy - (ny*grid_space)
+    end
+    ligand_return.x .+= dx
+    ligand_return.y .+= dy
+
+    return (receptor=receptor_best, ligand=ligand_return, score=score_best)
 end

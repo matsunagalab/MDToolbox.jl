@@ -336,6 +336,16 @@ function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
     ta.z .= z
 end
 
+function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
+    x = similar(ta.x, ta.nframe, ta.natom)
+    y = similar(ta.y, ta.nframe, ta.natom)
+    z = similar(ta.z, ta.nframe, ta.natom)
+    x .= R[1, 1].*ta.x .+ R[1, 2].*ta.y .+ R[1, 3].*ta.z
+    y .= R[2, 1].*ta.x .+ R[2, 2].*ta.y .+ R[2, 3].*ta.z
+    z .= R[3, 1].*ta.x .+ R[3, 2].*ta.y .+ R[3, 3].*ta.z
+    return TrjArray(ta, x=x, y=y, z=z)
+end
+
 ############################################################################
 """
 superimpose

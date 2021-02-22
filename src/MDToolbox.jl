@@ -24,7 +24,7 @@ export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, select_atom
 export load, save, readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readcrd
 export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
-export rotate, rotate!
+export rotate, rotate!, rotate_with_matrix
 export compute_distance, compute_angle, compute_dihedral
 export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
 export clusterkcenters, pca, tica
