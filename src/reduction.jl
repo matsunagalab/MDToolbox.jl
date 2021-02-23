@@ -64,16 +64,61 @@ function clusterkcenters(t, kcluster; nReplicates=10)
     return (indexOfCluster=indexOfCluster_out, center=center_out, distanceFromCenter=distanceFromCenter)
 end
 
-function pca(X)
+function compute_cov(X::AbstractMatrix; lagtime=0)
     nframe = size(X, 1)
     X_centerized = X .- mean(X, dims=1)
-    e = eigen(X_centerized' * X_centerized ./ nframe)
-    lambda = e.values[end:-1:1]
-    W = e.vectors[:, end:-1:1]
-    P = X_centerized * W
-    return (p=P, mode=W, lambda=lambda)
+    cov = X_centerized[1:(end-lagtime), :]' * X_centerized[(1+lagtime):end, :] ./ (nframe - 1)
 end
 
-function tica()
+function pca(X)
+    # eigendecomposition of covariance matrix
+    covar = compute_cov(X)
+    F = eigen(covar, sortby = x -> -x)
+    #lambda = F.values[end:-1:1]
+    #W = F.vectors[:, end:-1:1]
+    variance = F.values
+    mode = F.vectors
+
+    # projection
+    X_centerized = X .- mean(X, dims=1)
+    projection = X_centerized * mode
+
+    return (projection=projection, mode=mode, variance=variance)
 end
 
+function tica(X::AbstractMatrix, lagtime=1)
+    # standard and time-lagged covariance matrices
+    covar0 = compute_cov(X, lagtime=0)
+    covar  = compute_cov(X, lagtime=lagtime)
+
+    # symmetrize the time-lagged covariance matrix
+    covar .= 0.5 .* (covar .+ covar')
+
+    # calc pseudo-inverse of covar0
+    #covar0_inv = pinv(covar0)
+
+    # remove degeneracy for solving the generalized eigenvalue problem
+    F = eigen(covar0, sortby = x -> -x)
+    pvariance = F.values
+    pmode = F.vectors
+    index = pvariance .> 10^(-6)
+    pmode = pmode[:, index]
+    covar0 = pmode'*covar0*pmode
+    covar = pmode'*covar*pmode
+
+    # solve the generalized eigenvalue problem
+    F = eigen(covar, covar0, sortby = x -> -x)
+    variance = F.values
+    mode = F.vectors
+
+    # projection
+    mode = pmode * mode
+    X_centerized = X .- mean(X, dims=1)
+    projection = X_centerized * mode
+
+    # normalize mode vectors
+    fac = sqrt.(sum(mode.^2, dims=1))
+    mode .= mode ./ fac
+
+    return (projection=projection, mode=mode, variance=variance)
+end

@@ -27,7 +27,7 @@ export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compu
 export rotate, rotate!, rotate_with_matrix
 export compute_distance, compute_angle, compute_dihedral
 export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
-export clusterkcenters, pca, tica
+export clusterkcenters, compute_cov, pca, tica
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
