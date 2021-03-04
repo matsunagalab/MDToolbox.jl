@@ -1,21 +1,25 @@
 """
-    clusterkcenters(t, kcluster; nReplicates=10)
+    clusterkcenters(X::AbstractMatrix, kcluster::Int; nReplicates::Int=10) -> F
 
-Clustering with K-center algorithm
-
+Perform clustering with K-center algorithm. Input data `X` should belong to AbstractMatrix type 
+and its columns corresponds to variables, rows are frames. Also, the number of clusters `kcluster` should be specified. 
+Returns a object `F` which contains the indices of cluster for each sample in `F.indexOfCluster`,
+the coordinates of cluster centers in `F.center`, and distances of samples  from the nearest centers in `distanceFromCenter`.
+    
 #  Example
-```julia> scatter(t[:, 1], t[:, 2], c = r.indexOfCluster)
-julia> t = rand(1000, 2)
-julia> r = clusterkcenters(t, 3)
-julia> scatter(t[:, 1], t[:, 2], c = r.indexOfCluster)
+```julia-repl
+julia> X = rand(1000, 2)
+julia> F = clusterkcenters(X, 3)
+julia> scatter(t[:, 1], t[:, 2], c = F.indexOfCluster)
 ```
 # References
-```This function uses the method described in
+```
+This function uses the method described in
 [1] S. Dasgupta and P. M. Long, J. Comput. Syst. Sci. 70, 555 (2005).
 [2] J. Sun, Y. Yao, X. Huang, V. Pande, G. Carlsson, and L. J. Guibas, Learning 24, 2 (2009).
 ```
 """
-function clusterkcenters(t, kcluster; nReplicates=10)
+function clusterkcenters(t::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
     nframe = size(t, 1)
     #ta2, com = decenter(ta)
     dim = size(t, 2)
@@ -24,6 +28,7 @@ function clusterkcenters(t, kcluster; nReplicates=10)
     indexOfCluster = zeros(Int64, nframe)
     distanceFromCenter = zeros(Float64, nframe, 1)
 
+    indexOfCenter_out = similar(indexOfCenter)
     indexOfCluster_out = similar(indexOfCluster)
     distanceFromCenter_out = similar(distanceFromCenter)
     center_out = similar(t, kcluster, dim)
@@ -32,10 +37,10 @@ function clusterkcenters(t, kcluster; nReplicates=10)
     for ireplica = 1:nReplicates
         # create the center of the 1st cluster
         indexOfCenter[1] = rand(1:nframe)
-        # at first, all points belong to the 1st cluster
+        # first, all points belong to the 1st cluster
         indexOfCluster .= ones(Int64, nframe)
-        # distance of the points from the 1st center
-        ref = t[indexOfCluster[1]:indexOfCluster[1], :]
+        # distances of the points from the 1st center
+        ref = t[indexOfCenter[1]:indexOfCenter[1], :]
         distanceFromCenter .= sum((ref .- t).^2, dims=2)
 
         for i = 2:kcluster
@@ -53,6 +58,7 @@ function clusterkcenters(t, kcluster; nReplicates=10)
         distanceMax = maximum(distanceFromCenter)
         if (ireplica == 1) | (distanceMax < distanceMax_out)
           distanceMax_out = distanceMax
+          indexOfCenter_out = indexOfCenter
           indexOfCluster_out = indexOfCluster
           center_out = t[indexOfCenter, :]
           distanceFromCenter_out .= distanceFromCenter
@@ -61,32 +67,86 @@ function clusterkcenters(t, kcluster; nReplicates=10)
     end
     distanceFromCenter_out .= sqrt.(distanceFromCenter_out)
 
-    return (indexOfCluster=indexOfCluster_out, center=center_out, distanceFromCenter=distanceFromCenter)
+    return (indexOfCluster=indexOfCluster_out, center=center_out, distanceFromCenter=distanceFromCenter, indexOfCenter=indexOfCenter_out)
 end
 
-function compute_cov(X::AbstractMatrix; lagtime=0)
+function compute_cov(X::AbstractMatrix; lagtime::Int=0)
     nframe = size(X, 1)
     X_centerized = X .- mean(X, dims=1)
     cov = X_centerized[1:(end-lagtime), :]' * X_centerized[(1+lagtime):end, :] ./ (nframe - 1)
 end
 
-function pca(X)
-    # eigendecomposition of covariance matrix
-    covar = compute_cov(X)
-    F = eigen(covar, sortby = x -> -x)
-    #lambda = F.values[end:-1:1]
-    #W = F.vectors[:, end:-1:1]
-    variance = F.values
-    mode = F.vectors
+function rsvd(A::AbstractMatrix, k::Number=10)
+    T = eltype(A)
+    m, n = size(A)
+    l = k + 2
+    @assert l < n
+    G = randn(T, n, l)
+    #G .= G ./ sqrt.(sum(G.^2, dims=1))
+    H = A * G
+    @assert m > l
+    Q = Matrix(qr!(H).Q)
+    @assert m == size(Q, 1)
+    @assert l == size(Q, 2)
+    T = A' * Q
+    V, σ, W = svd(T)
+    U = Q * W
+    λ = σ .* σ ./ m
+    return (V=V[:,1:k], S=λ[1:k], U=U[:,1:k])
+end
 
-    # projection
-    X_centerized = X .- mean(X, dims=1)
-    projection = X_centerized * mode
+"""
+    pca(X::AbstractMatrix; k=dimension) -> F
+
+Perform principal component analysis. Input data `X` should belong to AbstractMatrix type 
+and its columns corresponds to variables, rows are frames. 
+Returns a object `F` which contains the prjections of `X` onto the principal modes or principal components in `F.projection`, 
+the prncipal modes in the columns of the matrix `F.mode`, and the variances of principal components in `F.variance`. 
+
+#  Example
+```julia-repl
+julia> X = cumsum(rand(1000, 10))
+julia> F = pca(X)
+julia> plot(F.projection[:, 1], F.projection[:, 2])
+```
+"""
+function pca(X::AbstractMatrix; k=nothing)
+    is_randomized_pca = false
+    if !isnothing(k)
+        is_randomized_pca = true
+        @printf "Warning: a randomized SVD approximation is used for PCA with reduced dimension k = %d\n" k
+    end
+    dim = size(X, 2)
+    if !is_randomized_pca & (dim > 5000)
+        k = 1000
+        is_randomized_pca = true
+        @printf "Warning: the dimension of input data is too large (dim > 5000)\n"
+        @printf "Warning: randomized SVD approximation is used for PCA with reduced dimension k = %d\n" k
+    end
+    if is_randomized_pca
+        nframe = size(X, 1)
+        X_centerized = X .- mean(X, dims=1)
+        F = rsvd(X_centerized, k)
+        variance = F.S.^2 ./ (nframe - 1)
+        mode = F.V
+        projection = X_centerized * mode
+    else
+        # eigendecomposition of covariance matrix
+        covar = compute_cov(X)
+        F = eigen(covar, sortby = x -> -x)
+        #lambda = F.values[end:-1:1]
+        #W = F.vectors[:, end:-1:1]
+        variance = F.values
+        mode = F.vectors
+        # projection
+        X_centerized = X .- mean(X, dims=1)
+        projection = X_centerized * mode
+    end
 
     return (projection=projection, mode=mode, variance=variance)
 end
 
-function tica(X::AbstractMatrix, lagtime=1)
+function tica(X::AbstractMatrix, lagtime::Int=1)
     # standard and time-lagged covariance matrices
     covar0 = compute_cov(X, lagtime=0)
     covar  = compute_cov(X, lagtime=lagtime)
@@ -98,9 +158,10 @@ function tica(X::AbstractMatrix, lagtime=1)
     #covar0_inv = pinv(covar0)
 
     # remove degeneracy for solving the generalized eigenvalue problem
-    F = eigen(covar0, sortby = x -> -x)
-    pvariance = F.values
-    pmode = F.vectors
+    #F = eigen(covar0, sortby = x -> -x)
+    F = pca(X)
+    pvariance = F.variance
+    pmode = F.mode
     index = pvariance .> 10^(-6)
     pmode = pmode[:, index]
     covar0 = pmode'*covar0*pmode

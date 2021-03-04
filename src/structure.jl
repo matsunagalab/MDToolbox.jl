@@ -585,20 +585,32 @@ function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index=[1 1]:
     return d
 end
 
-function compute_distancevec(ta::TrjArray{T, U})::Matrix{T} where {T, U}
+function compute_distancemap(ta::TrjArray{T, U}; kneighbor=3)::Matrix{T} where {T, U}
     natom = ta.natom
     nframe = ta.nframe
-    index_all = zeros(U, U(natom*(natom-1)/2), 2)
-    count = 1
+    count = 0
     for i = 1:natom
-        for j = (i+1):natom
+        for j = (i+kneighbor):natom
+            count += 1
+        end
+    end
+    index_all = zeros(U, count, 2)
+    count = 0
+    for i = 1:natom
+        for j = (i+kneighbor):natom
+            count += 1
             index_all[count, 1] = i
             index_all[count, 2] = j
-            count += 1
         end
     end
     d = compute_distance(ta, index_all)
     return d
+end
+
+function compute_contactmap(ta::TrjArray{T, U}; rcut=8.5)::Matrix{T} where {T, U}
+    d = compute_distancemap(ta)
+    c = T.(d .< rcut)
+    return c
 end
 
 ############################################################################

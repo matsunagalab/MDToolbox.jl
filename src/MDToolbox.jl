@@ -25,14 +25,14 @@ export AbstractTrajectory, TrjArray, select_atom
 export load, save, readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readcrd
 export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
 export rotate, rotate!, rotate_with_matrix
-export compute_distance, compute_angle, compute_dihedral
+export compute_distance, compute_distancemap, compute_contactmap, compute_angle, compute_dihedral
 export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
-export clusterkcenters, compute_cov, pca, tica
+export clusterkcenters, compute_cov, rsvd, pca, tica
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
 export mbar
-export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmbackward, msmbaumwelch, msmviterbi
+export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmbackward, msmbaumwelch, msmviterbi, msmimpliedtime
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
 export Asd, readasd

@@ -1,17 +1,25 @@
 """
 common interface for specific read functions
 """
-function load(filename::AbstractString)
+function load(filename::AbstractString; index=nothing, top=nothing)
     if endswith(filename, ".dcd") | endswith(filename, ".veldcd")
-        ta = readdcd(filename)
+        ta = readdcd(filename, index=index)
     elseif endswith(filename, ".nc") | endswith(filename, ".netcdf")
-        ta = readnetcdf(filename)
+        ta = readnetcdf(filename, index=index)
     elseif endswith(filename, ".pdb")
         ta = readpdb(filename)
     elseif endswith(filename, ".psf")
         ta = readpsf(filename)
     else        
         ta = read(filename)
+    end
+
+    if !isnothing(top)
+        if isnothing(index)
+            ta = [top; ta]
+        else
+            ta = [top[:, index]; ta]
+        end
     end
 
     return ta

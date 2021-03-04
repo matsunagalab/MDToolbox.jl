@@ -10,7 +10,7 @@ julia> msmplot(T, pi_i=pi_i, x=x, y=y)
 ```
 """
 function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing, 
-                 edgewidth_scale=10.0, arrow_scale=0.1, nodesize=0.5, fontsize=10, names=[], dpi=100)
+                 edgewidth_scale=3.0, arrow_scale=0.0001, nodesize=0.5, fontsize=10, names=[], dpi=100)
   n = size(T, 1)
   g = MetaDiGraph(n, 0.0)
   U = typeof(T[1, 1])
@@ -41,7 +41,14 @@ function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing,
   end
 
   if !isnothing(x)
+    std_x = std(x)
+    std_y = std(y)
     max_xy = maximum([maximum(x),maximum(y)])
+    xx = (x[:].-mean(x))./std_x .- std_x
+    yy = (y[:].-mean(y))./std_y .- std_y
+  else
+    xx = nothing
+    yy = nothing
   end
 
   gr()
@@ -50,7 +57,7 @@ function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing,
             #arrow=arrow(:closed, :head, 0.1, 0.1),
             arrow=arrow(:closed, :head, arrow_scale, arrow_scale),
             #markersize = markersize,
-            node_weights = pi_i[:].^2,
+            node_weights = pi_i[:],
             #node_weights = 1:n,  
             #markercolor = range(colorant"yellow", stop=colorant"red", length=n),
             markercolor = :white,
@@ -61,10 +68,10 @@ function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing,
             nodeshape = :circle,
             linecolor = :darkgrey,
             #shorten=0.95,
-            x = x[:]./max_xy,
-            y = y[:]./max_xy,
+            x = xx,
+            y = yy,
             curves = true, 
-            curvature_scalar = 0.05,
+            curvature_scalar = 0.8,
             dpi = dpi
             )
 
@@ -181,15 +188,18 @@ end
 %% Description
 % this routines uses the reversible maximum likelihood estimator
 """
-function msmtransitionmatrix(c; TOLERANCE=10^(-4))
+function msmtransitionmatrix(C; TOLERANCE=10^(-4), verbose=true)
+  c = Matrix{Float64}(C)
   nstate = size(c, 1)
-  c_rs = sum(c, dims=2)
-  c_sym = c .+ c'
+
+  c_sym = c + c'
   x = c_sym
+
+  c_rs = sum(c, dims=2)
   x_rs = sum(x, dims=2)
 
   logL_old = 2.0*TOLERANCE
-  logL = 0
+  logL = 0.0
   count_iteration = 0
 
   x = zeros(Float64, nstate, nstate)
@@ -208,16 +218,18 @@ function msmtransitionmatrix(c; TOLERANCE=10^(-4))
     end
     
     # update
-    x_rs = sum(x_new, dims=2);
-    x = x_new;
-    logL = 0;
+    x_rs .= sum(x_new, dims=2)
+    x .= x_new
+    logL = 0.0
     for i = 1:nstate
       for j = 1:nstate
-        logL = logL + c[i, j] * log(x[i, j] / x_rs[i]);
+        if !iszero(x[i, j]) & !iszero(x_rs[i])
+          logL = logL + c[i, j] * log(x[i, j] / x_rs[i]);
+        end
       end
     end
     
-    if mod(count_iteration, 10) == 0
+    if verbose & (mod(count_iteration, 10) == 0)
       Printf.@printf("%d iteration  LogLikelihood = %8.5e  delta = %8.5e  tolerance = %8.5e\n", count_iteration, logL, abs(logL_old-logL), TOLERANCE)
     end
   end
@@ -226,7 +238,7 @@ function msmtransitionmatrix(c; TOLERANCE=10^(-4))
   pi_i = pi_i[:]
   t = x ./ x_rs
 
-  return t
+  return t, pi_i
 end
 
 function msmforward(data_list, T, pi_i, emission)
@@ -275,9 +287,8 @@ function msmbackward(data_list, factor_list, T, pi_i, emission)
     logL, beta_list
 end
 
-function msmbaumwelch(data_list, T0, pi_i0, emission0)
+function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE = 10.0^(-4))
     ## setup
-    TOLERANCE = 10.0^(-4)
     check_convergence = Inf64
     count_iteration = 0
     logL_old = 1.0
@@ -305,6 +316,7 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0)
         end
         log_T0 = log.(T0)
         log_emission0 = log.(emission0)
+
         ## M-step
         # pi
         # pi = np.zeros(nstate, dtype=np.float64)
@@ -313,7 +325,7 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0)
         #     log_gamma_list.append(log_alpha_list[idata] + log_beta_list[idata])
         #     pi = pi + np.exp(log_gamma_list[idata][0, :])
         # pi = pi/np.sum(pi)
-        pi_i = pi_i0
+        # pi_i = pi_i0
         # emission
         # emission = np.zeros((nstate, nobs), dtype=np.float64)
         # for idata in range(ndata):
@@ -340,6 +352,10 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0)
         end
         #T[np.isnan(T)] = 0.0
         T = T ./ sum(T, dims=2)
+
+        ## reversible T
+        T, pi_i = msmtransitionmatrix(T, TOLERANCE=10^(-8), verbose=false)
+
         ## Check convergence
         count_iteration += 1
         logL = sum(logL)
@@ -398,4 +414,31 @@ function msmviterbi(observation, T, pi_i, emission)
 
     return state_estimated
 end
+
+function msmimpliedtime(indexOfCluster, tau)
+  n = length(tau)
+  k = min(10, n)
+  nstate = Int(maximum(indexOfCluster))
+  #implied_timescale = zeros(Float64, n, k)
+  implied_timescale = Matrix{Union{Float64, Missing}}(undef, n, nstate-1)
+  for i in 1:n
+    t = tau[i]
+    #@printf "calculating tau = %d\n" t
+    C = msmcountmatrix(indexOfCluster, tau=t)
+    # TODO fixme; tarjan algorithm to remove non-ergodic graphs
+    T, p = msmtransitionmatrix(C, TOLERANCE=10^(-8), verbose=false)
+    F = eigen(T, sortby = x -> -x)
+    #@show F.values
+    for istate = 2:nstate
+      r = real(F.values[istate])
+      if r >  0.0 
+        implied_timescale[i, istate-1] = - t / log(r)
+      else
+        implied_timescale[i, istate-1] = missing
+      end
+    end
+  end
+  return implied_timescale
+end
+
 

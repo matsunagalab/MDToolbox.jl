@@ -96,34 +96,34 @@ function TrjArray{T, U}(;x = Matrix{T}(undef, 0, 0), y = Matrix{T}(undef, 0, 0),
              list_bond, list_angle, list_dihedral, list_improper, list_cmap)
 end
 
-TrjArray(ta::TrjArray{T, U}; x = Matrix{T}(undef, 0, 0), y = Matrix{T}(undef, 0, 0), z = Matrix{T}(undef, 0, 0),
-    boxsize = Matrix{T}(undef, 0, 0),
-    chainname = Vector{String}(undef, 0), chainid = Vector{U}(undef, 0),
-    resname = Vector{String}(undef, 0), resid = Vector{U}(undef, 0),
-    atomname = Vector{String}(undef, 0), atomid = Vector{U}(undef, 0),
-    mass = Vector{T}(undef, 0), radius = Vector{T}(undef, 0), charge = Vector{T}(undef, 0), sasa = Vector{T}(undef, 0),
-    list_bond = Matrix{U}(undef, 0, 0), list_angle = Matrix{U}(undef, 0, 0),
-    list_dihedral = Matrix{U}(undef, 0, 0), list_improper = Matrix{U}(undef, 0, 0),
-    list_cmap = Matrix{U}(undef, 0, 0)) where {T, U} = TrjArray{T, U}(
-        x = isempty(x) ? ta.x : x,
-        y = isempty(y) ? ta.y : y,
-        z = isempty(z) ? ta.z : z,
-        boxsize = isempty(boxsize) ? ta.boxsize : boxsize,
-        chainname = isempty(chainname) ? ta.chainname : chainname,
-        chainid = isempty(chainid) ? ta.chainid : chainid,
-        resname = isempty(resname) ? ta.resname : resname,
-        resid = isempty(resid) ? ta.resid : resid,
-        atomname = isempty(atomname) ? ta.atomname : atomname,
-        atomid = isempty(atomid) ? ta.atomid : atomid,
-        mass = isempty(mass) ? ta.mass : mass, 
-        radius = isempty(radius) ? ta.radius : radius, 
-        charge = isempty(charge) ? ta.charge : charge,
-        sasa = isempty(sasa) ? ta.sasa : sasa,
-        list_bond = isempty(list_bond) ? ta.list_bond : list_bond, 
-        list_angle = isempty(list_angle) ? ta.list_angle : list_angle, 
-        list_dihedral = isempty(list_dihedral) ? ta.list_dihedral : list_dihedral, 
-        list_improper = isempty(list_improper) ? ta.list_improper : list_improper, 
-        list_cmap = isempty(list_cmap) ? ta.list_cmap : list_cmap)
+TrjArray(ta::TrjArray{T, U}; x = nothing, y = nothing, z = nothing,
+    boxsize = nothing,
+    chainname = nothing, chainid = nothing,
+    resname = nothing, resid = nothing,
+    atomname = nothing, atomid = nothing,
+    mass = nothing, radius = nothing, charge = nothing, sasa = nothing,
+    list_bond = nothing, list_angle = nothing,
+    list_dihedral = nothing, list_improper = nothing,
+    list_cmap = nothing) where {T, U} = TrjArray{T, U}(
+        x = isnothing(x) ? ta.x : x,
+        y = isnothing(y) ? ta.y : y,
+        z = isnothing(z) ? ta.z : z,
+        boxsize = isnothing(boxsize) ? ta.boxsize : boxsize,
+        chainname = isnothing(chainname) ? ta.chainname : chainname,
+        chainid = isnothing(chainid) ? ta.chainid : chainid,
+        resname = isnothing(resname) ? ta.resname : resname,
+        resid = isnothing(resid) ? ta.resid : resid,
+        atomname = isnothing(atomname) ? ta.atomname : atomname,
+        atomid = isnothing(atomid) ? ta.atomid : atomid,
+        mass = isnothing(mass) ? ta.mass : mass, 
+        radius = isnothing(radius) ? ta.radius : radius, 
+        charge = isnothing(charge) ? ta.charge : charge,
+        sasa = isnothing(sasa) ? ta.sasa : sasa,
+        list_bond = isnothing(list_bond) ? ta.list_bond : list_bond, 
+        list_angle = isnothing(list_angle) ? ta.list_angle : list_angle, 
+        list_dihedral = isnothing(list_dihedral) ? ta.list_dihedral : list_dihedral, 
+        list_improper = isnothing(list_improper) ? ta.list_improper : list_improper, 
+        list_cmap = isnothing(list_cmap) ? ta.list_cmap : list_cmap)
 
 TrjArray() = TrjArray{Float64, Int64}()
 
@@ -527,6 +527,15 @@ copy(ta::TrjArray)::TrjArray =
 ###### vcat, hcat, merge #################
 function vcat(ta_collection::TrjArray...)
     natom = ta_collection[1].natom
+    isbox_empty = false
+
+    T = Float64
+    if isempty(ta_collection[1].boxsize)
+        isbox_empty = true
+    else
+        T = eltype(ta_collection[1].boxsize)
+    end
+
     for i = 2:length(ta_collection)
         if natom != ta_collection[i].natom
             throw(ArgumentError("number of atoms doesn't match"))
@@ -555,12 +564,16 @@ function vcat(ta_collection::TrjArray...)
                 z = [z; ta_collection[i].z]
             end
         end
-        if !isempty(ta_collection[i].boxsize)
+        if !isempty(ta_collection[i].boxsize) & !isbox_empty
             if isempty(boxsize)
                 boxsize = ta_collection[i].boxsize
             else
                 boxsize = [boxsize; ta_collection[i].boxsize]
             end
+        else
+            @printf "Warning: boxsize information discarded in some trajectories\n"
+            isbox_empty = true
+            boxsize = Matrix{T}(undef, 0, 0)
         end
     end
     TrjArray(ta_collection[1], x = x, y = y, z = z, boxsize = boxsize)
