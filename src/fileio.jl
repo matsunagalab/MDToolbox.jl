@@ -1,14 +1,14 @@
 """
 common interface for specific read functions
 """
-function load(filename::AbstractString; index=nothing, top=nothing)
-    if endswith(filename, ".dcd") | endswith(filename, ".veldcd")
+function mdload(filename::AbstractString; index=nothing, top=nothing)
+    if endswith(filename, ".dcd") | endswith(filename, ".DCD") | endswith(filename, ".veldcd") | endswith(filename, ".VELDCD")
         ta = readdcd(filename, index=index)
-    elseif endswith(filename, ".nc") | endswith(filename, ".netcdf")
+    elseif endswith(filename, ".nc") | endswith(filename, ".NC") | endswith(filename, ".netcdf") | endswith(filename, ".NETCDF")
         ta = readnetcdf(filename, index=index)
-    elseif endswith(filename, ".pdb")
+    elseif endswith(filename, ".pdb") | endswith(filename, ".PDB")
         ta = readpdb(filename)
-    elseif endswith(filename, ".psf")
+    elseif endswith(filename, ".psf") |  endswith(filename, ".PSF")
         ta = readpsf(filename)
     else        
         ta = read(filename)
@@ -28,7 +28,7 @@ end
 """
 common interface for specific write functions
 """
-function save(filename::AbstractString, ta::TrjArray)
+function mdsave(filename::AbstractString, ta::TrjArray)
     r = 0
     if endswith(filename, ".dcd") | endswith(filename, ".veldcd")
         #r = writedcd(filename, ta)

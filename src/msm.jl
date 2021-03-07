@@ -287,7 +287,7 @@ function msmbackward(data_list, factor_list, T, pi_i, emission)
     logL, beta_list
 end
 
-function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE = 10.0^(-4))
+function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE = 10.0^(-4), MAXITERATION=Inf64)
     ## setup
     check_convergence = Inf64
     count_iteration = 0
@@ -300,7 +300,7 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE = 10.0^(-4))
     T = similar(T0)
     emission = similar(emission0)
     pi_i = similar(pi_i0)
-    while check_convergence > TOLERANCE
+    while (check_convergence > TOLERANCE) & (count_iteration <= MAXITERATION)
         ## E-step
         logL, alpha_list, factor_list = msmforward(data_list, T0, pi_i0, emission0)
         #print("1"); println(logL)
@@ -427,7 +427,7 @@ function msmimpliedtime(indexOfCluster, tau)
     C = msmcountmatrix(indexOfCluster, tau=t)
     # TODO fixme; tarjan algorithm to remove non-ergodic graphs
     T, p = msmtransitionmatrix(C, TOLERANCE=10^(-8), verbose=false)
-    F = eigen(T, sortby = x -> -x)
+    F = eigen(T, sortby = x -> -real(x))
     #@show F.values
     for istate = 2:nstate
       r = real(F.values[istate])
