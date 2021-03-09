@@ -7,7 +7,7 @@ Being ported into Julia from the original MATLAB version https://github.com/ymat
 
 Julia version 1.0 or later is required. 
 ```
-julia> ]add https://github.com/ymatsunaga/MDToolbox.jl.git
+julia> ]add https://github.com/matsunagalab/MDToolbox.jl.git
 julia> using MDToolbox
 ```
 
