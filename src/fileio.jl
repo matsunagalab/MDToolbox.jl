@@ -52,8 +52,8 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
     #TODO: endian
     header_ischarmm_4dims = false
     header_ischarmm_extrablock = false
-    x = y = z = Matrix{Float64}(undef, 0, 0)
-    boxsize = Matrix{Float64}(undef, 0, 0)
+    xyz = []
+    boxsize = []
 
     open(filename, "r") do io
         seekend(io)
@@ -157,11 +157,9 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
         else
             index2 = index
         end
-        x = zeros(Float64, (nframe_stride, length(index2)))
-        y = zeros(Float64, (nframe_stride, length(index2)))
-        z = zeros(Float64, (nframe_stride, length(index2)))
+        xyz = zeros(Float64, nframe_stride, length(index2)*3)
         if header_ischarmm_extrablock == true
-            boxsize = zeros(Float64, (nframe_stride, 3))
+            boxsize = zeros(Float64, nframe_stride, 3)
         end
         # read next frames
         dummy = Array{Float64, 1}(undef, 6)
@@ -194,9 +192,9 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
                 blocksize_4dims = read(io, Int32)
             end
             # get data
-            x[iframe, :] = crd_x[index2];
-            y[iframe, :] = crd_y[index2];
-            z[iframe, :] = crd_z[index2];
+            x[iframe, 1:3:end] .= crd_x[index2];
+            y[iframe, 1:3:end] .= crd_y[index2];
+            z[iframe, 1:3:end] .= crd_z[index2];
             if header_ischarmm_extrablock == true
                 boxsize[iframe, :] = dummy[[1 3 6]];
             end
@@ -233,9 +231,9 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
     end
 
     if isempty(boxsize) | !isbox
-        TrjArray{Float64, Int64}(x=x, y=y, z=z)
+        TrjArray{Float64, Int64}(xyz=xyz)
     else
-        TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
+        TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
     end
 end
 
@@ -282,12 +280,13 @@ function readnetcdf(filename::String; index=nothing)
 
     if is_trj
         d = ncread(filename, "coordinates", start=[1, start_atom, start_time], count=[3, count_atom, count_time])
-        d = map(Float64, d)
-        x = d[1, index3, :]'
-        y = d[2, index3, :]'
-        z = d[3, index3, :]'
+        d = Float64.(d)
+        xyz = zeros(Float64, size(d, 3), length(index3)*3)
+        xyz[:, 1:3:end] .= d[1, index3, :]'
+        xyz[:, 2:3:end] .= d[2, index3, :]'
+        xyz[:, 3:3:end] .= d[3, index3, :]'
     else
-        x = y = z = Matrix{Float64}(undef, 0, 0)
+        xyz = Matrix{Float64}(undef, 0, 0)
     end
 
     if is_box
@@ -301,11 +300,12 @@ function readnetcdf(filename::String; index=nothing)
     if is_vel
         d = ncread(filename, "velocities", start=[1, start_atom, start_time], count=[3, count_atom, count_time])
         d = map(Float64, d)
-        vx = d[1, index3, :]'
-        vy = d[2, index3, :]'
-        vz = d[3, index3, :]'
+        vxyz = zeros(Float64, size(d, 3), length(index3)*3)
+        vxyz[:, 1:3:end] .= d[1, index3, :]'
+        vxyz[:, 2:3:end] .= d[2, index3, :]'
+        vxyz[:, 3:3:end] .= d[3, index3, :]'
     else
-        vx = vy = vz = Matrix{Float64}(undef, 0, 0)
+        vxyz = Matrix{Float64}(undef, 0, 0)
     end
 
     if is_temp
@@ -315,7 +315,7 @@ function readnetcdf(filename::String; index=nothing)
         temp = Vector{Float64}(undef, 0)
     end
 
-    TrjArray{Float64, Int64}(x=x, y=y, z=z, boxsize=boxsize)
+    TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
 end
 
 
@@ -390,9 +390,9 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
         trj = zeros(Float32, 3, natom, nframe)
         for iframe in 1:nframe
             for iatom in 1:natom
-                trj[1, iatom, iframe] = ta.x[iframe, iatom]
-                trj[2, iatom, iframe] = ta.y[iframe, iatom]
-                trj[3, iatom, iframe] = ta.z[iframe, iatom]
+                trj[1, iatom, iframe] = ta.xyz[iframe, 3*(iatom-1)+1]
+                trj[2, iatom, iframe] = ta.xyz[iframe, 3*(iatom-1)+2]
+                trj[3, iatom, iframe] = ta.xyz[iframe, 3*(iatom-1)+3]
             end
         end
         NetCDF.putvar(nc, "coordinates", trj)
@@ -722,9 +722,7 @@ function readpdb(filename::String)
     pdb_resname = Vector{String}(undef, natom)
     pdb_chainid = Vector{String}(undef, natom)
     pdb_resseq = Vector{Int64}(undef, natom)
-    pdb_x = zeros(Float64, length(model), natom)
-    pdb_y = zeros(Float64, length(model), natom)
-    pdb_z = zeros(Float64, length(model), natom)
+    pdb_xyz = zeros(Float64, length(model), natom*3)
     pdb_occupancy = Vector{Float64}(undef, natom)
     pdb_tempfactor = Vector{Float64}(undef, natom)
     pdb_element = Vector{String}(undef, natom)
@@ -747,9 +745,9 @@ function readpdb(filename::String)
         pdb_resname[iatom] = parse_line(line, 18:21, String, "None")
         pdb_chainid[iatom] = parse_line(line, 22:22, String, "None")
         pdb_resseq[iatom] = parse_line(line, 23:28, Int64, 0)
-        pdb_x[1, iatom] = parse_line(line, 31:38, Float64, 0.0)
-        pdb_y[1, iatom] = parse_line(line, 39:46, Float64, 0.0)
-        pdb_z[1, iatom] = parse_line(line, 47:54, Float64, 0.0)
+        pdb_xyz[1, 3*(iatom-1)+1] = parse_line(line, 31:38, Float64, 0.0)
+        pdb_xyz[1, 3*(iatom-1)+2] = parse_line(line, 39:46, Float64, 0.0)
+        pdb_xyz[1, 3*(iatom-1)+3] = parse_line(line, 47:54, Float64, 0.0)
         pdb_occupancy[iatom] = parse_line(line, 55:60, Float64, 0.0)
         pdb_tempfactor[iatom] = parse_line(line, 61:66, Float64, 0.0)
         pdb_element[iatom] = parse_line(line, 77:78, String, "None")
@@ -760,13 +758,13 @@ function readpdb(filename::String)
         lines = model[imodel]
         for iatom = 1:natom
             line = lines[iatom]
-            pdb_x[imodel, iatom] = parse_line(line, 31:38, Float64, 0.0)
-            pdb_y[imodel, iatom] = parse_line(line, 39:46, Float64, 0.0)
-            pdb_z[imodel, iatom] = parse_line(line, 47:54, Float64, 0.0)
+            pdb_xyz[imodel, 3*(iatom-1)+1] = parse_line(line, 31:38, Float64, 0.0)
+            pdb_xyz[imodel, 3*(iatom-1)+2] = parse_line(line, 39:46, Float64, 0.0)
+            pdb_xyz[imodel, 3*(iatom-1)+3] = parse_line(line, 47:54, Float64, 0.0)
         end
     end
 
-    TrjArray{Float64, Int64}(x=pdb_x, y=pdb_y, z=pdb_z,
+    TrjArray{Float64, Int64}(xyz=pdb_xyz,
              chainname=pdb_chainid,
              resid=pdb_resseq, resname=pdb_resname,
              atomid=pdb_serial, atomname=pdb_name)
@@ -825,9 +823,9 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 1))
             #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 2))
             #Printf.@printf(io, "%8.3f", ta.xyz(iatom, 3))
-            Printf.@printf(io, "%8.3f", ta.x[iframe, iatom])
-            Printf.@printf(io, "%8.3f", ta.y[iframe, iatom])
-            Printf.@printf(io, "%8.3f", ta.z[iframe, iatom])
+            Printf.@printf(io, "%8.3f", ta.xyz[iframe, 3*(iatom-1)+1])
+            Printf.@printf(io, "%8.3f", ta.xyz[iframe, 3*(iatom-1)+2])
+            Printf.@printf(io, "%8.3f", ta.xyz[iframe, 3*(iatom-1)+3])
             Printf.@printf(io, "%6.2f", 0.0)
             if isempty(ta.charge)
                 Printf.@printf(io, "%6s", "      ")
@@ -885,14 +883,14 @@ function readcrd(filename::String)
     natom = parse_line(lines[2], 1:length(lines[2]), Int64, 0)
     #pdb_name[iatom] = parse_line(line, 13:16, String, "None")
 
-    xyz = Vector{Float64}(undef, natom*3)
+    xyz = Vector{Float64}(undef, 1, natom*3)
 
     iatom3 = 1
     icount = 3
     while true
         n = length(lines[icount])
         for i = 1:12:n
-            xyz[iatom3] = parse_line(lines[icount], i:(i+11), Float64, 0.0)
+            xyz[1, iatom3] = parse_line(lines[icount], i:(i+11), Float64, 0.0)
             iatom3 += 1
         end
         icount += 1
@@ -901,12 +899,5 @@ function readcrd(filename::String)
         end
     end
 
-    x = zeros(Float64, 1, natom)
-    y = zeros(Float64, 1, natom)
-    z = zeros(Float64, 1, natom)
-    x[:] .= xyz[1:3:end]
-    y[:] .= xyz[2:3:end]
-    z[:] .= xyz[3:3:end]
-
-    TrjArray{Float64, Int64}(x=x, y=y, z=z)
+    TrjArray{Float64, Int64}(xyz=xyz)
 end

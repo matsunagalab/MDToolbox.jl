@@ -74,7 +74,7 @@ end
 #gpu(x) = use_cuda[] ? fmap(CUDA.cu, x) : x
 
 function gpu(ta::TrjArray{T, U}) where {T, U}
-    TrjArray{T, U}(CuArray(ta.x), CuArray(ta.y), CuArray(ta.z), CuArray(ta.boxsize),
+    TrjArray{T, U}(CuArray(ta.xyz), CuArray(ta.boxsize),
       ta.chainname, CuArray(ta.chainid),
       ta.resname, CuArray(ta.resid),
       ta.atomname, CuArray(ta.atomid),
@@ -84,7 +84,7 @@ function gpu(ta::TrjArray{T, U}) where {T, U}
 end
 
 function gpu32(ta::TrjArray)
-    TrjArray{Float32, Int64}(CUDA.cu(ta.x), CUDA.cu(ta.y), CUDA.cu(ta.z), CUDA.cu(ta.boxsize),
+    TrjArray{Float32, Int64}(CUDA.cu(ta.xyz), CUDA.cu(ta.boxsize),
       ta.chainname, CUDA.cu(ta.chainid),
       ta.resname, CUDA.cu(ta.resid),
       ta.atomname, CUDA.cu(ta.atomid),
@@ -94,7 +94,7 @@ function gpu32(ta::TrjArray)
 end
 
 function cpu(ta::TrjArray{T, U}) where {T, U}
-    TrjArray{T, U}(Array(ta.x), Array(ta.y), Array(ta.z), Array(ta.boxsize),
+    TrjArray{T, U}(Array(ta.xyz), Array(ta.boxsize),
       ta.chainname, Array(ta.chainid),
       ta.resname, Array(ta.resid),
       ta.atomname, Array(ta.atomid),
@@ -104,7 +104,7 @@ function cpu(ta::TrjArray{T, U}) where {T, U}
 end
 
 function cpu64(ta::TrjArray)
-    TrjArray{Float64, Int64}(Array{Float64}(ta.x), Array{Float64}(ta.y), Array{Float64}(ta.z), Array{Float64}(ta.boxsize),
+    TrjArray{Float64, Int64}(Array{Float64}(ta.xyz), Array{Float64}(ta.boxsize),
       ta.chainname, Array{Int64}(ta.chainid),
       ta.resname, Array{Int64}(ta.resid),
       ta.atomname, Array{Int64}(ta.atomid),

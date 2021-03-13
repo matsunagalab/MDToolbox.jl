@@ -71,15 +71,15 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, 
         for ipoint in 1:npoint
             is_accessible = true
             point = points[ipoint, :] .* (ta.radius[iatom] + probe_radius)
-            point[1] += ta.x[iframe, iatom]
-            point[2] += ta.y[iframe, iatom]
-            point[3] += ta.z[iframe, iatom]
+            point[1] += ta.xyz[iframe, 3*(iatom-1)+1]
+            point[2] += ta.xyz[iframe, 3*(iatom-1)+2]
+            point[3] += ta.xyz[iframe, 3*(iatom-1)+3]
             for j in 1:length(neighbor_list_iatom)
                 jatom = neighbor_list_iatom[j]
                 d = 0.0
-                d += (point[1] - ta.x[iframe, jatom])^2
-                d += (point[2] - ta.y[iframe, jatom])^2
-                d += (point[3] - ta.z[iframe, jatom])^2
+                d += (point[1] - ta.xyz[iframe, 3*(jatom-1)+1])^2
+                d += (point[2] - ta.xyz[iframe, 3*(jatom-1)+2])^2
+                d += (point[3] - ta.xyz[iframe, 3*(jatom-1)+3])^2
                 d = sqrt(d)
                 if d < (ta.radius[jatom] + probe_radius)
                     is_accessible = false
@@ -107,9 +107,9 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
             continue
         end
 
-        x = ta.x[iframe, iatom]
-        y = ta.y[iframe, iatom]
-        z = ta.z[iframe, iatom]
+        x = ta.xyz[iframe, 3*(iatom-1)+1]
+        y = ta.xyz[iframe, 3*(iatom-1)+2]
+        z = ta.xyz[iframe, 3*(iatom-1)+3]
 
         dx = x - x_grid[1]
         ix_min = floor(U, (dx - rcut)/grid_space) + 1
@@ -149,9 +149,9 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
             continue
         end
 
-        x = ta.x[iframe, iatom]
-        y = ta.y[iframe, iatom]
-        z = ta.z[iframe, iatom]
+        x = ta.xyz[iframe, 3*(iatom-1)+1]
+        y = ta.xyz[iframe, 3*(iatom-1)+2]
+        z = ta.xyz[iframe, 3*(iatom-1)+3]
 
         dx = x - x_grid[1]
         ix_min = floor(U, (dx - rcut)/grid_space) + 1

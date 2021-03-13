@@ -4,32 +4,39 @@ centerofmass
 calculate center of mass of given trajectory
 """
 function centerofmass(ta::TrjArray{T, U};
-    isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::TrjArray{T, U} where {T, U}
+    isweight::Bool=true, index::AbstractVector=Vector{Int64}(undef, 0))::TrjArray{T, U} where {T, U}
     nframe = ta.nframe
     natom = ta.natom
     if isempty(index)
-        index2 = Colon()
+        index = 1:natom
+        index3 = to3(1:natom)
         natom_sub = natom
     else
-        index2 = index
-        natom_sub = length(index2)
+        index3 = to3(index)
+        if eltype(index3) == Bool
+            natom_sub = sum(index)
+        else
+            natom_sub = length(index)
+        end
     end
+
+    xyz = similar(ta.xyz, nframe, 3)
     if natom_sub == 1
-        return ta[:, index2]
+        return ta[:, index]
     elseif isweight && length(ta.mass) == natom
         weight = reshape(ta.mass, 1, natom_sub)
         wsum_inv = one(T) / sum(weight)
-        x = sum(weight .* view(ta.x, :, index2), dims=2) .* wsum_inv
-        y = sum(weight .* view(ta.y, :, index2), dims=2) .* wsum_inv
-        z = sum(weight .* view(ta.z, :, index2), dims=2) .* wsum_inv
-        return TrjArray{T, U}(x=x, y=y, z=z)
+        xyz[:, 1:1] .= sum(weight .* view(ta.xyz, :, index3[1:3:end]), dims=2) .* wsum_inv
+        xyz[:, 2:2] .= sum(weight .* view(ta.xyz, :, index3[2:3:end]), dims=2) .* wsum_inv
+        xyz[:, 3:3] .= sum(weight .* view(ta.xyz, :, index3[3:3:end]), dims=2) .* wsum_inv
     else
-        wsum_inv = one(T) / Float64(natom_sub)
-        x = sum(view(ta.x, :, index2), dims=2) .* wsum_inv
-        y = sum(view(ta.y, :, index2), dims=2) .* wsum_inv
-        z = sum(view(ta.z, :, index2), dims=2) .* wsum_inv
-        return TrjArray{T, U}(x=x, y=y, z=z)
+        wsum_inv = one(T) / T(natom_sub)
+        xyz[:, 1:1] .= sum(view(ta.xyz, :, index3[1:3:end]), dims=2) .* wsum_inv
+        xyz[:, 2:2] .= sum(view(ta.xyz, :, index3[2:3:end]), dims=2) .* wsum_inv
+        xyz[:, 3:3] .= sum(view(ta.xyz, :, index3[3:3:end]), dims=2) .* wsum_inv
     end
+
+    TrjArray{T, U}(xyz=xyz)
 end
 
 
@@ -41,7 +48,11 @@ remove center of mass
 """
 function decenter(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
-    TrjArray(ta, x = ta.x .- com.x, y = ta.y .- com.y, z = ta.z .- com.z), com
+    xyz = similar(ta.xyz)
+    xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
+    xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
+    xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
+    TrjArray(ta, xyz=xyz), com
 end
 
 """
@@ -51,9 +62,9 @@ remove center of mass
 """
 function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0)) where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
-    ta.x .= ta.x .- com.x
-    ta.y .= ta.y .- com.y
-    ta.z .= ta.z .- com.z
+    ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.x[:, 1]
+    ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.y[:, 2]
+    ta.xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .- com.z[:, 3]
     nothing
 end
 
@@ -67,13 +78,16 @@ function innerproduct(iframe::U, ref::TrjArray{T, U}, ta::TrjArray{T, U},
     G1 = G2 = zero(T)
     if isweight
         for i in index
-            x1 = ta.mass[i] * ref.x[i]
-            y1 = ta.mass[i] * ref.y[i]
-            z1 = ta.mass[i] * ref.z[i]
-            G1 += x1 * ref.x[i] + y1 * ref.y[i] + z1 * ref.z[i]
-            x2 = ta.x[iframe, i]
-            y2 = ta.y[iframe, i]
-            z2 = ta.z[iframe, i]
+            ref_x = ref.xyz[1, 3*(i-1)+1]
+            ref_y = ref.xyz[1, 3*(i-1)+2]
+            ref_z = ref.xyz[1, 3*(i-1)+3]
+            x1 = ta.mass[i] * ref_x
+            y1 = ta.mass[i] * ref_y
+            z1 = ta.mass[i] * ref_z
+            G1 += x1 * ref_x + y1 * ref_x + z1 * ref_z
+            x2 = ta.xyz[iframe, 3*(i-1)+1]
+            y2 = ta.xyz[iframe, 3*(i-1)+2]
+            z2 = ta.xyz[iframe, 3*(i-1)+3]
             G2 += ta.mass[i] * (x2 * x2 + y2 * y2 + z2 * z2)
             A[1] +=  (x1 * x2)
             A[2] +=  (x1 * y2)
@@ -87,13 +101,16 @@ function innerproduct(iframe::U, ref::TrjArray{T, U}, ta::TrjArray{T, U},
         end
     else
         for i in index
-            x1 = ref.x[i]
-            y1 = ref.y[i]
-            z1 = ref.z[i]
-            G1 += x1 * ref.x[i] + y1 * ref.y[i] + z1 * ref.z[i]
-            x2 = ta.x[iframe, i]
-            y2 = ta.y[iframe, i]
-            z2 = ta.z[iframe, i]
+            ref_x = ref.xyz[1, 3*(i-1)+1]
+            ref_y = ref.xyz[1, 3*(i-1)+2]
+            ref_z = ref.xyz[1, 3*(i-1)+3]
+            x1 = ref_x
+            y1 = ref_y
+            z1 = ref_z
+            G1 += x1 * ref_x + y1 * ref_y + z1 * ref_z
+            x2 = ta.xyz[iframe, 3*(i-1)+1]
+            y2 = ta.xyz[iframe, 3*(i-1)+2]
+            z2 = ta.xyz[iframe, 3*(i-1)+3]
             G2 += (x2 * x2 + y2 * y2 + z2 * z2)
             A[1] +=  (x1 * x2)
             A[2] +=  (x1 * y2)
@@ -269,18 +286,16 @@ function fastCalcRMSDAndRotation(A::Vector{T}, E0::T, wsum_inv::T) where {T}
 end
 
 function applyrotation!(iframe, x, y, z, ta2, rot)
-    for iatom in 1:ta2.natom
-        @inbounds x[iframe, iatom] = rot[1] * ta2.x[iframe, iatom] + rot[2] * ta2.y[iframe, iatom] + rot[3] * ta2.z[iframe, iatom]
-        @inbounds y[iframe, iatom] = rot[4] * ta2.x[iframe, iatom] + rot[5] * ta2.y[iframe, iatom] + rot[6] * ta2.z[iframe, iatom]
-        @inbounds z[iframe, iatom] = rot[7] * ta2.x[iframe, iatom] + rot[8] * ta2.y[iframe, iatom] + rot[9] * ta2.z[iframe, iatom]
+    for i in 1:ta2.natom
+        @inbounds x[iframe, i] = rot[1] * ta2.xyz[iframe, 3*(i-1)+1] + rot[2] * ta2.xyz[iframe, 3*(i-1)+2] + rot[3] * ta2.xyz[iframe, 3*(i-1)+3]
+        @inbounds y[iframe, i] = rot[4] * ta2.xyz[iframe, 3*(i-1)+1] + rot[5] * ta2.xyz[iframe, 3*(i-1)+2] + rot[6] * ta2.xyz[iframe, 3*(i-1)+3]
+        @inbounds z[iframe, i] = rot[7] * ta2.xyz[iframe, 3*(i-1)+1] + rot[8] * ta2.xyz[iframe, 3*(i-1)+2] + rot[9] * ta2.xyz[iframe, 3*(i-1)+3]
     end
 end
 
 ############################################################################
 function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} where {T, U}
-    x = similar(ta.x, ta.nframe, ta.natom)
-    y = similar(ta.y, ta.nframe, ta.natom)
-    z = similar(ta.z, ta.nframe, ta.natom)
+    xyz = similar(ta.xyz)
     rot = similar(quater, 9)
     rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3]
     rot[2] = 2 * (quater[1] * quater[2] + quater[3] * quater[4])
@@ -291,16 +306,16 @@ function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} w
     rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4])
     rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4])
     rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2]
-    x .= rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
-    y .= rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
-    z .= rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
-    return TrjArray(ta, x=x, y=y, z=z)
+    x = rot[1] .* ta.xyz[:, 1:3:end] .+ rot[2] .* ta.xyz[:, 2:3:end] .+ rot[3] .* ta.xyz[:, 3:3:end]
+    y = rot[4] .* ta.xyz[:, 1:3:end] .+ rot[5] .* ta.xyz[:, 2:3:end] .+ rot[6] .* ta.xyz[:, 3:3:end]
+    z = rot[7] .* ta.xyz[:, 1:3:end] .+ rot[8] .* ta.xyz[:, 2:3:end] .+ rot[9] .* ta.xyz[:, 3:3:end]
+    xyz[:, 1:3:end] .= x
+    xyz[:, 2:3:end] .= y
+    xyz[:, 3:3:end] .= z
+    return TrjArray(ta, xyz=xyz)
 end
 
 function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
-    x = similar(ta_single.x, size(quater, 1), ta_single.natom)
-    y = similar(ta_single.y, size(quater, 1), ta_single.natom)
-    z = similar(ta_single.z, size(quater, 1), ta_single.natom)
     rot = similar(quater, size(quater, 1), 9)
     rot[:, 1:1] .= 1 .- 2 .* quater[:, 2:2] .* quater[:, 2:2] .- 2.0 .* quater[:, 3:3] .* quater[:, 3:3]
     rot[:, 2:2] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .+ quater[:, 3:3] .* quater[:, 4:4])
@@ -311,10 +326,13 @@ function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{
     rot[:, 7:7] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .+ quater[:, 2:2] .* quater[:, 4:4])
     rot[:, 8:8] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .- quater[:, 1:1] .* quater[:, 4:4])
     rot[:, 9:9] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 2:2] .* quater[:, 2:2]
-    x .= rot[:, 1:1] .* ta_single.x[1:1, :] .+ rot[:, 2:2] .* ta_single.y[1:1, :] .+ rot[:, 3:3] .* ta_single.z[1:1, :]
-    y .= rot[:, 4:4] .* ta_single.x[1:1, :] .+ rot[:, 5:5] .* ta_single.y[1:1, :] .+ rot[:, 6:6] .* ta_single.z[1:1, :]
-    z .= rot[:, 7:7] .* ta_single.x[1:1, :] .+ rot[:, 8:8] .* ta_single.y[1:1, :] .+ rot[:, 9:9] .* ta_single.z[1:1, :]
-    return TrjArray(ta_single, x=x, y=y, z=z)
+    x = rot[:, 1:1] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 2:2] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 3:3] .* ta_single.xyz[1:1, 3:3:end]
+    y = rot[:, 4:4] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 5:5] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 6:6] .* ta_single.xyz[1:1, 3:3:end]
+    z = rot[:, 7:7] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 8:8] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 9:9] .* ta_single.xyz[1:1, 3:3:end]
+    xyz[:, 1:3:end] .= x
+    xyz[:, 2:3:end] .= y
+    xyz[:, 3:3:end] .= z
+    return TrjArray(ta_single, xyz=xyz)
 end
 
 function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
@@ -328,22 +346,23 @@ function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
     rot[7] = 2 * (quater[1] * quater[3] + quater[2] * quater[4])
     rot[8] = 2 * (quater[2] * quater[3] - quater[1] * quater[4])
     rot[9] = 1 - 2 * quater[1] * quater[1] - 2 * quater[2] * quater[2]
-    x = rot[1] .* ta.x .+ rot[2] .* ta.y .+ rot[3] .* ta.z
-    y = rot[4] .* ta.x .+ rot[5] .* ta.y .+ rot[6] .* ta.z
-    z = rot[7] .* ta.x .+ rot[8] .* ta.y .+ rot[9] .* ta.z
-    ta.x .= x
-    ta.y .= y
-    ta.z .= z
+    x = rot[1] .* ta.xyz[:, 1:3:end] .+ rot[2] .* ta.xyz[:, 2:3:end] .+ rot[3] .* ta.xyz[:, 3:3:end]
+    y = rot[4] .* ta.xyz[:, 1:3:end] .+ rot[5] .* ta.xyz[:, 2:3:end] .+ rot[6] .* ta.xyz[:, 3:3:end]
+    z = rot[7] .* ta.xyz[:, 1:3:end] .+ rot[8] .* ta.xyz[:, 2:3:end] .+ rot[9] .* ta.xyz[:, 3:3:end]
+    ta.xyz[:, 1:3:end] .= x
+    ta.xyz[:, 2:3:end] .= y
+    ta.xyz[:, 3:3:end] .= z
+    return nothing
 end
 
 function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
-    x = similar(ta.x, ta.nframe, ta.natom)
-    y = similar(ta.y, ta.nframe, ta.natom)
-    z = similar(ta.z, ta.nframe, ta.natom)
-    x .= R[1, 1].*ta.x .+ R[1, 2].*ta.y .+ R[1, 3].*ta.z
-    y .= R[2, 1].*ta.x .+ R[2, 2].*ta.y .+ R[2, 3].*ta.z
-    z .= R[3, 1].*ta.x .+ R[3, 2].*ta.y .+ R[3, 3].*ta.z
-    return TrjArray(ta, x=x, y=y, z=z)
+    x = R[1, 1].*ta.xyz[:, 1:3:end] .+ R[1, 2].*ta.xyz[:, 2:3:end] .+ R[1, 3].*ta.xyz[:, 3:3:end]
+    y = R[2, 1].*ta.xyz[:, 1:3:end] .+ R[2, 2].*ta.xyz[:, 2:3:end] .+ R[2, 3].*ta.xyz[:, 3:3:end]
+    z = R[3, 1].*ta.xyz[:, 1:3:end] .+ R[3, 2].*ta.xyz[:, 2:3:end] .+ R[3, 3].*ta.xyz[:, 3:3:end]
+    ta.xyz[:, 1:3:end] .= x
+    ta.xyz[:, 2:3:end] .= y
+    ta.xyz[:, 3:3:end] .= z
+    return TrjArray(ta, xyz=xyz)
 end
 
 ############################################################################
@@ -397,12 +416,17 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     end
 
     if !isdecenter
-        x = x .+ com.x
-        y = y .+ com.y
-        z = z .+ com.z
+        x = x .+ com.xyz[:, 1]
+        y = y .+ com.xyz[:, 2]
+        z = z .+ com.xyz[:, 3]
     end
-    ta_fit = TrjArray(ta, x=x, y=y, z=z)
-    #rmsd, ta_fit
+
+    xyz = Matrix{T}(undef, nframe, natom*3)
+    xyz[:, 1:3:end] .= x
+    xyz[:, 2:3:end] .= y
+    xyz[:, 3:3:end] .= z
+
+    return TrjArray(ta, xyz=xyz)
 end
 
 
@@ -454,8 +478,13 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
         y = y .+ com.y
         z = z .+ com.z
     end
-    ta_fit = TrjArray(ta, x=x, y=y, z=z)
-    #rmsd, ta_fit
+
+    xyz = Matrix{T}(undef, nframe, natom*3)
+    xyz[:, 1:3:end] .= x
+    xyz[:, 2:3:end] .= y
+    xyz[:, 3:3:end] .= z
+
+    return TrjArray(ta, xyz=xyz)
 end
 
 
@@ -475,18 +504,20 @@ function compute_rmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
         weight = ones(T, natom)
     end
     if isempty(index)
-        index2 = cumsum(ones(U, natom))
+        index2 = 1:ta.natom
+        index3 = to3(index2)
     else
         index2 = index
+        index3 = to3(index2)
     end
     wsum_inv = one(T) / sum(weight[index2])
     weight2 = reshape(weight[index2], 1, length(index2))
-    ref_x = ref.x[1:1, index2]
-    ref_y = ref.y[1:1, index2]
-    ref_z = ref.z[1:1, index2]
-    ta_x = ta.x[:, index2]
-    ta_y = ta.y[:, index2]
-    ta_z = ta.z[:, index2]
+    ref_x = view(ref.xyz, 1:1, index3[1:3:end])
+    ref_y = view(ref.xyz, 1:1, index3[2:3:end])
+    ref_z = view(ref.xyz, 1:1, index3[3:3:end])
+    ta_x = view(ta.xyz, :, index3[1:3:end])
+    ta_y = view(ta.xyz, :, index3[2:3:end])
+    ta_z = view(ta.xyz, :, index3[3:3:end])
     d =  sum(weight2 .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
     d = d .* wsum_inv
     d = sqrt.(d)
@@ -536,17 +567,16 @@ function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where 
     else
         weight = ones(T, natom)
     end
-    wsum_inv = 1.0 / sum(weight[index2])
-    weight2 = reshape(weight[index2], 1, length(index2))
-    mean_x = (ta.x .* weight2)
+    wsum_inv = 1.0 / sum(weight)
+    weight_row = reshape(weight, 1, length(weight))
 
-    ref_x = ref.x[1:1, index2]
-    ref_y = ref.y[1:1, index2]
-    ref_z = ref.z[1:1, index2]
-    ta_x = ta.x[:, index2]
-    ta_y = ta.y[:, index2]
-    ta_z = ta.z[:, index2]
-    d =  sum(weight2 .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
+    ref_x = ref.xyz[1:1, 1:3:end]
+    ref_y = ref.xyz[1:1, 2:3:end]
+    ref_z = ref.xyz[1:1, 3:3:end]
+    ta_x = ta.xyz[:, 1:3:end]
+    ta_y = ta.xyz[:, 2:3:end]
+    ta_z = ta.xyz[:, 3:3:end]
+    d =  sum(weight_row .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
     d = d .* wsum_inv
     d = sqrt.(d)
     reshape(d, nframe)
@@ -560,9 +590,11 @@ compute_distance
 distance between two atoms or groups of atoms
 """
 function compute_distance(ta::TrjArray{T, U}, index=[1 2]::Matrix{U})::Matrix{T} where {T, U}
-    dx = view(ta.x, :, index[:, 1]) .- view(ta.x, :, index[:, 2])
-    dy = view(ta.y, :, index[:, 1]) .- view(ta.y, :, index[:, 2])
-    dz = view(ta.z, :, index[:, 1]) .- view(ta.z, :, index[:, 2])
+    xyz1 = view(ta.xyz, :, to3(index[:, 1]))
+    xyz2 = view(ta.xyz, :, to3(index[:, 2]))
+    dx = xyz1[:, 1:3:end] .- xyz2[:, 1:3:end]
+    dy = xyz1[:, 2:3:end] .- xyz2[:, 2:3:end]
+    dz = xyz1[:, 3:3:end] .- xyz2[:, 3:3:end]
     if !isempty(ta.boxsize)
         wrap_dx!(dx, ta.boxsize[:, 1])
         wrap_dx!(dy, ta.boxsize[:, 2])
@@ -573,9 +605,11 @@ function compute_distance(ta::TrjArray{T, U}, index=[1 2]::Matrix{U})::Matrix{T}
 end
 
 function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index=[1 1]::Matrix{U})::Matrix{T} where {T, U}
-    dx = view(ta1.x, :, index[:, 1]) .- view(ta2.x, :, index[:, 2])
-    dy = view(ta1.y, :, index[:, 1]) .- view(ta2.y, :, index[:, 2])
-    dz = view(ta1.z, :, index[:, 1]) .- view(ta2.z, :, index[:, 2])
+    xyz1 = view(ta1.xyz, :, to3(index[:, 1]))
+    xyz2 = view(ta2.xyz, :, to3(index[:, 2]))
+    dx = xyz1[:, 1:3:end] .- xyz2[:, 1:3:end]
+    dy = xyz1[:, 2:3:end] .- xyz2[:, 2:3:end]
+    dz = xyz1[:, 3:3:end] .- xyz2[:, 3:3:end]
     if !isempty(ta1.boxsize)
         wrap_dx!(dx, ta1.boxsize[:, 1])
         wrap_dx!(dy, ta1.boxsize[:, 2])
@@ -626,8 +660,8 @@ function compute_angle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T
     com3 = centerofmass(ta3, isweight=true)
     a = zeros(T, nframe)
     for iframe in 1:nframe
-        d1 = [com1.x[iframe] - com2.x[iframe]; com1.y[iframe] - com2.y[iframe]; com1.z[iframe] - com2.z[iframe]]
-        d2 = [com3.x[iframe] - com2.x[iframe]; com3.y[iframe] - com2.y[iframe]; com3.z[iframe] - com2.z[iframe]]
+        d1 = [com1.xyz[iframe, 1] - com2.xyz[iframe, 1]; com1.xyz[iframe, 2] - com2.xyz[iframe, 2]; com1.xyz[iframe, 3] - com2.xyz[iframe, 3]]
+        d2 = [com3.xyz[iframe, 1] - com2.xyz[iframe, 1]; com3.xyz[iframe, 2] - com2.xyz[iframe, 2]; com3.xyz[iframe, 3] - com2.xyz[iframe, 3]]
         a[iframe] = acos(dot(d1, d2)/(norm(d1)*norm(d2)))
     end
     a = (a ./ pi) .* T(180)
@@ -648,9 +682,9 @@ function compute_dihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArra
     a = zeros(T, nframe)
     # Threads.@threads for iframe in 1:nframe
     for iframe in 1:nframe
-        d1 = [com1.x[iframe] - com2.x[iframe]; com1.y[iframe] - com2.y[iframe]; com1.z[iframe] - com2.z[iframe]]
-        d2 = [com3.x[iframe] - com2.x[iframe]; com3.y[iframe] - com2.y[iframe]; com3.z[iframe] - com2.z[iframe]]
-        d3 = [com3.x[iframe] - com4.x[iframe]; com3.y[iframe] - com4.y[iframe]; com3.z[iframe] - com4.z[iframe]]
+        d1 = [com1.xyz[iframe, 1] - com2.xyz[iframe, 1]; com1.xyz[iframe, 2] - com2.xyz[iframe, 2]; com1.xyz[iframe, 3] - com2.xyz[iframe, 3]]
+        d2 = [com3.xyz[iframe, 1] - com2.xyz[iframe, 1]; com3.xyz[iframe, 2] - com2.xyz[iframe, 2]; com3.xyz[iframe, 3] - com2.xyz[iframe, 3]]
+        d3 = [com3.xyz[iframe, 1] - com4.xyz[iframe, 1]; com3.xyz[iframe, 2] - com4.xyz[iframe, 2]; com3.xyz[iframe, 3] - com4.xyz[iframe, 3]]
         m1 = cross(d1, d2)
         m2 = cross(d2, d3)
         a[iframe] = acos(dot(m1, m2)/(norm(m1)*norm(m2)))
@@ -665,13 +699,17 @@ end
 function compute_dihedral(ta::TrjArray{T, U}, array_index) where {T, U}
     nframe = ta.nframe
     ntorsion = length(array_index)
+    natom3 = ta.natom*3
     a = zeros(T, nframe, ntorsion)
+    x = view(ta.xyz, :, 1:3:natom3)
+    y = view(ta.xyz, :, 2:3:natom3)
+    z = view(ta.xyz, :, 3:3:natom3)
     for itorsion = 1:ntorsion
         id = array_index[itorsion]
         for iframe in 1:nframe
-            d1 = [ta.x[iframe, id[1]] - ta.x[iframe, id[2]]; ta.y[iframe, id[1]] - ta.y[iframe, id[2]]; ta.z[iframe, id[1]] - ta.z[iframe, id[2]]]
-            d2 = [ta.x[iframe, id[3]] - ta.x[iframe, id[2]]; ta.y[iframe, id[3]] - ta.y[iframe, id[2]]; ta.z[iframe, id[3]] - ta.z[iframe, id[2]]]
-            d3 = [ta.x[iframe, id[3]] - ta.x[iframe, id[4]]; ta.y[iframe, id[3]] - ta.y[iframe, id[4]]; ta.z[iframe, id[3]] - ta.z[iframe, id[4]]]
+            d1 = [x[iframe, id[1]] - x[iframe, id[2]]; y[iframe, id[1]] - y[iframe, id[2]]; z[iframe, id[1]] - z[iframe, id[2]]]
+            d2 = [x[iframe, id[3]] - x[iframe, id[2]]; y[iframe, id[3]] - y[iframe, id[2]]; z[iframe, id[3]] - z[iframe, id[2]]]
+            d3 = [x[iframe, id[3]] - x[iframe, id[4]]; y[iframe, id[3]] - y[iframe, id[4]]; z[iframe, id[3]] - z[iframe, id[4]]]
             m1 = cross(d1, d2)
             m2 = cross(d2, d3)
             a[iframe, itorsion] = acos(dot(m1, m2)/(norm(m1)*norm(m2)))
@@ -854,9 +892,9 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, 
     natom = ta.natom
     rcut2 = rcut^2
     is_pbc = !isempty(ta.boxsize)
-    x = ta.x[iframe, :]
-    y = ta.y[iframe, :]
-    z = ta.z[iframe, :]
+    x = ta.xyz[iframe, 1:3:end]
+    y = ta.xyz[iframe, 2:3:end]
+    z = ta.xyz[iframe, 3:3:end]
     boxsize = zeros(T, 3)
 
     if is_pbc
@@ -972,9 +1010,10 @@ end
 ############################################################################
 function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     rcut2 = rcut^2
-    x = ta.x[iframe, :]
-    y = ta.y[iframe, :]
-    z = ta.z[iframe, :]
+    natom3 = ta.natom*3
+    x = view(ta.xyz, iframe, 1:3:natom3)
+    y = view(ta.xyz, iframe, 2:3:natom3)
+    z = view(ta.xyz, iframe, 3:3:natom3)
     index = collect(U, 1:ta.natom)
     is_pbc = !isempty(ta.boxsize)
     boxsize = zeros(T, 3)

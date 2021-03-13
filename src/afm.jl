@@ -11,13 +11,13 @@ heatmap(afm_image) # using Plots
 """
 function afmize_alpha(ta::TrjArray, box, npixel)::Matrix{Float64}
     rpixel = box ./ npixel
-    nx = floor.(Int, (ta.x[1, :] .+ 0.5*box[1]) ./ rpixel[1]);
-    ny = floor.(Int, (ta.y[1, :] .+ 0.5*box[2]) ./ rpixel[2]);
+    nx = floor.(Int, (ta.xyz[1, 1:3:end] .+ 0.5*box[1]) ./ rpixel[1]);
+    ny = floor.(Int, (ta.xyz[1, 2:3:end] .+ 0.5*box[2]) ./ rpixel[2]);
     #@show nx
     #@show ny
     afm_image = zeros(Float64, npixel)
-    z_min = minimum(ta.z[1, :])
-    z = ta.z[1, :] .- z_min
+    z_min = minimum(ta.xyz[1, 3:3:end])
+    z = ta.xyz[1, 3:3:end] .- z_min
     for iatom in 1:ta.natom
         if (1 <= nx[iatom] <= npixel[1]) && (1 <= ny[iatom] <= npixel[2])
             if z[iatom] > afm_image[nx[iatom], ny[iatom]]
