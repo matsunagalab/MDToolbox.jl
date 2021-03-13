@@ -1,5 +1,20 @@
 """
-common interface for specific read functions
+    mdload(filename::AbstractString; index=nothing, top::TrjArray=nothing) -> ta::TrjArray
+
+Function for reading bimolecular structure files or molecular dynamics trajectories. 
+This function automatically detects files types from the filename extension of input `filename`. 
+Currently, PDB, PSF, DCD, and NetCDF formats are available. 
+For reading subset atoms fromt the file, the user can specify atom indices as `index::AbstractVector{Int}`
+Returns a TrjArray variable `ta`. 
+
+If the user wants to attach a topology information read from PSF, PDB, or other files to MD trajectory, 
+the user can give an addtional option `top=ta:TrjArray`. If the option is given the topology information is applied. 
+    
+#  Example
+```julia-repl
+julia> ta = mdload("1ake.psf")
+julia> ta = mdload("1ake.dcd", top=ta)
+```
 """
 function mdload(filename::AbstractString; index=nothing, top=nothing)
     if endswith(filename, ".dcd") | endswith(filename, ".DCD") | endswith(filename, ".veldcd") | endswith(filename, ".VELDCD")
@@ -26,7 +41,17 @@ function mdload(filename::AbstractString; index=nothing, top=nothing)
 end
 
 """
-common interface for specific write functions
+    mdsave(filename::AbstractString, ta::TrjArray)
+
+Function for writing bimolecular structure files or molecular dynamics trajectories. 
+This function automatically detects files types from the filename extension of input `filename`. 
+Currently, PDB, PSF, and NetCDF formats are available. 
+    
+#  Example
+```julia-repl
+julia> ta = TrjArray(xyz=randn(100, 9))
+julia> ta = mdsave("1ake.nc", ta)
+```
 """
 function mdsave(filename::AbstractString, ta::TrjArray)
     r = 0
@@ -239,9 +264,6 @@ end
 
 
 ############################################################################
-"""
-read netcdf file
-"""
 function readnetcdf(filename::String; index=nothing)
     #finfo = ncinfo(filename)
     #attributes = finfo.gatts
@@ -320,9 +342,6 @@ end
 
 
 ############################################################################
-"""
-write netcdf file
-"""
 function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
     scale_factor = 20.455
     natom = ta.natom
@@ -434,7 +453,6 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
     return nothing
 end
 
-
 ############################################################################
 function parse_line(line::String, index, mytype::DataType, default_value)
     try
@@ -448,11 +466,7 @@ function parse_line(line::String, index, mytype::DataType, default_value)
     end
 end
 
-
 ############################################################################
-"""
-read charmm or xplor type psf file
-"""
 function readpsf(filename::String)
     isPSF = false
     isEXT = false
@@ -590,11 +604,7 @@ function readpsf(filename::String)
              list_cmap=list_cmap)
 end
 
-
 ############################################################################
-"""
-write psf file
-"""
 function writepsf(filename::String, ta::TrjArray)
     natom = ta.natom
 
@@ -688,11 +698,7 @@ function writepsf(filename::String, ta::TrjArray)
     end
 end
 
-
 ############################################################################
-"""
-read protein data bank (PDB) file
-"""
 function readpdb(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)
@@ -770,11 +776,7 @@ function readpdb(filename::String)
              atomid=pdb_serial, atomname=pdb_name)
 end
 
-
 ############################################################################
-"""
-write pdb file
-"""
 function writepdb(io::IO, ta::TrjArray; format_type="vmd")
     natom = ta.natom
     nframe = ta.nframe
@@ -860,20 +862,13 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
     end
 end
 
-"""
-write pdb file
-"""
 function writepdb(filename::String, ta::TrjArray; format_type="vmd")
     open(filename, "w") do io
         writepdb(io, ta, format_type=format_type)
     end
 end
 
-
 ############################################################################
-"""
-read amber coordinates file
-"""
 function readcrd(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)
