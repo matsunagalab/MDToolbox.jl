@@ -3,14 +3,16 @@
 
 Perform clustering with K-center algorithm. Input data `X` should belong to AbstractMatrix type 
 and its columns corresponds to variables, rows are frames. Also, the number of clusters `kcluster` should be specified. 
-Returns a object `F` which contains the indices of cluster for each sample in `F.indexOfCluster`,
-the coordinates of cluster centers in `F.center`, and distances of samples  from the nearest centers in `distanceFromCenter`.
+Returns a object `F` which contains cluster index for each sample in `F.indexOfCluster`,
+the coordinates of cluster centers in `F.center`, the indices of cluster centers in `F.indexOfCenter`, 
+and distances of samples from the nearest centers in `F.distanceFromCenter`.
     
 #  Example
 ```julia-repl
+julia> using MDToolbox, Plots
 julia> X = rand(1000, 2)
 julia> F = clusterkcenters(X, 3)
-julia> scatter(t[:, 1], t[:, 2], c = F.indexOfCluster)
+julia> scatter(X[:, 1], X[:, 2], c=F.indexOfCluster)
 ```
 # References
 ```
@@ -70,12 +72,60 @@ function clusterkcenters(t::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
     return (indexOfCluster=indexOfCluster_out, center=center_out, distanceFromCenter=distanceFromCenter, indexOfCenter=indexOfCenter_out)
 end
 
+"""
+clusterkcenters(ta::AbstractMatrix, kcluster::Int; nReplicates::Int=10) -> F
+
+Perform clustering with K-center algorithm for a TrjArray variable `ta`.
+```
+"""
+function clusterkcenters(ta::TrjArray, kcluster::Int; nReplicates::Int=10)
+    X = ta.xyz
+    F = clusterkcenters(X, kcluster, nReplicates=nReplicates)
+    center_ta = ta[F.indexOfCenter, :]
+    return (indexOfCluster=F.indexOfCluster, center=center_ta, distanceFromCenter=F.distanceFromCenter, indexOfCenter=F.indexOfCenter)
+end
+
+
+"""
+compute_cov(ta::AbstractMatrix, lagtime::Int=0) -> cov
+
+Compute a variance-covariance or time-lagged covariance matrix from input data `X`
+Input data `X` should belong to AbstractMatrix type and its columns corresponds to variables, rows are frames.
+Optional input is the lagtime=`lagtime` for the calculation of the covariance matrix (default is `lagtime=0`). 
+
+#  Example
+```julia-repl
+julia> X = rand(1000, 100)
+julia> cov = compute_cov(X)
+```
+"""
 function compute_cov(X::AbstractMatrix; lagtime::Int=0)
     nframe = size(X, 1)
     X_centerized = X .- mean(X, dims=1)
     cov = X_centerized[1:(end-lagtime), :]' * X_centerized[(1+lagtime):end, :] ./ (nframe - 1)
 end
 
+"""
+    rsvd(X::AbstractMatrix; k::Number=10) -> F
+
+Perform the randomized SVD for input data `X`.
+Input data `X` should belong to AbstractMatrix type and its columns corresponds to variables, rows are frames. 
+Users can specify the dimension `k` of subspace onto which the data is randomly projected (by default `k=10`). 
+Returns a structure variable `F` whose field members are same as usual SVD, `F.V`, `F.S`, `F.U`. 
+
+#  Example
+```julia-repl
+julia> X = randn(rand(1000, 10))
+julia> F = rsvd(X)
+```
+
+# References
+```
+Halko, Nathan, Per-Gunnar Martinsson, and Joel A. Tropp. 
+"Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions." 
+SIAM review 53.2 (2011): 217-288.
+```
+"""
 function rsvd(A::AbstractMatrix, k::Number=10)
     T = eltype(A)
     m, n = size(A)
@@ -98,16 +148,29 @@ end
 """
     pca(X::AbstractMatrix; k=dimension) -> F
 
-Perform principal component analysis. Input data `X` should belong to AbstractMatrix type 
-and its columns corresponds to variables, rows are frames. 
-Returns a object `F` which contains the prjections of `X` onto the principal modes or principal components in `F.projection`, 
+Perform principal component analysis (PCA). PCA captures degrees of freedom which have the largest variances.
+Input data `X` should belong to AbstractMatrix type and its columns corresponds to variables, rows are frames. 
+Returns a structure object `F` which contains the principal components in `F.projection`, 
 the prncipal modes in the columns of the matrix `F.mode`, and the variances of principal components in `F.variance`. 
+
+If `k=dimension` is specified, the randomized SVD is used for reducing memory. 
+This algorithm first project the data into a randomly selected k+2-dimensional space, 
+then PCA is performed in the projected data. See the references for details. 
+Note that if the dimension of `X` is larger than 5000, the randomized SVD is forcibly used with `k=1000`. 
 
 #  Example
 ```julia-repl
+julia> using MDToolbox, Plots, Statistics
 julia> X = cumsum(rand(1000, 10))
 julia> F = pca(X)
 julia> plot(F.projection[:, 1], F.projection[:, 2])
+```
+
+# References
+```
+Halko, N., Martinsson, P.-G., Shkolnisky, Y. & Tygert, M. 
+An Algorithm for the Principal Component Analysis of Large Data Sets. 
+SIAM J. Sci. Comput. 33, 2580–2594 (2011).
 ```
 """
 function pca(X::AbstractMatrix; k=nothing)
@@ -146,6 +209,34 @@ function pca(X::AbstractMatrix; k=nothing)
     return (projection=projection, mode=mode, variance=variance)
 end
 
+"""
+    tica(X::AbstractMatrix, lagtime::Int=1) -> F
+
+This routine performs time-structure based Independent Component Analysis (tICA).
+tICA captures degrees of freedom which are most important in the sense that their motions are very slow.
+`X` belongs to AbstractMatrix type and its columns corresponds to variables, rows are frames. 
+User should specify the lagtime for the calculation of the time-lagged covariance matrix. 
+Returns a structure object `F` which contains independent components in `F.projection`, 
+the independent modes in the columns of the matrix `F.mode`, and the eigenvalues in `F.variance`. 
+
+If the dimension of `X` is larger than 5000, the randomized SVD approximation is forcibly used with `k=1000` to reduce memory. 
+
+#  Example
+```julia-repl
+julia> using MDToolbox, Plots, Statistics
+julia> X = cumsum(rand(1000, 10))
+julia> F = tica(X, 10)
+julia> plot(F.projection[:, 1], F.projection[:, 2])
+```
+
+# References
+```
+Naritomi, Y. & Fuchigami, S. 
+Slow dynamics in protein fluctuations revealed by time-structure based independent component analysis: 
+The case of domain motions. 
+The Journal of Chemical Physics 134, 065101 (2011).
+```
+"""
 function tica(X::AbstractMatrix, lagtime::Int=1)
     # standard and time-lagged covariance matrices
     covar0 = compute_cov(X, lagtime=0)
