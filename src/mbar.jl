@@ -25,12 +25,18 @@ function mbar_equation!(F, f_k, K, N_max, N_k, u_kln, idx, log_wi_jn, log_term, 
 end
 
 """
-mbar
+    mbar(u_kl; ftol=1e-8, iterations=10^2) -> F
 
-estimates the free energy differences of umbrella-windowed systems by using the Multistate Bennet Acceptance Ratio Method (MBAR).
+Estimates the free energy differences of umbrella-windowed systems by using the Multistate Bennet Acceptance Ratio Method (MBAR).
+Let K be # of umbrellas or different ensembles. `u_kl` is a K x K Array whose elements are reduced bias-factor or 
+potential energy of umbrella (or ensemble) simulation data k evaluated at umbrella (or ensemble) l. 
 
-References
-[1] M. R. Shirts and J. D. Chodera, J. Chem. Phys. 129, 124105 (2008).
+Returns (dimensionless) free energies of umbrella-windows or ensembles `f_k`. 
+
+# References
+```
+M. R. Shirts and J. D. Chodera, J. Chem. Phys. 129, 124105 (2008).
+```
 """
 function mbar(u_kl; ftol=1e-8, iterations=10^2)
     # K: number of umbrella windows
@@ -76,5 +82,4 @@ function mbar(u_kl; ftol=1e-8, iterations=10^2)
         x_init = x_init .- x_init[1]
     end
     f_k = x_init
-
 end

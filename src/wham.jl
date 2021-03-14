@@ -27,13 +27,20 @@ function wham_equation!(F, x, K, M, bias_km, log_Neff_km, log_heff_m)
 end
 
 """
-wham
+    wham(h_km, bias_km; ftol=1e-10, maxiterations=10^5) -> F
 
-estimates (reduced) free energies of umbrella-windows and potential of mean force in data-bins by using the WHAM equations.
+Estimates (reduced) free energies of umbrella-windows and potential of mean force in data-bins by using the WHAM equations.
+K is # of umbrellas and M is # of bins. `h_km` is a K x M Array which is a histogram (data counts) of k-th umbrella data in m-th bin.
+`bias_km` is also a K x M Array which is a bias-factor of k-th umbrella-window evaluated at m-th bin-center. 
 
-References
-[1] S. Kumar, D. Bouzida, R. H. Swendsen, P. A. Kollman, and
-    J. M. Rosenberg, J. Comput. Chem. 13, 1011 (1992).
+Returns a structure (named tuple) variable `F` whose members are `F.f_k` reduced relative free energies of umbrella-windows, 
+and pmf_m reduced potential of mean force in data-bins under unbiased condition. 
+
+# References
+```
+S. Kumar, D. Bouzida, R. H. Swendsen, P. A. Kollman, and J. M. Rosenberg, 
+J. Comput. Chem. 13, 1011 (1992).
+```
 """
 function wham(h_km, bias_km; ftol=1e-10, iterations=10^5)
     # K: number of umbrella-windows
@@ -77,17 +84,19 @@ function wham(h_km, bias_km; ftol=1e-10, iterations=10^5)
     log_prob_m = reshape(sol.zero[1:M], 1, M)
     f_k = reshape(sol.zero[(M+1):(M+K)], K, 1)
     pmf_m = - log_prob_m
-    f_k .- f_k[1, 1], pmf_m .- pmf_m[1, 1]
+    return (f_k=f_k .- f_k[1, 1], pmf=pmf_m .- pmf_m[1, 1])
 end
 
 """
-wham_iteration
+    wham_iteration(h_km, bias_km)
 
-Old version of wham(). this function iteratively solve wham equations.
+Old version of wham(). This function iteratively solve the wham equations.
 
-References
-[1] S. Kumar, D. Bouzida, R. H. Swendsen, P. A. Kollman, and
-    J. M. Rosenberg, J. Comput. Chem. 13, 1011 (1992).
+# References
+```
+S. Kumar, D. Bouzida, R. H. Swendsen, P. A. Kollman, and J. M. Rosenberg, 
+J. Comput. Chem. 13, 1011 (1992).
+```
 """
 function wham_iteration(h_km, bias_km)
     TOLERANCE = 10^(-8)

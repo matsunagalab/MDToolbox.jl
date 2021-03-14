@@ -4,7 +4,7 @@
 Function for reading bimolecular structure files or molecular dynamics trajectories. 
 This function automatically detects files types from the filename extension of input `filename`. 
 Currently, PDB, PSF, DCD, and NetCDF formats are available. 
-For reading subset atoms fromt the file, the user can specify atom indices as `index::AbstractVector{Int}`
+For reading subset atoms from the trajectory files, the user can specify atom indices as `index::AbstractVector{Int}`.
 Returns a TrjArray variable `ta`. 
 
 If the user wants to attach a topology information read from PSF, PDB, or other files to MD trajectory, 

@@ -287,7 +287,7 @@ function msmbackward(data_list, factor_list, T, pi_i, emission)
     logL, beta_list
 end
 
-function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE = 10.0^(-4), MAXITERATION=Inf64)
+function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-4), MAXITERATION=Inf64)
     ## setup
     check_convergence = Inf64
     count_iteration = 0

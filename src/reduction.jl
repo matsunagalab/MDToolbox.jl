@@ -73,7 +73,7 @@ function clusterkcenters(t::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
 end
 
 """
-clusterkcenters(ta::AbstractMatrix, kcluster::Int; nReplicates::Int=10) -> F
+    clusterkcenters(ta::AbstractMatrix, kcluster::Int; nReplicates::Int=10) -> F
 
 Perform clustering with K-center algorithm for a TrjArray variable `ta`.
 ```
@@ -87,7 +87,7 @@ end
 
 
 """
-compute_cov(ta::AbstractMatrix, lagtime::Int=0) -> cov
+    compute_cov(ta::AbstractMatrix, lagtime::Int=0) -> cov
 
 Compute a variance-covariance or time-lagged covariance matrix from input data `X`
 Input data `X` should belong to AbstractMatrix type and its columns corresponds to variables, rows are frames.
