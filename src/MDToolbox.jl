@@ -4,7 +4,7 @@ using FileIO
 using NetCDF
 using NLsolve
 using FFTW
-using Bio3DView
+#using Bio3DView
 using CUDA
 using ProgressMeter
 using SparseArrays
