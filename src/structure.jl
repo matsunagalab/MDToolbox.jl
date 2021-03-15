@@ -1,7 +1,17 @@
 """
-centerofmass
+    centerofmass(ta::TrjArray; isweight=true, index=[]) -> com::TrjArray
 
-calculate center of mass of given trajectory
+Calculates the center of mass coordinates (COM) of the given trajectory, a `TrjArray` object `ta`. 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+Uses can also specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+
+Returns the center of mass coordinates as a TrjArray object, which have virtual single "atom" whose coordinates are COMs. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> com = centersofmass(ta)
+```
 """
 function centerofmass(ta::TrjArray{T, U};
     isweight::Bool=true, index::AbstractVector=Vector{Int64}(undef, 0))::TrjArray{T, U} where {T, U}
@@ -42,9 +52,20 @@ end
 
 ############################################################################
 """
-decenter
+    decenter(ta::TrjArray; isweight=true, index=[]) -> ta_decentered::TrjArray, com::TrjArray
 
-remove center of mass
+Calculates the centers of mass coordinates (COM) of the given trajectory, a TrjArray object ta.
+And translates the coordinates so that the COM of the output is identical to the origin (x=y=z=0). 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+Uses can also specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+
+Returns a TrjArray object whose COM is the origin (x=y=z=0), and the COM of the given TrjArray `ta`. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta_decentered = decenter(ta)
+```
 """
 function decenter(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
@@ -56,9 +77,18 @@ function decenter(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=
 end
 
 """
-decenter!
+    decenter!(ta::TrjArray; isweight=true, index=[])
 
-remove center of mass
+Translates the coordinates of the given trajectory, a TrjArray `ta`, 
+so that the COM of it become identical to the origin (x=y=z=0). 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+Uses can also specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> decenter!(ta)
+```
 """
 function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0)) where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
@@ -294,6 +324,21 @@ function applyrotation!(iframe, x, y, z, ta2, rot)
 end
 
 ############################################################################
+"""
+    rotate(ta::TrjArray, quaternion::Vector) -> ta_rotated::TrjArray
+
+Performs rotation of coordinates of the given TrjArray object `ta`. 
+Rotation matrix is constructed fromt the given `quaternion` vector. 
+
+Returns the trajecotry with rotated coordinates.
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> quaternion = [0.80951112,  0.10657412,  0.35146912,  0.45804312]
+julia> ta_rotated = rotate(ta, quaternion)
+```
+"""
 function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} where {T, U}
     xyz = similar(ta.xyz)
     rot = similar(quater, 9)
@@ -315,26 +360,21 @@ function rotate(ta::TrjArray{T, U}, quater::AbstractVector{T})::TrjArray{T, U} w
     return TrjArray(ta, xyz=xyz)
 end
 
-function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
-    rot = similar(quater, size(quater, 1), 9)
-    rot[:, 1:1] .= 1 .- 2 .* quater[:, 2:2] .* quater[:, 2:2] .- 2.0 .* quater[:, 3:3] .* quater[:, 3:3]
-    rot[:, 2:2] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .+ quater[:, 3:3] .* quater[:, 4:4])
-    rot[:, 3:3] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .- quater[:, 2:2] .* quater[:, 4:4])
-    rot[:, 4:4] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .- quater[:, 3:3] .* quater[:, 4:4])
-    rot[:, 5:5] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 3:3] .* quater[:, 3:3]
-    rot[:, 6:6] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .+ quater[:, 1:1] .* quater[:, 4:4])
-    rot[:, 7:7] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .+ quater[:, 2:2] .* quater[:, 4:4])
-    rot[:, 8:8] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .- quater[:, 1:1] .* quater[:, 4:4])
-    rot[:, 9:9] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 2:2] .* quater[:, 2:2]
-    x = rot[:, 1:1] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 2:2] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 3:3] .* ta_single.xyz[1:1, 3:3:end]
-    y = rot[:, 4:4] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 5:5] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 6:6] .* ta_single.xyz[1:1, 3:3:end]
-    z = rot[:, 7:7] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 8:8] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 9:9] .* ta_single.xyz[1:1, 3:3:end]
-    xyz[:, 1:3:end] .= x
-    xyz[:, 2:3:end] .= y
-    xyz[:, 3:3:end] .= z
-    return TrjArray(ta_single, xyz=xyz)
-end
+"""
+    rotate!(ta::TrjArray, quaternion::Vector)
 
+Performs rotation of coordinates of the given TrjArray object `ta`. 
+Rotation matrix is constructed fromt the given `quaternion` vector. 
+
+The coordinates of `ta` is replaced with the rotated ones. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> quaternion = [0.80951112,  0.10657412,  0.35146912,  0.45804312]
+julia> rotate!(ta, quaternion)
+```
+"""
 function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
     rot = similar(quater, 9)
     rot[1] = 1 - 2 * quater[2] * quater[2] - 2 * quater[3] * quater[3]
@@ -355,6 +395,59 @@ function rotate!(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
     return nothing
 end
 
+"""
+    rotate(ta::TrjArray, quaternions::Matrix) -> ta_rotated::TrjArray
+
+Performs multiple rotations of the coordinates of the 1st frame of the given TrjArray object `ta`. 
+Rotation matrices are construcuted from the 2-dimensional Array `quaternions`.
+One set of quaternions for rotaton should be given in a row vector in `quaternions`. 
+
+Returns the trajecotry with rotated coordinates from the 1st frame of `ta`. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> quaternions = [0.80951112  0.10657412  0.35146912  0.45804312; 
+>                     0.10657412  0.80951112  -0.35146912  0.45804312]
+julia> ta_rotated = rotate(ta, quaternions)
+```
+"""
+function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
+    rot = similar(quater, size(quater, 1), 9)
+    rot[:, 1:1] .= 1 .- 2 .* quater[:, 2:2] .* quater[:, 2:2] .- 2.0 .* quater[:, 3:3] .* quater[:, 3:3]
+    rot[:, 2:2] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .+ quater[:, 3:3] .* quater[:, 4:4])
+    rot[:, 3:3] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .- quater[:, 2:2] .* quater[:, 4:4])
+    rot[:, 4:4] .= 2 .* (quater[:, 1:1] .* quater[:, 2:2] .- quater[:, 3:3] .* quater[:, 4:4])
+    rot[:, 5:5] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 3:3] .* quater[:, 3:3]
+    rot[:, 6:6] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .+ quater[:, 1:1] .* quater[:, 4:4])
+    rot[:, 7:7] .= 2 .* (quater[:, 1:1] .* quater[:, 3:3] .+ quater[:, 2:2] .* quater[:, 4:4])
+    rot[:, 8:8] .= 2 .* (quater[:, 2:2] .* quater[:, 3:3] .- quater[:, 1:1] .* quater[:, 4:4])
+    rot[:, 9:9] .= 1 .- 2 .* quater[:, 1:1] .* quater[:, 1:1] .- 2 .* quater[:, 2:2] .* quater[:, 2:2]
+    x = rot[:, 1:1] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 2:2] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 3:3] .* ta_single.xyz[1:1, 3:3:end]
+    y = rot[:, 4:4] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 5:5] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 6:6] .* ta_single.xyz[1:1, 3:3:end]
+    z = rot[:, 7:7] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 8:8] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 9:9] .* ta_single.xyz[1:1, 3:3:end]
+    xyz[:, 1:3:end] .= x
+    xyz[:, 2:3:end] .= y
+    xyz[:, 3:3:end] .= z
+    return TrjArray(ta_single, xyz=xyz)
+end
+
+"""
+    rotate_with_matrix(ta::TrjArray, R::Matrix) -> ta_rotated::TrjArray
+
+Performs rotation of coordinates of the given TrjArray object `ta` with the given rotation matrix. 
+
+The coordinates of `ta` is replaced with the rotated ones. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> R = [0.36 0.48 -0.8;
+            -0.8 0.60 0.0;
+            -.48 0.64 0.60]
+julia> ra_rotated = rotate(ta, R)
+```
+"""
 function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{T, U} where {T, U}
     x = R[1, 1].*ta.xyz[:, 1:3:end] .+ R[1, 2].*ta.xyz[:, 2:3:end] .+ R[1, 3].*ta.xyz[:, 3:3:end]
     y = R[2, 1].*ta.xyz[:, 1:3:end] .+ R[2, 2].*ta.xyz[:, 2:3:end] .+ R[2, 3].*ta.xyz[:, 3:3:end]
@@ -367,11 +460,29 @@ end
 
 ############################################################################
 """
-superimpose
+    superimpose(ref::TrjArray, ta::TrjArray; isweight=true, index=[], isdecenter=false) -> ta_superimposed::TrjArray
 
-superimpose ta to ref
+Performs the least-squares fitting of the given trajectory (TrjArray object `ta`) 
+to the reference structure (1st frame of TrjArray object `ref`). 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+Uses can specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+When `isdecenter` is `true`, the function assumes the COMs of both structures are located at the origin (default is `isdecenter=false`). 
 
-this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
+Returns the superimposed trajecotry. 
+
+The code of this function is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
+
+# Example
+```julia-repl
+julia> ref = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=pdb)
+julia> ta_superimposed = superimpose(ref, ta)
+```
+# References
+```
+The algorithm of this function is based on 
+P. Liu, D. K. Agrafiotis, and D. L. Theobald, J. Comput. Chem. 31, 1561-1563 (2010).
+```
 """
 function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
@@ -490,9 +601,22 @@ end
 
 ############################################################################
 """
-compute_rmsd
+    compute_rmsd(ref::TrjArray, ta::TrjArray; isweight=true, index=[]) -> rmsd
 
-rmsd (root mean square deviation)
+Calculates the root mean square deviations (RMSD) of the given trajectory (TrjArray object `ta`)
+from the reference structure (1st frame of TrjArray object `ref`). 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+Uses can specify atom IDs for the RMSD calculation by giving `index` which should be an Array of integers. 
+
+Returns RMSD values. 
+
+# Example
+```julia-repl
+julia> ref = mdload("ak.pdb")
+julia> ta = mdload("ak.nc", top=pdb)
+julia> ta_superimposed = superimpose(ref, ta)
+julia> rmsd = compute_rmsd(ref, ta_superimposed)
+```
 """
 function compute_rmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0))::Vector{T} where {T, U}
@@ -527,9 +651,20 @@ end
 
 ############################################################################
 """
-meanstructure
+    meanstructure(ta::TrjArray; isweight=true, index=[]) -> ta_mean::TrjArray, ta_superimposed::TrjArray
 
-compute average structure by iterative superimposes
+Calculates the mean structure of the given trajectory (TrjArray object `ta`)
+by iteratively fitting the trajecotry to tentative mean structures until the mean structure converges. 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+Uses can specify atom IDs for the fitting (superimpose function) by giving `index` which should be an Array of integers. 
+
+Returns the mean structure as TrjArray object, and the supserimposed trajectory to the mean structure. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.nc", top=pdb)
+julia> ta_mean, ta_superimposed = meanstructure(ta)
+```
 """
 function meanstructure(ta::TrjArray{T, U};
     isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0))::Tuple{TrjArray{T, U},TrjArray{T, U}} where {T, U}
@@ -555,9 +690,22 @@ end
 
 ############################################################################
 """
-compute_rmsf
+    compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true) -> rmsf
 
 rmsf (root mean square fluctuation)
+
+Calculates the root mean square fluctuations (RMSFs) of the atoms in the given trajectory (TrjArray object `ta`). 
+from the average coordinates of the trajectory. 
+If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
+
+Returns RMSF values. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.nc", top=pdb)
+julia> ta_mean, ta_superimposed = meanstructure(ta)
+julia> rmsf = compute_rmsf(ta)
+```
 """
 function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where {T, U}
     nframe = ta.nframe
@@ -570,24 +718,35 @@ function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where 
     wsum_inv = 1.0 / sum(weight)
     weight_row = reshape(weight, 1, length(weight))
 
-    ref_x = ref.xyz[1:1, 1:3:end]
-    ref_y = ref.xyz[1:1, 2:3:end]
-    ref_z = ref.xyz[1:1, 3:3:end]
+    ref_x = sum(ta.xyz[1:1, 1:3:end] .* weight_row * wsum_inv, dims=1)
+    ref_y = sum(ta.xyz[1:1, 2:3:end] .* weight_row * wsum_inv, dims=1)
+    ref_z = sum(ta.xyz[1:1, 3:3:end] .* weight_row * wsum_inv, dims=1)
     ta_x = ta.xyz[:, 1:3:end]
     ta_y = ta.xyz[:, 2:3:end]
     ta_z = ta.xyz[:, 3:3:end]
     d =  sum(weight_row .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
     d = d .* wsum_inv
     d = sqrt.(d)
-    reshape(d, nframe)
+    rmsf = mean(d, dims=1)
+    reshape(rmsf, natom)
 end
 
 
 ############################################################################
 """
-compute_distance
+    compute_distance(ta::TrjArray, index::Matrix)
 
-distance between two atoms or groups of atoms
+Calculates distances between two atom pairs specified by the Matrix object `index`. 
+Each row vector in `index` contains two atom IDs for calculating distance. 
+Default of `index` is `[1 2]`. 
+
+Returns distances specified pairs in `index`. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> d = compute_distance(ta, [1 2; 1; 3])
+```
 """
 function compute_distance(ta::TrjArray{T, U}, index=[1 2]::Matrix{U})::Matrix{T} where {T, U}
     xyz1 = view(ta.xyz, :, to3(index[:, 1]))
@@ -604,6 +763,22 @@ function compute_distance(ta::TrjArray{T, U}, index=[1 2]::Matrix{U})::Matrix{T}
     return d
 end
 
+"""
+    compute_distance(ta1::TrjArray, ta2::TrjArray, index::Matrix)
+
+Calculates distances between two atom pairs in `ta1` and `ta2` specified by the Matrix object `index`. 
+Each row vector in `index` contains two atom id in `ta1` and atom id in `ta2` for calculating distance. 
+Default of `index` is `[1 1]`. 
+
+Returns distances specified pairs in `index`. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=ta)
+julia> d = compute_distance(ta[:, "atomid 1"], ta[:, "atomid 9"])
+```
+"""
 function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index=[1 1]::Matrix{U})::Matrix{T} where {T, U}
     xyz1 = view(ta1.xyz, :, to3(index[:, 1]))
     xyz2 = view(ta2.xyz, :, to3(index[:, 2]))
@@ -619,6 +794,23 @@ function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index=[1 1]:
     return d
 end
 
+"""
+    compute_distancemap(ta::TrjArray; kneighbor=3)
+
+Calculates distance-map vectors from the given TrjArray `ta`. 
+If `atomid=j` and `atomid=i` are closer to each other than the specified `kneighbor`, i.e., `abs(i-j) < kneighbor`, 
+the calculation of the distance is ignored, considering that they are not nonbonded pairs. 
+The default value of `kneighbor` is `3`. 
+
+Returns distance-map vectors of all frames. The distance-map of each frame is contained in a row vector of the output.
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=ta)
+julia> d = compute_distancemap(ta["atomname CA"])
+```
+"""
 function compute_distancemap(ta::TrjArray{T, U}; kneighbor=3)::Matrix{T} where {T, U}
     natom = ta.natom
     nframe = ta.nframe
@@ -641,17 +833,44 @@ function compute_distancemap(ta::TrjArray{T, U}; kneighbor=3)::Matrix{T} where {
     return d
 end
 
-function compute_contactmap(ta::TrjArray{T, U}; rcut=8.5)::Matrix{T} where {T, U}
-    d = compute_distancemap(ta)
+"""
+    compute_contactmap(ta::TrjArray; rcut=8.5, kneighbor=3)
+
+Calculates contact-map vectors from the given TrjArray `ta`. 
+Cut-off value for contact can be given in `rcut` (default is `rcut=8.5`). 
+If `atomid=j` and `atomid=i` are closer to each other than the specified `kneighbor`, i.e., `abs(i-j) < kneighbor`, 
+the calculation of the distance is ignored, considering that they are not nonbonded pairs. 
+The default value of `kneighbor` is `3`. 
+
+Returns contact-map vectors of all frames. The contact-map of each frame is contained in a row vector of the output. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=ta)
+julia> d = compute_distancemap(ta["atomname CA"])
+```
+"""
+function compute_contactmap(ta::TrjArray{T, U}; rcut=8.5, kneighbor=3)::Matrix{T} where {T, U}
+    d = compute_distancemap(ta, kneighbor=kneighbor)
     c = T.(d .< rcut)
     return c
 end
 
 ############################################################################
 """
-compute_angle
+    compute_angle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)
 
-angle of three atoms or groups of atoms
+Calculates angles for the atom coordinates or the COMs of groups from the triplet of `ta1`, `ta2` and `ta3`. 
+
+Returns angles.
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=ta)
+julia> a = compute_distance(ta[:, "atomid 1"], ta[:, "atomid 9"], ta[:, "atomid 11"])
+```
 """
 function compute_angle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, U})::Vector{T} where {T, U}
     nframe = ta1.nframe
@@ -669,9 +888,18 @@ end
 
 ############################################################################
 """
-compute_dihedral
+    compute_dihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)
 
-dihedral of four atoms or groups of atoms
+Calculates dihedral angles for the atom coordinates or the COMs of groups from the quadruplet of `ta1`, `ta2`, `ta3` and `ta4`. 
+
+Returns dihedral angles.
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=ta)
+julia> d = compute_dihedral(ta[:, "atomid 1"], ta[:, "atomid 9"], ta[:, "atomid 11", ta[:, "atom 13"]])
+```
 """
 function compute_dihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T, U}, ta4::TrjArray{T, U})::Vector{T} where {T, U}
     nframe = ta1.nframe
@@ -696,6 +924,20 @@ function compute_dihedral(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArra
     a .= (a ./ pi) .* T(180)
 end
 
+"""
+    compute_dihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)
+
+Calculates dihedral angles for the atom coordinates or the COMs of groups from the quadruplet of `ta1`, `ta2`, `ta3` and `ta4`. 
+
+Returns dihedral angles.
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=ta)
+julia> d = compute_dihedral(ta[:, "atomid 1"], ta[:, "atomid 9"], ta[:, "atomid 11", ta[:, "atom 13"]])
+```
+"""
 function compute_dihedral(ta::TrjArray{T, U}, array_index) where {T, U}
     nframe = ta.nframe
     ntorsion = length(array_index)

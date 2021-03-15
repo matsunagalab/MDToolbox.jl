@@ -3,10 +3,11 @@
 
 Perform clustering with K-center algorithm. Input data `X` should belong to AbstractMatrix type 
 and its columns corresponds to variables, rows are frames. Also, the number of clusters `kcluster` should be specified. 
-Returns a object `F` which contains cluster index for each sample in `F.indexOfCluster`,
+
+Returns a NamedTuple object `F` which contains cluster index for each sample in `F.indexOfCluster`,
 the coordinates of cluster centers in `F.center`, the indices of cluster centers in `F.indexOfCenter`, 
 and distances of samples from the nearest centers in `F.distanceFromCenter`.
-    
+
 #  Example
 ```julia-repl
 julia> using MDToolbox, Plots
@@ -111,7 +112,8 @@ end
 Perform the randomized SVD for input data `X`.
 Input data `X` should belong to AbstractMatrix type and its columns corresponds to variables, rows are frames. 
 Users can specify the dimension `k` of subspace onto which the data is randomly projected (by default `k=10`). 
-Returns a structure variable `F` whose field members are same as usual SVD, `F.V`, `F.S`, `F.U`. 
+
+Returns a NamedTuple object `F` whose members are same as usual SVD, `F.V`, `F.S`, `F.U`. 
 
 #  Example
 ```julia-repl
@@ -150,7 +152,8 @@ end
 
 Perform principal component analysis (PCA). PCA captures degrees of freedom which have the largest variances.
 Input data `X` should belong to AbstractMatrix type and its columns corresponds to variables, rows are frames. 
-Returns a structure object `F` which contains the principal components in `F.projection`, 
+
+Returns a NamedTuple object `F` which contains the principal components in `F.projection`, 
 the prncipal modes in the columns of the matrix `F.mode`, and the variances of principal components in `F.variance`. 
 
 If `k=dimension` is specified, the randomized SVD is used for reducing memory. 
@@ -216,7 +219,7 @@ This routine performs time-structure based Independent Component Analysis (tICA)
 tICA captures degrees of freedom which are most important in the sense that their motions are very slow.
 `X` belongs to AbstractMatrix type and its columns corresponds to variables, rows are frames. 
 User should specify the lagtime for the calculation of the time-lagged covariance matrix. 
-Returns a structure object `F` which contains independent components in `F.projection`, 
+Returns a NamedTuple object `F` which contains independent components in `F.projection`, 
 the independent modes in the columns of the matrix `F.mode`, and the eigenvalues in `F.variance`. 
 
 If the dimension of `X` is larger than 5000, the randomized SVD approximation is forcibly used with `k=1000` to reduce memory. 

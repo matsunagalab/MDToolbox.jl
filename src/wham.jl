@@ -33,7 +33,7 @@ Estimates (reduced) free energies of umbrella-windows and potential of mean forc
 K is # of umbrellas and M is # of bins. `h_km` is a K x M Array which is a histogram (data counts) of k-th umbrella data in m-th bin.
 `bias_km` is also a K x M Array which is a bias-factor of k-th umbrella-window evaluated at m-th bin-center. 
 
-Returns a structure (named tuple) variable `F` whose members are `F.f_k` reduced relative free energies of umbrella-windows, 
+Returns a NamedTuple object `F` whose members are `F.f_k` reduced relative free energies of umbrella-windows, 
 and pmf_m reduced potential of mean force in data-bins under unbiased condition. 
 
 # References
