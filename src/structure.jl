@@ -1,9 +1,44 @@
+function preprocess_index(natom::Int, index::AbstractVector)::AbstractVector
+    if isempty(index)
+        index2 = collect(1:natom)
+    elseif eltype(index) <: Bool
+        index2 = findall(index)
+    elseif typeof(index) <: UnitRange{Int}
+        index2 = collect(index)
+    else
+        index2 = index
+    end
+    if natom < maximum(index2)
+        @printf "Warning: some index are over # of atoms, truncated.\n"
+        id = index2 .<= natom
+        index2 = index2[id]
+    end
+    if isempty(index2)
+        error("no atom can be selected by the given index")
+    end
+    return index2
+end
+
+function preprocess_weight(natom::Int, isweight::Bool, mass::Vector{T}) where {T}
+    if isweight
+        if isempty(mass)
+            #@printf "Warning: not weighted because masses are not provided.\n"
+            weight = ones(T, natom)
+        else
+            weight = mass
+        end
+    else
+        weight = ones(T, natom)
+    end
+    return weight
+end
+
 """
-    centerofmass(ta::TrjArray; isweight=true, index=[]) -> com::TrjArray
+    centerofmass(ta::TrjArray; isweight=true, index::Union{UnitRange,Vector,BitArray}) -> com::TrjArray
 
 Calculates the center of mass coordinates (COM) of the given trajectory, a `TrjArray` object `ta`. 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
-Uses can also specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+Uses can also specify column indices for the COM calculation by giving `index` which should be a Vector of integers, a UnitRange, or a BiArray. 
 
 Returns the center of mass coordinates as a TrjArray object, which have virtual single "atom" whose coordinates are COMs. 
 
@@ -14,50 +49,36 @@ julia> com = centersofmass(ta)
 ```
 """
 function centerofmass(ta::TrjArray{T, U};
-    isweight::Bool=true, index::AbstractVector=Vector{Int64}(undef, 0))::TrjArray{T, U} where {T, U}
+    isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0))::TrjArray{T, U} where {T, U}
     nframe = ta.nframe
     natom = ta.natom
-    if isempty(index)
-        index = 1:natom
-        index3 = to3(1:natom)
-        natom_sub = natom
-    else
-        index3 = to3(index)
-        if eltype(index3) == Bool
-            natom_sub = sum(index)
-        else
-            natom_sub = length(index)
-        end
-    end
+    index2 = preprocess_index(natom, index)
+    natom_sub = length(index2)
+    index3 = to3(index2)
+    weight = preprocess_weight(natom, isweight, ta.mass)
+    weight = weight[index2]
+    wsum_inv = one(T) / sum(weight)
+    weight = reshape(weight, 1, natom_sub)
 
     xyz = similar(ta.xyz, nframe, 3)
     if natom_sub == 1
-        return ta[:, index]
-    elseif isweight && length(ta.mass) == natom
-        weight = reshape(ta.mass, 1, natom_sub)
-        wsum_inv = one(T) / sum(weight)
+        return ta[:, index2]
+    else
         xyz[:, 1:1] .= sum(weight .* view(ta.xyz, :, index3[1:3:end]), dims=2) .* wsum_inv
         xyz[:, 2:2] .= sum(weight .* view(ta.xyz, :, index3[2:3:end]), dims=2) .* wsum_inv
         xyz[:, 3:3] .= sum(weight .* view(ta.xyz, :, index3[3:3:end]), dims=2) .* wsum_inv
-    else
-        wsum_inv = one(T) / T(natom_sub)
-        xyz[:, 1:1] .= sum(view(ta.xyz, :, index3[1:3:end]), dims=2) .* wsum_inv
-        xyz[:, 2:2] .= sum(view(ta.xyz, :, index3[2:3:end]), dims=2) .* wsum_inv
-        xyz[:, 3:3] .= sum(view(ta.xyz, :, index3[3:3:end]), dims=2) .* wsum_inv
     end
 
     TrjArray{T, U}(xyz=xyz)
 end
 
-
-############################################################################
 """
-    decenter(ta::TrjArray; isweight=true, index=[]) -> ta_decentered::TrjArray, com::TrjArray
+    decenter(ta::TrjArray; isweight=true, index::Union{UnitRange,Vector,BitArray}) -> ta_decentered::TrjArray, com::TrjArray
 
 Calculates the centers of mass coordinates (COM) of the given trajectory, a TrjArray object ta.
 And translates the coordinates so that the COM of the output is identical to the origin (x=y=z=0). 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
-Uses can also specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+Uses can also specify column indices for the COM calculation by giving `index` which should be a Vector of integers, a UnitRange, or a BiArray. 
 
 Returns a TrjArray object whose COM is the origin (x=y=z=0), and the COM of the given TrjArray `ta`. 
 
@@ -67,7 +88,8 @@ julia> ta = mdload("ak.pdb")
 julia> ta_decentered = decenter(ta)
 ```
 """
-function decenter(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
+function decenter(ta::TrjArray{T, U}; isweight::Bool=true, 
+    index::AbstractVector=Vector{Int64}(undef, 0))::Tuple{TrjArray{T, U}, TrjArray{T, U}} where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
     xyz = similar(ta.xyz)
     xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
@@ -82,7 +104,7 @@ end
 Translates the coordinates of the given trajectory, a TrjArray `ta`, 
 so that the COM of it become identical to the origin (x=y=z=0). 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
-Uses can also specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+Uses can also specify column indices for the COM calculation by giving `index` which should be an Array of integers. 
 
 # Example
 ```julia-repl
@@ -90,7 +112,8 @@ julia> ta = mdload("ak.pdb")
 julia> decenter!(ta)
 ```
 """
-function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, index::Vector{Int64}=Vector{Int64}(undef, 0)) where {T, U}
+function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, 
+    index::AbstractVector=Vector{Int64}(undef, 0)) where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
     ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.x[:, 1]
     ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.y[:, 2]
@@ -100,25 +123,25 @@ end
 
 
 ###### superimpose #################
-function innerproduct(iframe::U, ref::TrjArray{T, U}, ta::TrjArray{T, U},
-                       index::Vector{U}, isweight::Bool) where {T, U}
+function innerproduct(iframe::U, ref_xyz::Matrix{T}, ta_xyz::Matrix{T},
+                       index::Vector{U}, isweight::Bool, mass::Vector{T}) where {T, U}
     A = zeros(T, 9)
     # A = Vector{Float64}(undef, 9)
     # A[:] .= 0.0
     G1 = G2 = zero(T)
     if isweight
         for i in index
-            ref_x = ref.xyz[1, 3*(i-1)+1]
-            ref_y = ref.xyz[1, 3*(i-1)+2]
-            ref_z = ref.xyz[1, 3*(i-1)+3]
-            x1 = ta.mass[i] * ref_x
-            y1 = ta.mass[i] * ref_y
-            z1 = ta.mass[i] * ref_z
+            ref_x = ref_xyz[1, 3*(i-1)+1]
+            ref_y = ref_xyz[1, 3*(i-1)+2]
+            ref_z = ref_xyz[1, 3*(i-1)+3]
+            x1 = mass[i] * ref_x
+            y1 = mass[i] * ref_y
+            z1 = mass[i] * ref_z
             G1 += x1 * ref_x + y1 * ref_x + z1 * ref_z
-            x2 = ta.xyz[iframe, 3*(i-1)+1]
-            y2 = ta.xyz[iframe, 3*(i-1)+2]
-            z2 = ta.xyz[iframe, 3*(i-1)+3]
-            G2 += ta.mass[i] * (x2 * x2 + y2 * y2 + z2 * z2)
+            x2 = ta_xyz[iframe, 3*(i-1)+1]
+            y2 = ta_xyz[iframe, 3*(i-1)+2]
+            z2 = ta_xyz[iframe, 3*(i-1)+3]
+            G2 += mass[i] * (x2 * x2 + y2 * y2 + z2 * z2)
             A[1] +=  (x1 * x2)
             A[2] +=  (x1 * y2)
             A[3] +=  (x1 * z2)
@@ -131,16 +154,16 @@ function innerproduct(iframe::U, ref::TrjArray{T, U}, ta::TrjArray{T, U},
         end
     else
         for i in index
-            ref_x = ref.xyz[1, 3*(i-1)+1]
-            ref_y = ref.xyz[1, 3*(i-1)+2]
-            ref_z = ref.xyz[1, 3*(i-1)+3]
+            ref_x = ref_xyz[1, 3*(i-1)+1]
+            ref_y = ref_xyz[1, 3*(i-1)+2]
+            ref_z = ref_xyz[1, 3*(i-1)+3]
             x1 = ref_x
             y1 = ref_y
             z1 = ref_z
             G1 += x1 * ref_x + y1 * ref_y + z1 * ref_z
-            x2 = ta.xyz[iframe, 3*(i-1)+1]
-            y2 = ta.xyz[iframe, 3*(i-1)+2]
-            z2 = ta.xyz[iframe, 3*(i-1)+3]
+            x2 = ta_xyz[iframe, 3*(i-1)+1]
+            y2 = ta_xyz[iframe, 3*(i-1)+2]
+            z2 = ta_xyz[iframe, 3*(i-1)+3]
             G2 += (x2 * x2 + y2 * y2 + z2 * z2)
             A[1] +=  (x1 * x2)
             A[2] +=  (x1 * y2)
@@ -156,8 +179,6 @@ function innerproduct(iframe::U, ref::TrjArray{T, U}, ta::TrjArray{T, U},
     return A, (G1 + G2) * T(0.5)
 end
 
-
-############################################################################
 """
 this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
@@ -323,7 +344,6 @@ function applyrotation!(iframe, x, y, z, ta2, rot)
     end
 end
 
-############################################################################
 """
     rotate(ta::TrjArray, quaternion::Vector) -> ta_rotated::TrjArray
 
@@ -458,14 +478,13 @@ function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{
     return TrjArray(ta, xyz=xyz)
 end
 
-############################################################################
 """
     superimpose(ref::TrjArray, ta::TrjArray; isweight=true, index=[], isdecenter=false) -> ta_superimposed::TrjArray
 
 Performs the least-squares fitting of the given trajectory (TrjArray object `ta`) 
 to the reference structure (1st frame of TrjArray object `ref`). 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
-Uses can specify atom IDs for the COM calculation by giving `index` which should be an Array of integers. 
+Uses can specify column indices for the COM calculation by giving `index` which should be a Vector of integers, a UnitRange, or a BiArray. 
 When `isdecenter` is `true`, the function assumes the COMs of both structures are located at the origin (default is `isdecenter=false`). 
 
 Returns the superimposed trajecotry. 
@@ -481,47 +500,43 @@ julia> ta_superimposed = superimpose(ref, ta)
 # References
 ```
 The algorithm of this function is based on 
-P. Liu, D. K. Agrafiotis, and D. L. Theobald, J. Comput. Chem. 31, 1561-1563 (2010).
+P. Liu, D. K. Agrafiotis, and D. L. Theobald, 
+J. Comput. Chem. 31, 1561-1563 (2010).
 ```
 """
 function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
-    isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
+    isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
+    if ref.natom != ta.natom
+        @printf "Warning: # of atoms in ref and ta are different: ref.natom = %d, ta.natom = %d\n" ref.natom ta.natom
+    end
+
     nframe = ta.nframe
-    natom = ta.natom
+    natom = max(ref.natom, ta.natom)
 
-    if isempty(index)
-        index2 = collect(1:natom)
-    else
-        index2 = index
+    index2 = preprocess_index(natom, index)
+    if min(ref.natom, ta.natom) < maximum(index2)
+        @printf "Warning: some index are over # of atoms, truncated.\n"
+        id = index2 .<= min(ref.natom, ta.natom)
+        index2 = index2[id]
     end
 
-    if isweight && length(ref.mass) == natom && length(ta.mass) == natom
-        isweight2 = true
-        weight = ta.mass
-    else
-        isweight2 = false
-    end
-
-    if isweight2
-        weight2 = reshape(weight[index2], length(index2))
-        wsum_inv = one(T) / sum(weight2)
-    else
-        wsum_inv = one(T) / T(length(index2))
-    end
+    weight = preprocess_weight(min(ref.natom, ta.natom), isweight, ta.mass)
+    wsum_inv = one(T) / sum(weight)
 
     if isdecenter
         ta2 = copy(ta)
         ref2 = ref[1, :]
     else
-        ta2, = decenter(ta, isweight=isweight2, index=index)
-        ref2, com = decenter(ref[1, :], isweight=isweight2, index=index)
+        ta2, = decenter(ta, isweight=isweight, index=index2)
+        ref2, com = decenter(ref[1, :], isweight=isweight, index=index2)
     end
 
     x = Matrix{T}(undef, nframe, natom)
     y = Matrix{T}(undef, nframe, natom)
     z = Matrix{T}(undef, nframe, natom)
+
     Threads.@threads for iframe in 1:nframe
-        A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
+        A, E0 = innerproduct(iframe, ref2.xyz, ta2.xyz, index2, isweight, weight)
         rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
         applyrotation!(iframe, x, y, z, ta2, rot)
     end
@@ -540,10 +555,8 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     return TrjArray(ta, xyz=xyz)
 end
 
-
-############################################################################
 function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
-    isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
+    isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
     nframe = ta.nframe
     natom = ta.natom
 
@@ -598,15 +611,13 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     return TrjArray(ta, xyz=xyz)
 end
 
-
-############################################################################
 """
     compute_rmsd(ref::TrjArray, ta::TrjArray; isweight=true, index=[]) -> rmsd
 
 Calculates the root mean square deviations (RMSD) of the given trajectory (TrjArray object `ta`)
 from the reference structure (1st frame of TrjArray object `ref`). 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
-Uses can specify atom IDs for the RMSD calculation by giving `index` which should be an Array of integers. 
+Uses can specify column indices for the RMSD calculation by giving `index` which should be a Vector of integers, a UnitRange, or a BiArray. 
 
 Returns RMSD values. 
 
@@ -619,44 +630,35 @@ julia> rmsd = compute_rmsd(ref, ta_superimposed)
 ```
 """
 function compute_rmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
-    isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0))::Vector{T} where {T, U}
+    isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0))::Vector{T} where {T, U}
     nframe = ta.nframe
     natom = ta.natom
-    if isweight && length(ta.mass) == natom
-        weight = ta.mass
-    else
-        weight = ones(T, natom)
-    end
-    if isempty(index)
-        index2 = 1:ta.natom
-        index3 = to3(index2)
-    else
-        index2 = index
-        index3 = to3(index2)
-    end
+
+    index2 = preprocess_index(natom, index)
+    index3 = to3(index2)
+    weight = preprocess_weight(natom, isweight, ref.mass)
     wsum_inv = one(T) / sum(weight[index2])
-    weight2 = reshape(weight[index2], 1, length(index2))
+    weight = reshape(weight[index2], 1, length(index2))
+
     ref_x = view(ref.xyz, 1:1, index3[1:3:end])
     ref_y = view(ref.xyz, 1:1, index3[2:3:end])
     ref_z = view(ref.xyz, 1:1, index3[3:3:end])
     ta_x = view(ta.xyz, :, index3[1:3:end])
     ta_y = view(ta.xyz, :, index3[2:3:end])
     ta_z = view(ta.xyz, :, index3[3:3:end])
-    d =  sum(weight2 .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
+    d =  sum(weight .* ((ta_x .- ref_x).^2 .+ (ta_y .- ref_y).^2 .+ (ta_z .- ref_z).^2), dims=2)
     d = d .* wsum_inv
     d = sqrt.(d)
     reshape(d, nframe)
 end
 
-
-############################################################################
 """
     meanstructure(ta::TrjArray; isweight=true, index=[]) -> ta_mean::TrjArray, ta_superimposed::TrjArray
 
 Calculates the mean structure of the given trajectory (TrjArray object `ta`)
 by iteratively fitting the trajecotry to tentative mean structures until the mean structure converges. 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
-Uses can specify atom IDs for the fitting (superimpose function) by giving `index` which should be an Array of integers. 
+Uses can specify column indices for the fitting (superimpose function) by giving `index` which should be a Vector of integers, a UnitRange, or a BiArray. 
 
 Returns the mean structure as TrjArray object, and the supserimposed trajectory to the mean structure. 
 
@@ -678,7 +680,7 @@ function meanstructure(ta::TrjArray{T, U};
     while r[1] > tolerance
         ref_old = ref;
         ta2 = superimpose(ref, ta2, isweight=isweight, index=index)
-        ref = TrjArray{T, U}(x=mean(ta2.x, dims=1), y=mean(ta2.y, dims=1), z=mean(ta2.z, dims=1)) # TODO: mean(ta) should be available in the futre
+        ref = TrjArray{T, U}(xyz=mean(ta2.xyz, dims=1)) # TODO: mean(ta) should be available in the futre
         r .= compute_rmsd(ref_old, ref, isweight=isweight, index=index)
         println("rmsd from the previous mean structure: ", r[1])
     end
@@ -687,8 +689,6 @@ function meanstructure(ta::TrjArray{T, U};
     ref, ta2
 end
 
-
-############################################################################
 """
     compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true) -> rmsf
 
@@ -731,13 +731,11 @@ function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where 
     reshape(rmsf, natom)
 end
 
-
-############################################################################
 """
     compute_distance(ta::TrjArray, index::Matrix)
 
 Calculates distances between two atom pairs specified by the Matrix object `index`. 
-Each row vector in `index` contains two atom IDs for calculating distance. 
+Each row vector in `index` contains two column indices for calculating distance. 
 Default of `index` is `[1 2]`. 
 
 Returns distances specified pairs in `index`. 
@@ -767,7 +765,7 @@ end
     compute_distance(ta1::TrjArray, ta2::TrjArray, index::Matrix)
 
 Calculates distances between two atom pairs in `ta1` and `ta2` specified by the Matrix object `index`. 
-Each row vector in `index` contains two atom id in `ta1` and atom id in `ta2` for calculating distance. 
+Each row vector in `index` contains a column index of `ta1` and column index of `ta2` for calculating distance. 
 Default of `index` is `[1 1]`. 
 
 Returns distances specified pairs in `index`. 
@@ -857,7 +855,6 @@ function compute_contactmap(ta::TrjArray{T, U}; rcut=8.5, kneighbor=3)::Matrix{T
     return c
 end
 
-############################################################################
 """
     compute_angle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)
 
@@ -886,7 +883,6 @@ function compute_angle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T
     a = (a ./ pi) .* T(180)
 end
 
-############################################################################
 """
     compute_dihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)
 
@@ -968,7 +964,26 @@ function compute_phi(ta::TrjArray{T, U}) where {T, U}
     return 0
 end
 
-############################################################################
+"""
+    compute_qscore(native::TrjArray, ta::TrjArray) -> qscore::Array
+
+Calculates all-atom based Q-score from given heavy atom coordinates. 
+
+Returns Q-scores. 
+
+# Example
+```julia-repl
+julia> native = mdload("ak.pdb")
+julia> ta = mdload("ak.dcd", top=native)
+julia> qscore = compute_qscore(native["not hydrogen"], ta["not hydrogen"])
+```
+
+# References
+```
+Definition of Q-score from heavy atoms is given in 
+R. B. Best, G. Hummer, and W. A. Eaton, PNAS 110, 17874 (2013).
+```
+"""
 function compute_qscore(native::TrjArray{T, U}, ta::TrjArray{T, U})::Vector{T} where {T, U}
     natom = native.natom
     index_all = zeros(U, U(natom*(natom-1)/2), 2)
@@ -995,7 +1010,32 @@ function compute_qscore(native::TrjArray{T, U}, ta::TrjArray{T, U})::Vector{T} w
     return qscore
 end
 
-############################################################################
+"""
+    compute_drms(native1::TrjArray, native2::TrjArray, ta1::TrjArray, ta2::TrjArray) -> drms
+
+Calculates distance-based root mean square displacements (DRMS) from the given trajectories. 
+First, native contacts between molecule1 and molecule2 are identified from the two native structures `native1` and `native2` where cutoff distance of 6.0 Angstrom is used. 
+Then, the DRMS are calculated from the trajectories of molecule1 `ta1` and molecule2 `ta2`. 
+
+Returns distance-based root mean square displacements. 
+
+# Example
+```julia-repl
+julia> native1 = mdload("protein.pdb")["not hydrogen"]
+julia> native2 = mdload("ligand.pdb")["not hydrogen"]
+julia> ta1 = mdload("protein.dcd")["not hydrogen"]
+julia> ta2 = mdload("ligand.dcd")["not hydrogen"]
+julia> drms = compute_drms(native1, native2, ta1, ta2)
+```
+
+# References
+```
+Definition of DRMS is given in 
+J. Domański, G. Hedger, R. B. Best, P. J. Stansfeld, and M. S. P. Sansom, 
+Convergence and Sampling in Determining Free Energy Landscapes for Membrane Protein Association, 
+J. Phys. Chem. B 121, 3364 (2017).
+```
+"""
 function compute_drms(native1::TrjArray{T, U}, native2::TrjArray{T, U}, ta1::TrjArray{T, U}, ta2::TrjArray{T, U})::Vector{T} where {T, U}
     natom1 = native1.natom
     natom2 = native2.natom
@@ -1020,7 +1060,6 @@ function compute_drms(native1::TrjArray{T, U}, native2::TrjArray{T, U}, ta1::Trj
     return drms
 end
 
-############################################################################
 function wrap_x!(x, boxsize)
     x .= x .- floor.(x./boxsize).*boxsize
 end
@@ -1129,6 +1168,29 @@ function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVect
     pair[logical_index, :], sqrt.(dist[logical_index])
 end
 
+"""
+    compute_pairlist(ta::TrjArray, rcut; iframe=1::Int) -> F
+
+Make a pairlist for the given strcuture `ta1` by searching pairs within a cutoff distance `rcut`. 
+By default, the 1st frame of `ta1` is used. Users can specify the frame by `iframe`. 
+
+Returns a NamedTuple object `F` which contains the pair lists in `F.pair`, 
+and the distances of corresponding pairs in `F.dist`. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> F = compute_pairlist(ta, 8.0)
+```
+
+# References
+```
+The algorithm of this function is based on 
+T.N. Heinz, and P.H. Hünenberger, 
+A fast pairlist-construction algorithm for molecular simulations under periodic boundary conditions. 
+J Comput Chem 25, 1474–1486 (2004). 
+```
+"""
 function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     # TODO: PBC support
     natom = ta.natom
@@ -1249,7 +1311,20 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, 
     return (pair=pair[1:count, :], dist=dist[1:count])
 end
 
-############################################################################
+"""
+    compute_pairlist_bruteforce(ta::TrjArray, rcut; iframe=1::Int) -> F
+
+Bruteforce search version of `compute_pairlist` function. Mainly used for debugging. 
+
+Returns a NamedTuple object `F` which contains the pair lists in `F.pair`, 
+and the distances of corresponding pairs in `F.dist`. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> F = compute_pairlist(ta, 8.0)
+```
+"""
 function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     rcut2 = rcut^2
     natom3 = ta.natom*3
