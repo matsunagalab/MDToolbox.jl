@@ -113,7 +113,7 @@ end
         @test ta2.xyz ≈ zeros(Float64, 1, 3)
     end
 
-    @testset "superimpose and getrmsd" begin
+    @testset "superimpose and compute_rmsd" begin
         A = [-2.803  -15.373   24.556;
              0.893  -16.062   25.147;
              1.368  -12.371   25.885;
@@ -121,7 +121,7 @@ end
              -0.440  -15.218   30.068;
              2.551  -13.273   31.372;
              0.105  -11.330   33.567]
-        ref = TrjArray{Float64, Int64}(xyz=A'[:]', mass=collect(1:7))
+        ref = TrjArray{Float64, Int64}(xyz=Array(A'[:]'), mass=collect(1:7))
         A = [-14.739  -18.673   15.040;
              -12.473  -15.810   16.074;
              -14.802  -13.307   14.408;
@@ -129,7 +129,7 @@ end
              -16.124  -14.617   19.584;
              -15.029  -11.037   18.902;
              -18.577  -10.001   17.996]
-        ta = TrjArray{Float64, Int64}(xyz=A'[:]', mass=collect(1:7))
+        ta = TrjArray{Float64, Int64}(xyz=Array(A'[:]'), mass=collect(1:7))
         # r, ta_fit = superimpose(ref, ta, isweight=true)
         ta_fit = superimpose(ref, ta, isweight=true)
         #@test r[1] ≈ 0.7450161471
@@ -138,7 +138,7 @@ end
         @test r2[1] ≈ 0.7450161471
     end
 
-    @testset "getdistance" begin
+    @testset "compute_distance" begin
         x = [1.0 0.0]
         y = [0.0 0.0]
         z = [0.0 0.0]
@@ -151,7 +151,7 @@ end
         @test d ≈ [1.0]
     end
 
-    @testset "getangle" begin
+    @testset "compute_angle" begin
         x = [1.0 0.0 0.0]
         y = [0.0 0.0 1.0]
         z = [0.0 0.0 0.0]
@@ -164,7 +164,7 @@ end
         @test a ≈ [90.0]
     end
 
-    @testset "getdihedral" begin
+    @testset "compute_dihedral" begin
         x = [-1.0 -1.0 1.0 1.0]
         y = [-1.0  0.0 0.0 1.0]
         z = [ 0.0  0.0 0.0 0.0]
