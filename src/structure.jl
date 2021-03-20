@@ -49,6 +49,8 @@ function centerofmass(ta::TrjArray{T, U};
     TrjArray{T, U}(xyz=xyz)
 end
 
+
+############################################################################
 """
     decenter(ta::TrjArray; isweight=true, index=[]) -> ta_decentered::TrjArray, com::TrjArray
 
@@ -154,6 +156,8 @@ function innerproduct(iframe::U, ref::TrjArray{T, U}, ta::TrjArray{T, U},
     return A, (G1 + G2) * T(0.5)
 end
 
+
+############################################################################
 """
 this code is licensed under the BSD license (Copyright (c) 2009-2016 Pu Liu and Douglas L. Theobald), see LICENSE.md
 """
@@ -319,6 +323,7 @@ function applyrotation!(iframe, x, y, z, ta2, rot)
     end
 end
 
+############################################################################
 """
     rotate(ta::TrjArray, quaternion::Vector) -> ta_rotated::TrjArray
 
@@ -453,6 +458,7 @@ function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{
     return TrjArray(ta, xyz=xyz)
 end
 
+############################################################################
 """
     superimpose(ref::TrjArray, ta::TrjArray; isweight=true, index=[], isdecenter=false) -> ta_superimposed::TrjArray
 
@@ -534,6 +540,8 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     return TrjArray(ta, xyz=xyz)
 end
 
+
+############################################################################
 function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     isweight::Bool=true, index::Vector{U}=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
     nframe = ta.nframe
@@ -590,6 +598,8 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     return TrjArray(ta, xyz=xyz)
 end
 
+
+############################################################################
 """
     compute_rmsd(ref::TrjArray, ta::TrjArray; isweight=true, index=[]) -> rmsd
 
@@ -638,6 +648,8 @@ function compute_rmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     reshape(d, nframe)
 end
 
+
+############################################################################
 """
     meanstructure(ta::TrjArray; isweight=true, index=[]) -> ta_mean::TrjArray, ta_superimposed::TrjArray
 
@@ -675,6 +687,8 @@ function meanstructure(ta::TrjArray{T, U};
     ref, ta2
 end
 
+
+############################################################################
 """
     compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true) -> rmsf
 
@@ -717,6 +731,8 @@ function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where 
     reshape(rmsf, natom)
 end
 
+
+############################################################################
 """
     compute_distance(ta::TrjArray, index::Matrix)
 
@@ -841,6 +857,7 @@ function compute_contactmap(ta::TrjArray{T, U}; rcut=8.5, kneighbor=3)::Matrix{T
     return c
 end
 
+############################################################################
 """
     compute_angle(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray)
 
@@ -869,6 +886,7 @@ function compute_angle(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, ta3::TrjArray{T
     a = (a ./ pi) .* T(180)
 end
 
+############################################################################
 """
     compute_dihedral(ta1::TrjArray, ta2::TrjArray, ta3::TrjArray, ta4::TrjArray)
 
@@ -950,25 +968,7 @@ function compute_phi(ta::TrjArray{T, U}) where {T, U}
     return 0
 end
 
-"""
-    compute_qscore(native::TrjArray, ta::TrjArray) -> qscore::Array
-
-Calculates all-atom based Q-score from given heavy atom coordinates. 
-
-Returns Q-scores. 
-
-# Example
-```julia-repl
-julia> ta = mdload("ak.pdb")
-julia> qscore = compute_qscore(ta["not hydrogen"])
-```
-
-# References
-```
-Definition of Q-score from heavy atoms is given in 
-R. B. Best, G. Hummer, and W. A. Eaton, PNAS 110, 17874 (2013).
-```
-"""
+############################################################################
 function compute_qscore(native::TrjArray{T, U}, ta::TrjArray{T, U})::Vector{T} where {T, U}
     natom = native.natom
     index_all = zeros(U, U(natom*(natom-1)/2), 2)
@@ -995,32 +995,7 @@ function compute_qscore(native::TrjArray{T, U}, ta::TrjArray{T, U})::Vector{T} w
     return qscore
 end
 
-"""
-    compute_drms(native1::TrjArray, native2::TrjArray, ta1::TrjArray, ta2::TrjArray) -> drms
-
-Calculates distance-based root mean square displacements (DRMS) from the given trajectories. 
-First, native contacts between molecule1 and molecule2 are identified from the two native structures `native1` and `native2` where cutoff distance of 6.0 Angstrom is used. 
-Then, the DRMS are calculated from the trajectories of molecule1 `ta1` and molecule2 `ta2`. 
-
-Returns distance-based root mean square displacements. 
-
-# Example
-```julia-repl
-julia> native1 = mdload("protein.pdb")["not hydrogen"]
-julia> native2 = mdload("ligand.pdb")["not hydrogen"]
-julia> ta1 = mdload("protein.dcd")["not hydrogen"]
-julia> ta2 = mdload("ligand.dcd")["not hydrogen"]
-julia> drms = compute_drms(native1, native2, ta1, ta2)
-```
-
-# References
-```
-Definition of DRMS is given in 
-J. Domański, G. Hedger, R. B. Best, P. J. Stansfeld, and M. S. P. Sansom, 
-Convergence and Sampling in Determining Free Energy Landscapes for Membrane Protein Association, 
-J. Phys. Chem. B 121, 3364 (2017).
-```
-"""
+############################################################################
 function compute_drms(native1::TrjArray{T, U}, native2::TrjArray{T, U}, ta1::TrjArray{T, U}, ta2::TrjArray{T, U})::Vector{T} where {T, U}
     natom1 = native1.natom
     natom2 = native2.natom
@@ -1045,6 +1020,7 @@ function compute_drms(native1::TrjArray{T, U}, native2::TrjArray{T, U}, ta1::Trj
     return drms
 end
 
+############################################################################
 function wrap_x!(x, boxsize)
     x .= x .- floor.(x./boxsize).*boxsize
 end
@@ -1153,29 +1129,6 @@ function pairwise_distance(x::AbstractVector, y::AbstractVector, z::AbstractVect
     pair[logical_index, :], sqrt.(dist[logical_index])
 end
 
-"""
-    compute_pairlist(ta::TrjArray, rcut; iframe=1::Int) -> F
-
-Make a pairlist for the given strcuture `ta1` by searching pairs within a cutoff distance `rcut`. 
-By default, the 1st frame of `ta1` is used. Users can specify the frame by `iframe`. 
-
-Returns a NamedTuple object `F` which contains the pair lists in `F.pair`, 
-and the distances of corresponding pairs in `F.dist`. 
-
-# Example
-```julia-repl
-julia> ta = mdload("ak.pdb")
-julia> F = compute_pairlist(ta, 8.0)
-```
-
-# References
-```
-The algorithm of this function is based on 
-T.N. Heinz, and P.H. Hünenberger, 
-A fast pairlist-construction algorithm for molecular simulations under periodic boundary conditions. 
-J Comput Chem 25, 1474–1486 (2004). 
-```
-"""
 function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     # TODO: PBC support
     natom = ta.natom
@@ -1296,20 +1249,7 @@ function compute_pairlist(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, 
     return (pair=pair[1:count, :], dist=dist[1:count])
 end
 
-"""
-    compute_pairlist_bruteforce(ta::TrjArray, rcut; iframe=1::Int) -> F
-
-Bruteforce search version of `compute_pairlist` function. Mainly used for debugging. 
-
-Returns a NamedTuple object `F` which contains the pair lists in `F.pair`, 
-and the distances of corresponding pairs in `F.dist`. 
-
-# Example
-```julia-repl
-julia> ta = mdload("ak.pdb")
-julia> F = compute_pairlist(ta, 8.0)
-```
-"""
+############################################################################
 function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int) where {T, U}
     rcut2 = rcut^2
     natom3 = ta.natom*3

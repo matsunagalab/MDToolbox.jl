@@ -117,8 +117,6 @@ TrjArray(ta::TrjArray{T, U}; xyz = nothing,
         list_improper = isnothing(list_improper) ? ta.list_improper : list_improper, 
         list_cmap = isnothing(list_cmap) ? ta.list_cmap : list_cmap)
 
-TrjArray() = TrjArray{Float64, Int64}()
-
 TrjArray(xyz::AbstractArray{T}, boxsize::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
        TrjArray{T, U}(xyz = xyz, boxsize = boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
@@ -138,6 +136,9 @@ TrjArray(xyz::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
                       list_cmap = ta.list_cmap)
+
+TrjArray(x...; y...) = TrjArray{Float64,Int64}(x...; y...)
+TrjArray() = TrjArray{Float64, Int64}()
 
 ###### size, length #################
 size(ta::TrjArray) = (ta.nframe, ta.natom)
