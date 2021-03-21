@@ -1,12 +1,13 @@
 # MDToolbox.jl
-MDToolbox: A Julia toolbox for analysis and modeling of molecular dynamics trajectories
+
+A Julia package for molecular dynamics trajectories analysis and modeling of biomolecules
 
 <!-- [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://www.bio.ics.saitama-u.ac.jp/MDToolbox.jl/stable/) -->
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://www.bio.ics.saitama-u.ac.jp/MDToolbox.jl/dev/)
 
 [![Build Status](https://travis-ci.org/ymatsunaga/MDToolbox.jl.svg?branch=master)](https://travis-ci.org/ymatsunaga/MDToolbox.jl)
 
-Some function are ported into Julia from the original MATLAB version https://github.com/ymatsunaga/mdtoolbox
+Some function are ported into Julia from an old MATLAB package https://github.com/ymatsunaga/mdtoolbox
 
 Julia version 1.0 or later is required. 
 ```
