@@ -423,16 +423,6 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-4), MAXI
 end
 
 """
-    msmviterbi(T, p, emission, observation) -> states
-
-
-Examples
-≡≡≡≡≡≡≡≡≡≡
-
-julia> states, observations = msmgenerate(1000, T, p, emission)
-julia> states_estimated = msmviterbi(T, p, emission, observation)
-"""
-"""
     msmviterbi(observation, T, p, emission) -> states::Vector
 
 Viterbi algorithm estimates the most probable hidden state sequence from the observation data.
