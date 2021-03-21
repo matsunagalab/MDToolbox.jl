@@ -17,7 +17,7 @@ julia> using MDToolbox
 Docker image is available. MDToolbox can be used in Jupyter Lab.
 ```bash
 # Terminal
-$ docker run --rm -p 8888:8888 -e JUPYTER_ENABLE_LAB=yes -v "$PWD":/home/jovyan/work ymatsunaga/mdtoolbox.jl
+$ docker run --rm -p 8888:8888 -e JUPYTER_ENABLE_LAB=yes -v "$PWD":/home/jovyan/work matsunagalab/mdtoolbox.jl
 # in Jupyter Lab
 using MDToolbox
 
