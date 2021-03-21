@@ -2,10 +2,16 @@
     msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing, 
             edgewidth_scale=10.0, arrow_scale=0.1, nodesize=0.5, fontsize=10, names=[], dpi=100)
 
-Plot the given Markov state model.
+Visualize the graphical structure of the given Markov state model parameters. 
+`T` is a transition probability matrix whose elements Tij represents the probablity of transition from state i to j. 
+`T` should satisfy the detailed balance condition. `pi_i` is a vector whose elements are equilibrium probabilities of states. 
+`x` and `y` are X and Y coordinates of states, respectively. 
 
 # Examples
 ```julia-repl
+julia> nstate = 5
+julia> T, pi_i = msmtransitionmatrix(rand(nstate, nstate))
+julia> x = rand(nstate); y = rand(nstate)
 julia> msmplot(T, pi_i=pi_i, x=x, y=y)
 ```
 """
@@ -96,7 +102,7 @@ end
     msmgenerate(nframe::Int, T, pi_i)
                 states = zeros(typeof(nframe), nframe)
 
-Generate a discrete-state trajectory from given transition matrix, and equilibrium probabilities of states.
+Randomly samples a state trajectory from the the given transition matrix, and equilibrium probabilities of states. 
 
 # Examples
 ```julia-repl
@@ -115,16 +121,15 @@ function msmgenerate(nframe::Int, T, pi_i)
 end
 
 """
-msmgenerate(nframe, T, pi_i, emission) -> states, observations
+    msmgenerate(nframe, T, pi_i, emission) -> states, observations
 
-generate a discrete-state trajectory and observations from given transition matrix, equilibrium probabilities of states, and emissions.
+Randomly samples a state trajectory and observations from the given transition matrix, equilibrium probabilities of states, and emissions.
 
-Examples
-≡≡≡≡≡≡≡≡≡≡
-
+# Examples
+```julia-repl
 julia> T, pi_i = msmtransitionmatrix(C)
-
 julia> states, observations = msmgenerate(1000, T, pi_i, emission)
+```
 """
 function msmgenerate(nframe::Int, T, pi_i, emission)
   states = zeros(typeof(nframe), nframe)
@@ -140,14 +145,19 @@ function msmgenerate(nframe::Int, T, pi_i, emission)
 end
 
 """
-%% msmcountmatrix
-% Transition count matrix from a set of binned trajectory data
-% This method calculates count matrix for transitions from state i to state j in a time step of tau
-%
-%% Syntax
-%# c = msmcountmatrix(indexOfCluster);
-%# c = msmcountmatrix(indexOfCluster, tau);
-% 
+    msmcountmatrix(indexOfCluster; tau=1) -> C::Matrix
+
+Transition count matrix from a sinlgle binned trajectory or a set of binned trajectories. 
+`indexOfCluster` is a vector or a set of vectors containing binned trajectorie(s). 
+Returns count matrix for transitions from state i to state j in a time step of tau. 
+
+# Examples
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> X = compute_distancemap(ta["atomname CA"])
+julia> F = clusterkcenters(X)
+julia> c = msmcountmatrix(F.indexOfCluster, tau=10)
+```
 """
 function msmcountmatrix(indexOfCluster; tau=1)
   nstate = maximum(indexOfCluster)
@@ -179,14 +189,28 @@ function msmcountmatrix(indexOfCluster; tau=1)
 end
 
 """
-%% msmtransitionmatrix
-% estimate transition probability matrix from count matrix
-%
-%% Syntax
-%# t = msmtransitionmatrix(c);
-%
-%% Description
-% this routines uses the reversible maximum likelihood estimator
+    msmtransitionmatrix(C; TOLERANCE=10^(-4), verbose=true) -> T::Matrix, p::Vector
+
+Estimate the transition probability matrix from count matrix `C`. 
+Detailed balance is implicitly imposed in the estimation. 
+
+Returns the transition probability matrix and the equilibrium probabilities of states. 
+
+# Examples
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> X = compute_distancemap(ta["atomname CA"])
+julia> F = clusterkcenters(X)
+julia> C = msmcountmatrix(F.indexOfCluster, tau=10)
+julia> T, p = msmtransitionmatrix(C)
+```
+# References
+```
+This routines uses the reversible maximum likelihood estimator described in 
+K. A. Beauchamp, G. R. Bowman, T. J. Lane, L. Maibaum, I. S. Haque, and V. S. Pande, 
+MSMBuilder2: Modeling Conformational Dynamics on the Picosecond to Millisecond Scale, 
+J. Chem. Theory Comput. 7, 3412 (2011).
+```
 """
 function msmtransitionmatrix(C; TOLERANCE=10^(-4), verbose=true)
   c = Matrix{Float64}(C)
@@ -287,6 +311,33 @@ function msmbackward(data_list, factor_list, T, pi_i, emission)
     logL, beta_list
 end
 
+"""
+    msmbaumwelch(observations, T_init, p_init, emission_init; TOLERANCE=10.0^(-4), MAXITERATION=Inf64) -> T::Matrix, p::Vector, emission::Matrix
+
+Baum-Welch algorithm estimates the most probable transition probabilities from the given observation data. 
+In this function, detailed balance is implicitly imposed in the estimation, 
+so the equilibrium probabilities can be determined from the estimated transition probabilities. 
+Also, unlike the original Baum-Welch algorithm, the emission is NOT estimated in this function, 
+because the emission probabilites are usually known a priori in cases of molecular experiments. 
+`observations` is a set of observed vectors. `T_init`, `p_init` are initial transition probabilities and equilibrium probabilities, respectively. 
+`emission_init` is a matrix whose rows correspond to states, and columns correspond to observations. 
+
+Returns the transition probability matrix, the equilibrium probabilities of states, 
+and the emission probabilities (though the emission does not change). 
+
+# Examples
+```julia-repl
+julia> ta = mdload("ak.dcd")
+julia> X = compute_distancemap(ta["atomname CA"])
+julia> F = clusterkcenters(X)
+julia> C = msmcountmatrix(F.indexOfCluster, tau=10)
+julia> T, p = msmtransitionmatrix(C)
+```
+# References
+```
+The algorithm of this routines is based on the descriptions in PRML book by C. Bishop. 
+```
+"""
 function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-4), MAXITERATION=Inf64)
     ## setup
     check_convergence = Inf64
@@ -372,16 +423,35 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-4), MAXI
 end
 
 """
-msmviterbi(T, pi_i, emission, observation) -> states
+    msmviterbi(T, p, emission, observation) -> states
 
-estimate most probable hidden state sequence from observation
 
 Examples
 ≡≡≡≡≡≡≡≡≡≡
 
-julia> states, observations = msmgenerate(1000, T, pi_i, emission)
+julia> states, observations = msmgenerate(1000, T, p, emission)
+julia> states_estimated = msmviterbi(T, p, emission, observation)
+"""
+"""
+    msmviterbi(observation, T, p, emission) -> states::Vector
 
+Viterbi algorithm estimates the most probable hidden state sequence from the observation data.
+`observations` is a set of observed vectors. `T`, `p` are the transition probabilities and equilibrium probabilities, respectively. 
+`emission` is a matrix whose rows correspond to states, and columns correspond to observations. 
+
+Returns the transition probability matrix, the equilibrium probabilities of states, 
+and the emission probabilities (though the emission does not change). 
+
+# Examples
+```julia-repl
+julia> nframe = 1000
+julia> states, observations = msmgenerate(nframe, T, pi_i, emission)
 julia> states_estimated = msmviterbi(T, pi_i, emission, observation)
+```
+# References
+```
+The algorithm of this routines is based on the descriptions in PRML book by C. Bishop. 
+```
 """
 function msmviterbi(observation, T, pi_i, emission)
     nframe = size(observation, 1)
