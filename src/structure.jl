@@ -479,7 +479,7 @@ function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{
 end
 
 """
-    superimpose(ref::TrjArray, ta::TrjArray; isweight=true, index=[], isdecenter=false) -> ta_superimposed::TrjArray
+    superimpose(ref::TrjArray, ta::TrjArray; isweight=true, index::Union{UnitRange,Vector,BitArray}, isdecenter=false) -> ta_superimposed::TrjArray
 
 Performs the least-squares fitting of the given trajectory (TrjArray object `ta`) 
 to the reference structure (1st frame of TrjArray object `ref`). 
@@ -612,7 +612,7 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
 end
 
 """
-    compute_rmsd(ref::TrjArray, ta::TrjArray; isweight=true, index=[]) -> rmsd
+    compute_rmsd(ref::TrjArray, ta::TrjArray; isweight=true, index=index::Union{UnitRange,Vector,BitArray}) -> rmsd
 
 Calculates the root mean square deviations (RMSD) of the given trajectory (TrjArray object `ta`)
 from the reference structure (1st frame of TrjArray object `ref`). 
@@ -653,7 +653,7 @@ function compute_rmsd(ref::TrjArray{T, U}, ta::TrjArray{T, U};
 end
 
 """
-    meanstructure(ta::TrjArray; isweight=true, index=[]) -> ta_mean::TrjArray, ta_superimposed::TrjArray
+    meanstructure(ta::TrjArray; isweight=true, index=index::Union{UnitRange,Vector,BitArray}) -> ta_mean::TrjArray, ta_superimposed::TrjArray
 
 Calculates the mean structure of the given trajectory (TrjArray object `ta`)
 by iteratively fitting the trajecotry to tentative mean structures until the mean structure converges. 
