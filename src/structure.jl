@@ -446,7 +446,8 @@ function rotate(ta_single::TrjArray{T, U}, quater::AbstractMatrix{T})::TrjArray{
     x = rot[:, 1:1] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 2:2] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 3:3] .* ta_single.xyz[1:1, 3:3:end]
     y = rot[:, 4:4] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 5:5] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 6:6] .* ta_single.xyz[1:1, 3:3:end]
     z = rot[:, 7:7] .* ta_single.xyz[1:1, 1:3:end] .+ rot[:, 8:8] .* ta_single.xyz[1:1, 2:3:end] .+ rot[:, 9:9] .* ta_single.xyz[1:1, 3:3:end]
-    xyz[:, 1:3:end] .= x
+    xyz = similar(ta_single.xyz[1:1, :])
+    xyz[:, 1:3:end] .= x # fixme, todo reduce memory
     xyz[:, 2:3:end] .= y
     xyz[:, 3:3:end] .= z
     return TrjArray(ta_single, xyz=xyz)
@@ -472,9 +473,10 @@ function rotate_with_matrix(ta::TrjArray{T, U}, R::AbstractMatrix{T})::TrjArray{
     x = R[1, 1].*ta.xyz[:, 1:3:end] .+ R[1, 2].*ta.xyz[:, 2:3:end] .+ R[1, 3].*ta.xyz[:, 3:3:end]
     y = R[2, 1].*ta.xyz[:, 1:3:end] .+ R[2, 2].*ta.xyz[:, 2:3:end] .+ R[2, 3].*ta.xyz[:, 3:3:end]
     z = R[3, 1].*ta.xyz[:, 1:3:end] .+ R[3, 2].*ta.xyz[:, 2:3:end] .+ R[3, 3].*ta.xyz[:, 3:3:end]
-    ta.xyz[:, 1:3:end] .= x
-    ta.xyz[:, 2:3:end] .= y
-    ta.xyz[:, 3:3:end] .= z
+    xyz = similar(ta.xyz) # fixme, todo reduce memory
+    xyz[:, 1:3:end] .= x
+    xyz[:, 2:3:end] .= y
+    xyz[:, 3:3:end] .= z
     return TrjArray(ta, xyz=xyz)
 end
 

@@ -237,19 +237,19 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     receptor2, _dummy = decenter(receptor)
     ligand2, _dummy = decenter(ligand)
 
-    x_min, x_max = minimum(ligand2.x), maximum(ligand2.x)
-    y_min, y_max = minimum(ligand2.y), maximum(ligand2.y)
-    z_min, z_max = minimum(ligand2.z), maximum(ligand2.z)
+    x_min, x_max = minimum(ligand2.xyz[iframe, 1:3:end]), maximum(ligand2.xyz[iframe, 1:3:end])
+    y_min, y_max = minimum(ligand2.xyz[iframe, 2:3:end]), maximum(ligand2.xyz[iframe, 2:3:end])
+    z_min, z_max = minimum(ligand2.xyz[iframe, 3:3:end]), maximum(ligand2.xyz[iframe, 3:3:end])
     size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
     size_ligand = size_ligand*2
 
-    x_min = minimum(receptor2.x) - size_ligand - grid_space
-    y_min = minimum(receptor2.y) - size_ligand - grid_space
-    z_min = minimum(receptor2.z) - size_ligand - grid_space
+    x_min = minimum(receptor2.xyz[iframe, 1:3:end]) - size_ligand - grid_space
+    y_min = minimum(receptor2.xyz[iframe, 2:3:end]) - size_ligand - grid_space
+    z_min = minimum(receptor2.xyz[iframe, 3:3:end]) - size_ligand - grid_space
 
-    x_max = maximum(receptor2.x) + size_ligand + grid_space
-    y_max = maximum(receptor2.y) + size_ligand + grid_space
-    z_max = maximum(receptor2.z) + size_ligand + grid_space
+    x_max = maximum(receptor2.xyz[iframe, 1:3:end]) + size_ligand + grid_space
+    y_max = maximum(receptor2.xyz[iframe, 2:3:end]) + size_ligand + grid_space
+    z_max = maximum(receptor2.xyz[iframe, 3:3:end]) + size_ligand + grid_space
 
     x_grid = collect(x_min:grid_space:x_max)
     y_grid = collect(y_min:grid_space:y_max)
@@ -320,9 +320,9 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     if dz > (nz*grid_space / 2.0)
         dz = dz - (nz*grid_space)
     end
-    ligand_return.x .+= dx
-    ligand_return.y .+= dy
-    ligand_return.z .+= dz
+    ligand_return.xyz[iframe, 1:3:end] .+= dx
+    ligand_return.xyz[iframe, 2:3:end] .+= dy
+    ligand_return.xyz[iframe, 3:3:end] .+= dz
 
     for itop = 2:tops
         ligand_tmp = rotate(ligand2, quate_tops[itop, :])
@@ -338,9 +338,9 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
         if dz > (nz*grid_space / 2.0)
             dz = dz - (nz*grid_space)
         end
-        ligand_tmp.x .+= dx
-        ligand_tmp.y .+= dy
-        ligand_tmp.z .+= dz
+        ligand_tmp.xyz[iframe, 1:3:end] .+= dx
+        ligand_tmp.xyz[iframe, 2:3:end] .+= dy
+        ligand_tmp.xyz[iframe, 3:3:end] .+= dz
         ligand_return = [ligand_return; ligand_tmp]
     end
 
@@ -353,18 +353,18 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
     receptor2, _dummy = decenter(receptor)
 
     @show "step 1"
-    x_min, x_max = minimum(receptor2.x), maximum(receptor2.x)
-    y_min, y_max = minimum(receptor2.y), maximum(receptor2.y)
-    z_min, z_max = minimum(receptor2.z), maximum(receptor2.z)
+    x_min, x_max = minimum(receptor2.xyz[iframe, 1:3:end]), maximum(receptor2.xyz[iframe, 1:3:end])
+    y_min, y_max = minimum(receptor2.xyz[iframe, 2:3:end]), maximum(receptor2.xyz[iframe, 2:3:end])
+    z_min, z_max = minimum(receptor2.xyz[iframe, 3:3:end]), maximum(receptor2.xyz[iframe, 3:3:end])
     size_receptor = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
 
-    x_min = minimum(receptor2.x) - size_receptor - grid_space
-    y_min = minimum(receptor2.y) - size_receptor - grid_space
-    z_min = minimum(receptor2.z) - size_receptor - grid_space
+    x_min = minimum(receptor2.xyz[iframe, 1:3:end]) - size_receptor - grid_space
+    y_min = minimum(receptor2.xyz[iframe, 2:3:end]) - size_receptor - grid_space
+    z_min = minimum(receptor2.xyz[iframe, 3:3:end]) - size_receptor - grid_space
 
-    x_max = maximum(receptor2.x) + size_receptor + grid_space
-    y_max = maximum(receptor2.y) + size_receptor + grid_space
-    z_max = maximum(receptor2.z) + size_receptor + grid_space
+    x_max = maximum(receptor2.xyz[iframe, 1:3:end]) + size_receptor + grid_space
+    y_max = maximum(receptor2.xyz[iframe, 2:3:end]) + size_receptor + grid_space
+    z_max = maximum(receptor2.xyz[iframe, 3:3:end]) + size_receptor + grid_space
 
     x_grid = collect(x_min:grid_space:x_max)
     y_grid = collect(y_min:grid_space:y_max)
@@ -437,8 +437,8 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
     if dy > (ny*grid_space / 2.0)
         dy = dy - (ny*grid_space)
     end
-    ligand_return.x .+= dx
-    ligand_return.y .+= dy
+    ligand_return.xyz[iframe, 1:3:end] .+= dx
+    ligand_return.xyz[iframe, 2:3:end] .+= dy
 
     return (receptor=receptor_best, ligand=ligand_return, score=score_best)
 end
