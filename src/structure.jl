@@ -115,9 +115,9 @@ julia> decenter!(ta)
 function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, 
     index::AbstractVector=Vector{Int64}(undef, 0)) where {T, U}
     com = centerofmass(ta, isweight=isweight, index=index)
-    ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.x[:, 1]
-    ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.y[:, 2]
-    ta.xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .- com.z[:, 3]
+    ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
+    ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
+    ta.xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
     nothing
 end
 

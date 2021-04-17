@@ -1,3 +1,199 @@
+function ireflect(surface)
+    surface2 = - surface[end:-1:1, end:-1:1]
+    return surface2
+end
+
+function idilation(surface, tip, xc, yc)
+    # i - pxmin <= surf_xsiz
+    # i - surf_xsiz <= pxmin
+    #
+    # pxmin + xc >= 1
+    # pxmin >= 1 - xc
+    #
+    # i - pxmax >= 1
+    # i - 1 >= pxmax
+    #
+    # pxmax + xc <= tip_xsiz
+    # pxmax <= tip_xsiz - xc
+    surf_xsiz, surf_ysiz = size(surface)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = similar(surface)
+    for i = 1:surf_xsiz
+        pxmin = max(i-surf_xsiz, 1-xc)
+        pxmax = min(i-1, tip_xsiz-xc)
+        for j = 1:surf_ysiz
+            pymin = max(j-surf_ysiz+1, 1-yc)
+            pymax = min(j-1, tip_ysiz-yc)
+
+            dil_max = surface[i-pxmin, j-pymin] + tip[pxmin+xc, pymin+yc]
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = surface[i-px, j-py] + tip[px+xc, py+yc]
+                    dil_max = max(temp, dil_max)
+                end
+            end
+            r[i, j] = dil_max
+        end
+    end
+    return r
+end
+
+function ierosion(image, tip, xc, yc)
+    # i + pxmin >= 1
+    # 1 - i <= pxmin
+    #
+    # pxmin + xc >= 1
+    # 1 - xc <= pxmin
+    #
+    # i + pxmax <= im_xsiz
+    # im_xsiz - i >= pxmax
+    #
+    # pxmax + xc <= tip_xsiz
+    # tip_xsiz - xc >= pxmax
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = similar(image)
+    for i = 1:im_xsiz
+        pxmin = max(1-i, 1-xc)
+        pxmax = min(im_xsiz-i, tip_xsiz-xc)
+        for j = 1:im_ysiz
+            pymin = max(1-j, 1-yc)
+            pymax = min(im_ysiz-j, tip_ysiz-yc)
+            eros_min = image[i+pxmin, j+pymin] - tip[pxmin+xc, pymin+yc]
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = image[i+px, j+py] - tip[px+xc, py+yc]
+                    eros_min = min(temp, eros_min)
+                end
+            end
+            r[i, j] = eros_min
+        end
+    end
+    return r
+end
+
+function iopen(image, tip)
+    cartesian_index = argmax(tip)
+    xc = cartesian_index[1]
+    yc = cartesian_index[2]
+    eros = ierosion(image, tip, xc, yc)
+    r = idilation(eros, tip, xc, yc)
+    return r
+end
+
+function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip0)
+    inside = 1
+    outside = 0
+    interior = (jxp >= tip_ysiz) & (jxp <= im_ysiz-tip_ysiz) & (ixp >= tip_xsiz) & (ixp <= im_xsiz-tip_xsiz)
+
+    count = 0
+
+    if interior
+        for ix = 1:tip_xsiz
+            for jx = 1:tip_ysiz
+                imagep = image[ixp, jxp]
+                dil = - typeof(imagep)(Inf)
+                for id = 1:tip_xsiz
+                    for jd = 1:tip_ysiz
+                        if (imagep-image[ixp+xc-id, jxp+yc-jd]) > tip0[id, jd]
+                            continue
+                        end
+                        temp = image[ix+ixp-id, jx+jxp-jd] + tip0[id, jd] - imagep
+                        dil = max(dil, temp)
+                    end
+                end
+                if isinf(-dil)
+                    continue
+                end
+                #tip0[ix, iy] = (dil < tip0[jx][ix]-thresh) ? (count++, dil+thresh) : tip0[jx][ix]
+                if dil < (tip0[ix, jx] - thresh)
+                    count += 1
+                    tip0[ix, jx] = dil + thresh
+                end
+            end
+        end
+        return count
+    end
+
+    apexstate = outside
+    xstate = outside
+    for ix = 1:tip_xsiz
+        for jx = 1:tip_ysiz
+            imagep = image[ixp, jxp]
+            dil = - typeof(imagep)(Inf)
+            for id = 1:tip_xsiz
+                for jd = 1:tip_ysiz
+                    apexstate = outside
+                    if (jxp+yc-jd)<1 | (jxp+yc-jd)>im_ysiz | (ixp+xc-id)<1 | (ixp+xc-id)>im_xsiz
+                        apexstate = inside
+                    #elseif (imagep-image[ixp+xc-id, jxp+yc-jd]) <= tip0[id, jd]
+                    #    apexstate = inside
+                    end
+                    if (jxp+jx-jd)<1 | (jxp+jx-jd)>im_ysiz | (ixp+ix-id)<1 | (ixp+ix-id)>im_xsiz
+                        xstate = outside
+                    else
+                        xstate = inside
+                    end
+                    if apexstate == outside
+                        continue
+                    end
+                    if xstate == outside
+                        @goto nextx
+                    end
+                    temp = image[ix+ixp-id, jx+jxp-jd] + tip0[id, jd] - imagep
+                    dil = max(dil, temp)
+                end
+            end
+            if isinf(-dil)
+                continue
+            end
+            if dil < (tip0[ix, jx] - thresh)
+                count += 1
+                tip0[ix, jx] = dil + thresh
+            end
+            @label nextx
+        end
+    end
+    return count
+end
+
+function itip_estimate_iter!(tip0, xc, yc, image, thresh)
+    # tip_xsiz <= ixp + xc
+    # xc + xic <= im_xsiz
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip0)
+    count = 0
+    open_image = iopen(image, tip0)
+    for ixp = (tip_xsiz-xc):(im_xsiz-xc)
+        for jxp = (tip_ysiz-yc):(im_ysiz-yc)
+            if (image[ixp, jxp] - open_image[ixp, jxp]) > thresh
+                c = itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
+                if c > 0
+                    count += 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+function itip_estimate!(tip0, xc, yc, image, thresh)
+    iter = 0
+    count = 1
+    while count > 0
+        iter += 1
+        count = itip_estimate_iter!(tip0, xc, yc, image, thresh)
+        @printf "Finished iteration %d\n" iter
+        @printf "%d image locations produced refinement\n" count
+    end
+    return count
+end
+
+function icmap(image, tip, rsurf, xc, yc)
+end
+
 """
 afmize
 
@@ -274,7 +470,7 @@ function afmize(tra::TrjArray, config::AfmizeConfig)
 
     width = floor(Int, (config.range_max.x - config.range_min.x) / config.resolution.x)
     height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
-    atoms = [Sphere(tra.x[i], tra.y[i], tra.z[i],
+    atoms = [Sphere(tra.xyz[1, 3*(i-1)+1], tra.xyz[1, 3*(i-1)+2], tra.xyz[1, 3*(i-1)+3],
             config.atomRadiusDict[tra.atomname[i]]) for i in 1:tra.natom]
     moveBottom(atoms)
 

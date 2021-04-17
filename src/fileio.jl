@@ -262,8 +262,6 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
     end
 end
 
-
-############################################################################
 function readnetcdf(filename::String; index=nothing)
     #finfo = ncinfo(filename)
     #attributes = finfo.gatts
@@ -340,8 +338,6 @@ function readnetcdf(filename::String; index=nothing)
     TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
 end
 
-
-############################################################################
 function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)
     scale_factor = 20.455
     natom = ta.natom
@@ -453,7 +449,6 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
     return nothing
 end
 
-############################################################################
 function parse_line(line::String, index, mytype::DataType, default_value)
     try
         if mytype == String
@@ -466,7 +461,6 @@ function parse_line(line::String, index, mytype::DataType, default_value)
     end
 end
 
-############################################################################
 function readpsf(filename::String)
     isPSF = false
     isEXT = false
@@ -604,7 +598,6 @@ function readpsf(filename::String)
              list_cmap=list_cmap)
 end
 
-############################################################################
 function writepsf(filename::String, ta::TrjArray)
     natom = ta.natom
 
@@ -698,7 +691,6 @@ function writepsf(filename::String, ta::TrjArray)
     end
 end
 
-############################################################################
 function readpdb(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)
@@ -776,7 +768,6 @@ function readpdb(filename::String)
              atomid=pdb_serial, atomname=pdb_name)
 end
 
-############################################################################
 function writepdb(io::IO, ta::TrjArray; format_type="vmd")
     natom = ta.natom
     nframe = ta.nframe
@@ -868,7 +859,6 @@ function writepdb(filename::String, ta::TrjArray; format_type="vmd")
     end
 end
 
-############################################################################
 function readcrd(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)

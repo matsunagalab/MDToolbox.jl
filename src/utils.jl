@@ -59,11 +59,11 @@ function get_residues(ta::TrjArray)
     return res_array
 end
 
-"""
-viewstruct
-
-based on Bio3Dview.jl
-"""
+#"""
+#viewstruct
+#
+#based on Bio3Dview.jl
+#"""
 #function viewstruc(ta::TrjArray; kwargs...)
 #    io = IOBuffer()
 #    writepdb(io, ta)
@@ -116,8 +116,7 @@ end
 """
     logsumexp(X)
 
-Compute `log(sum(exp, X))`, evaluated avoiding intermediate overflow/undeflow.
-
+Compute `log(sum(exp, X))` avoiding possible overflows/undeflows.
 `X` should be an iterator of real numbers.
 """
 function logsumexp(X)
