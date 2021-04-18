@@ -22,7 +22,7 @@ function idilation(surface, tip, xc, yc)
         pxmin = max(i-surf_xsiz, 1-xc)
         pxmax = min(i-1, tip_xsiz-xc)
         for j = 1:surf_ysiz
-            pymin = max(j-surf_ysiz+1, 1-yc)
+            pymin = max(j-surf_ysiz, 1-yc)
             pymax = min(j-1, tip_ysiz-yc)
 
             dil_max = surface[i-pxmin, j-pymin] + tip[pxmin+xc, pymin+yc]
@@ -461,6 +461,51 @@ function calRectangle_circularThrusters(atom::Sphere, config::AfmizeConfig)
     return calRectangle(min_point, max_point, config)
 end
 
+function surfing(t::TrjArray, config::AfmizeConfig)
+    message = checkConfig(t, config)
+    if !isnothing(message)
+        println(message)
+        return zeros(1, 1)
+    end
+
+    width = floor(Int, (config.range_max.x - config.range_min.x) / config.resolution.x)
+    height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
+    stage = zeros(height, width)
+
+    #radius_max = maximum(t.radius)
+    radius = zeros(Float64, t.natom)
+    for iatom = 1:t.natom
+        radius[iatom] = config.atomRadiusDict[t.atomname[iatom]]
+    end
+
+    x = t.xyz[1, 1:3:end]
+    y = t.xyz[1, 2:3:end]
+    z = t.xyz[1, 3:3:end]
+    z .= z .- minimum(z)
+    for w in 1:width
+        grid_x = config.range_min.x + (w-0.5) * config.resolution.x
+        dx = abs.(grid_x .- x)
+        index_x = dx .< radius
+        for h in 1:height
+            grid_y = config.range_min.y + (h-0.5) * config.resolution.y
+            dy = abs.(grid_y .- y)
+            index_y = dy .< radius
+            index = index_x .& index_y
+            if any(index)
+                d = sqrt.(dx[index].^2 + dy[index].^2)
+                r = radius[index]
+                index2 = d .< r
+                if any(index2)
+                    z_surface = z[index][index2] .+ sqrt.(r[index2].^2 .- d[index2].^2)
+                    stage[h, w] = maximum(z_surface)
+                end
+            end
+        end
+    end
+
+    return stage
+end
+
 function afmize(tra::TrjArray, config::AfmizeConfig)
     message = checkConfig(tra, config)
     if !isnothing(message)
@@ -518,7 +563,7 @@ function afmize_beta(tra::TrjArray, config::AfmizeConfig)
 
     width = floor(Int, (config.range_max.x - config.range_min.x) / config.resolution.x)
     height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
-    atoms = [Sphere(tra.x[i], tra.y[i], tra.z[i],
+    atoms = [Sphere(tra.xyz[1, 3*(i-1)+1], tra.xyz[1, 3*(i-1)+2], tra.xyz[1, 3*(i-1)+3],
             config.atomRadiusDict[tra.atomname[i]]) for i in 1:tra.natom]
     moveBottom(atoms)
 
