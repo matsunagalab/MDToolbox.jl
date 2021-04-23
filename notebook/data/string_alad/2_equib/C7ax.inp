@@ -1,0 +1,63 @@
+[INPUT]
+topfile = ../0_system/toppar/top_all22_prot.rtf
+parfile = ../0_system/toppar/par_all22_prot.prm
+psffile = ../0_system/sys.psf
+pdbfile = ../0_system/sys.pdb
+rstfile = ../1_minim/C7ax.rst
+
+[OUTPUT]
+rstfile = C7ax.rst
+dcdfile = C7ax.dcd
+ 
+[ENERGY]
+forcefield    = CHARMM
+electrostatic = CUTOFF
+switchdist    = 398.0
+cutoffdist    = 398.5
+pairlistdist  = 399.0
+dielec_const  = 1.0
+table_density = 20.0
+output_style  = GENESIS
+
+[DYNAMICS]
+integrator       = VVER
+nsteps           = 50000
+timestep         = 0.002
+eneout_period    = 100
+nbupdate_period  = 10
+crdout_period    = 100 
+rstout_period    = 1000 
+iseed             = 5
+
+[ENSEMBLE]
+ensemble         = NVT
+tpcontrol        = BUSSI
+temperature      = 300.0
+
+[CONSTRAINTS]
+rigid_bond       = YES
+
+[BOUNDARY]
+type  = NOBC
+
+[RESTRAINTS]
+nfunctions = 2
+# C7ax (JCP 2006)
+function1 = DIHED
+select_index1 =  2 3 4 5
+constant1 =  50.0
+reference1 = 70.0
+
+function2 = DIHED
+select_index2 =  3 4 5 6
+constant2 =  50.0
+reference2 = -70.0
+
+[SELECTION]
+group1 = ai:6
+group2 = ai:5
+group3 = ai:7
+group4 = ai:9
+group5 = ai:15
+group6 = ai:17
+group7 = ai:18

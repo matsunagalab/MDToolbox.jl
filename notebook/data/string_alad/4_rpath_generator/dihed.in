@@ -1,0 +1,72 @@
+# control parameters in trj_analysis
+ 
+[INPUT]
+psffile        = ../0_system/sys.psf
+pdbfile        = ../0_system/sys.pdb
+reffile        = ../1_minim/C7eq.pdb
+ 
+[OUTPUT]
+comtorfile     = dihed.log   # COM torsion file
+ 
+[TRAJECTORY]
+trjfile1       = 1.pdb      # trajectory file
+md_step1       = 1               # number of MD steps
+mdout_period1  = 1               # MD output period
+ana_period1    = 1               # analysis period
+repeat1        = 40
+trjfile2       = 2.pdb      # trajectory file
+trjfile3       = 3.pdb      # trajectory file
+trjfile4       = 4.pdb      # trajectory file
+trjfile5       = 5.pdb      # trajectory file
+trjfile6       = 6.pdb      # trajectory file
+trjfile7       = 7.pdb      # trajectory file
+trjfile8       = 8.pdb      # trajectory file
+trjfile9       = 9.pdb      # trajectory file
+trjfile10      = 10.pdb      # trajectory file
+trjfile11      = 11.pdb      # trajectory file
+trjfile12      = 12.pdb      # trajectory file
+trjfile13      = 13.pdb      # trajectory file
+trjfile14      = 14.pdb      # trajectory file
+trjfile15      = 15.pdb      # trajectory file
+trjfile16      = 16.pdb      # trajectory file
+trjfile17      = 17.pdb      # trajectory file
+trjfile18      = 18.pdb      # trajectory file
+trjfile19      = 19.pdb      # trajectory file
+trjfile20      = 20.pdb      # trajectory file
+trjfile21      = 21.pdb      # trajectory file
+trjfile22      = 22.pdb      # trajectory file
+trjfile23      = 23.pdb      # trajectory file
+trjfile24      = 24.pdb      # trajectory file
+trjfile25      = 25.pdb      # trajectory file
+trjfile26      = 26.pdb      # trajectory file
+trjfile27      = 27.pdb      # trajectory file
+trjfile28      = 28.pdb      # trajectory file
+trjfile29      = 29.pdb      # trajectory file
+trjfile30      = 30.pdb      # trajectory file
+trjfile31      = 31.pdb      # trajectory file
+trjfile32      = 32.pdb      # trajectory file
+trjfile33      = 33.pdb      # trajectory file
+trjfile34      = 34.pdb      # trajectory file
+trjfile35      = 35.pdb      # trajectory file
+trjfile36      = 36.pdb      # trajectory file
+trjfile37      = 37.pdb      # trajectory file
+trjfile38      = 38.pdb      # trajectory file
+trjfile39      = 39.pdb      # trajectory file
+trjfile40      = 40.pdb      # trajectory file
+trj_format     = PDB             # (PDB/DCD)
+trj_type       = COOR        # (COOR/COOR+BOX)
+trj_natom      = 0               # (0:uses reference PDB atom count)
+ 
+[SELECTION]
+group1 = ai:1
+group2 = ai:5
+group3 = ai:7
+group4 = ai:9
+group5 = ai:15
+group6 = ai:17
+group7 = ai:19
+
+[OPTION]
+check_only     = NO             # (YES/NO)
+com_torsion1   = 2 3 4 5
+com_torsion2   = 3 4 5 6

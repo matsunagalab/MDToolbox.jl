@@ -1,0 +1,36 @@
+# control parameters in crd_convert
+ 
+[INPUT]
+pdbfile     = ../0_system/sys.pdb
+reffile     = ../1_minim/C7eq.pdb
+ 
+[OUTPUT]
+trjfile        = umb.<num>.dcd      # trajectory file
+ 
+[TRAJECTORY]
+trjfile1       = ../8_umbrella_sampling/umb.<num>.dcd
+md_step1       = 450000          # number of MD steps
+mdout_period1  = 500             # MD output period
+ana_period1    = 1               # analysis period
+repeat1        = 1
+trj_format     = DCD             # (PDB/DCD)
+trj_type       = COOR        # (COOR/COOR+BOX)
+trj_natom      = 0               # (0:uses reference PDB atom count)
+ 
+[SELECTION]
+group1 = all
+group2 = (ai:1 | ai:5 | ai:6 | ai:7 | ai:8 | ai:9 | ai:10 | ai:11 |  ai:15 | ai:16 | ai:17 | ai:18 | ai:19)
+ 
+[FITTING]
+fitting_method = TR+ROT          # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT
+fitting_atom   = 2               # atom group
+zrot_ngrid     = 10              # number of z-rot grids
+zrot_grid_size = 1.0             # z-rot grid size
+mass_weight    = NO              # mass-weight is not applied
+ 
+[OPTION]
+check_only     = NO             # (YES/NO)
+trjout_format  = DCD             # (PDB/DCD)
+trjout_type    = COOR        # (COOR/COOR+BOX)
+trjout_atom    = 2               # atom group
+pbc_correct    = NO              # (NO/MOLECULE)

@@ -1,0 +1,29 @@
+authors = ["Yasuhiro Matsunaga <ymatsunaga@mail.saitama-u.ac.jp>"]
+name = "MDToolbox"
+uuid = "7965e2f0-a35b-11e8-0207-19c030dd2def"
+version = "0.1.0"
+
+[deps]
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+#Bio3DView = "99c8bb3a-9d13-5280-9740-b4880ed9c598"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
+GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
+MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

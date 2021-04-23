@@ -1,0 +1,23 @@
+ATOM      1  CL  ALAD    1       3.126   2.308   1.246  1.00  0.00      PRO 
+ATOM      2  HL1 ALAD    1       5.236   1.387   1.834  0.00  0.00      PRO 
+ATOM      3  HL2 ALAD    1       4.770   1.142   0.187  0.00  0.00      PRO 
+ATOM      4  HL3 ALAD    1       3.558   1.675   1.481  0.00  0.00      PRO 
+ATOM      5  CLP ALAD    1       3.404   3.553   0.523  1.00  0.00      PRO 
+ATOM      6  OL  ALAD    1       2.706   4.509   0.702  1.00  0.00      PRO 
+ATOM      7  NL  ALAD    1       4.461   3.548  -0.283  1.00  0.00      PRO 
+ATOM      8  HL  ALAD    1       4.977   2.728  -0.304  0.00  0.00      PRO 
+ATOM      9  CA  ALAD    1       4.900   4.602  -1.185  1.00  0.00      PRO 
+ATOM     10  HA  ALAD    1       5.636   4.155  -1.823  0.00  0.00      PRO 
+ATOM     11  CB  ALAD    1       3.794   5.089  -2.125  1.00  0.00      PRO 
+ATOM     12  HB1 ALAD    1       5.598   5.688   1.592  0.00  0.00      PRO 
+ATOM     13  HB2 ALAD    1       4.574   7.240   1.320  0.00  0.00      PRO 
+ATOM     14  HB3 ALAD    1       4.099   5.801   2.405  0.00  0.00      PRO 
+ATOM     15  CRP ALAD    1       5.639   5.758  -0.517  1.00  0.00      PRO 
+ATOM     16  OR  ALAD    1       6.734   6.061  -0.869  1.00  0.00      PRO 
+ATOM     17  NR  ALAD    1       5.051   6.410   0.479  1.00  0.00      PRO 
+ATOM     18  HR  ALAD    1       4.163   6.110   0.737  0.00  0.00      PRO 
+ATOM     19  CR  ALAD    1       5.619   7.499   1.189  1.00  0.00      PRO 
+ATOM     20  HR1 ALAD    1       5.551   5.820  -3.528  0.00  0.00      PRO 
+ATOM     21  HR2 ALAD    1       7.092   5.115  -2.798  0.00  0.00      PRO 
+ATOM     22  HR3 ALAD    1       6.710   6.830  -2.703  0.00  0.00      PRO 
+END                                                                         
