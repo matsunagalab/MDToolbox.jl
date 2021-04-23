@@ -76,8 +76,8 @@ function iopen(image, tip)
     cartesian_index = argmax(tip)
     xc = cartesian_index[1]
     yc = cartesian_index[2]
-    eros = ierosion(image, tip, xc, yc)
-    r = idilation(eros, tip, xc, yc)
+    r = ierosion(image, tip, xc, yc)
+    r = idilation(r, tip, xc, yc)
     return r
 end
 
@@ -86,7 +86,7 @@ function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
     tip_xsiz, tip_ysiz = size(tip0)
     inside = 1
     outside = 0
-    interior = (jxp >= tip_ysiz) & (jxp <= im_ysiz-tip_ysiz) & (ixp >= tip_xsiz) & (ixp <= im_xsiz-tip_xsiz)
+    interior = (jxp >= tip_ysiz) & (jxp <= im_ysiz-tip_ysiz+1) & (ixp >= tip_xsiz) & (ixp <= im_xsiz-tip_xsiz+1)
 
     count = 0
 
@@ -97,10 +97,10 @@ function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
                 dil = - typeof(imagep)(Inf)
                 for id = 1:tip_xsiz
                     for jd = 1:tip_ysiz
-                        if (imagep-image[ixp+xc-id, jxp+yc-jd]) > tip0[id, jd]
+                        if (imagep-image[ixp+xc-id+1, jxp+yc-jd+1]) > tip0[id, jd]
                             continue
                         end
-                        temp = image[ix+ixp-id, jx+jxp-jd] + tip0[id, jd] - imagep
+                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
                         dil = max(dil, temp)
                     end
                 end
@@ -108,14 +108,19 @@ function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
                     continue
                 end
                 #tip0[ix, iy] = (dil < tip0[jx][ix]-thresh) ? (count++, dil+thresh) : tip0[jx][ix]
-                if dil < (tip0[ix, jx] - thresh)
+                if dil < tip0[ix, jx]
                     count += 1
-                    tip0[ix, jx] = dil + thresh
+                    #tip0[ix, jx] = dil + thresh
+                    tip0[ix, jx] = dil
+                else
+                    tip0[ix, jx] = tip0[ix, jx]
                 end
             end
         end
         return count
     end
+
+    return count
 
     apexstate = outside
     xstate = outside
@@ -142,16 +147,17 @@ function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
                     if xstate == outside
                         @goto nextx
                     end
-                    temp = image[ix+ixp-id, jx+jxp-jd] + tip0[id, jd] - imagep
+                    #@show ix jx id jd
+                    temp = image[ix+ixp-id, jx+jxp-jd] + tip0[id, jd] - imagep + thresh
                     dil = max(dil, temp)
                 end
             end
             if isinf(-dil)
                 continue
             end
-            if dil < (tip0[ix, jx] - thresh)
+            if dil < tip0[ix, jx]
                 count += 1
-                tip0[ix, jx] = dil + thresh
+                tip0[ix, jx] = dil
             end
             @label nextx
         end
