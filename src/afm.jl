@@ -84,84 +84,44 @@ end
 function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
-    inside = 1
-    outside = 0
-    interior = (jxp >= tip_ysiz) & (jxp <= im_ysiz-tip_ysiz+1) & (ixp >= tip_xsiz) & (ixp <= im_xsiz-tip_xsiz+1)
-
+    interior = (tip_xsiz <= ixp ) & (ixp <= im_xsiz-tip_xsiz) & (tip_ysiz <= jxp) & (jxp <= im_ysiz-tip_ysiz)
     count = 0
 
     if interior
+
+        # ixp is x', point image location
+        # ix is x, tip coordinate
         for ix = 1:tip_xsiz
             for jx = 1:tip_ysiz
-                imagep = image[ixp, jxp]
-                dil = - typeof(imagep)(Inf)
+
+                dil = - eltype(image)(Inf)
+                # id is d
                 for id = 1:tip_xsiz
                     for jd = 1:tip_ysiz
-                        if (imagep-image[ixp+xc-id+1, jxp+yc-jd+1]) > tip0[id, jd]
+                        # if tip apex is above the image height, modification does not occur
+                        if (image[ixp, jxp] - image[ixp+xc-id+1, jxp+yc-jd+1]) > tip0[id, jd]
                             continue
                         end
-                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
+                        temp = image[ixp+ix-id+1, jxp+jx-jd+1] - image[ixp, jxp] + thresh
                         dil = max(dil, temp)
                     end
                 end
+
                 if isinf(-dil)
                     continue
                 end
-                #tip0[ix, iy] = (dil < tip0[jx][ix]-thresh) ? (count++, dil+thresh) : tip0[jx][ix]
+
                 if dil < tip0[ix, jx]
-                    count += 1
-                    #tip0[ix, jx] = dil + thresh
                     tip0[ix, jx] = dil
-                else
-                    tip0[ix, jx] = tip0[ix, jx]
+                    count += 1
                 end
+
             end
         end
         return count
+
     end
 
-    return count
-
-    apexstate = outside
-    xstate = outside
-    for ix = 1:tip_xsiz
-        for jx = 1:tip_ysiz
-            imagep = image[ixp, jxp]
-            dil = - typeof(imagep)(Inf)
-            for id = 1:tip_xsiz
-                for jd = 1:tip_ysiz
-                    apexstate = outside
-                    if (jxp+yc-jd)<1 | (jxp+yc-jd)>im_ysiz | (ixp+xc-id)<1 | (ixp+xc-id)>im_xsiz
-                        apexstate = inside
-                    #elseif (imagep-image[ixp+xc-id, jxp+yc-jd]) <= tip0[id, jd]
-                    #    apexstate = inside
-                    end
-                    if (jxp+jx-jd)<1 | (jxp+jx-jd)>im_ysiz | (ixp+ix-id)<1 | (ixp+ix-id)>im_xsiz
-                        xstate = outside
-                    else
-                        xstate = inside
-                    end
-                    if apexstate == outside
-                        continue
-                    end
-                    if xstate == outside
-                        @goto nextx
-                    end
-                    #@show ix jx id jd
-                    temp = image[ix+ixp-id, jx+jxp-jd] + tip0[id, jd] - imagep + thresh
-                    dil = max(dil, temp)
-                end
-            end
-            if isinf(-dil)
-                continue
-            end
-            if dil < tip0[ix, jx]
-                count += 1
-                tip0[ix, jx] = dil
-            end
-            @label nextx
-        end
-    end
     return count
 end
 
@@ -350,6 +310,28 @@ mutable struct AfmizeConfig
     range_max::Point2D
     resolution::Point2D
     atomRadiusDict::Dict{String, Float64}
+end
+
+function afmize!(tip::Matrix, config::AfmizeConfig)
+    tip_xsiz, tip_ysiz = size(tip)
+    xc = Int(ceil(tip_xsiz/2))
+    yc = Int(ceil(tip_ysiz/2))
+    for ix = 1:tip_xsiz
+        for iy = 1:tip_ysiz
+            x = config.resolution.x * abs(ix - xc)
+            y = config.resolution.y * abs(iy - yc)
+            d = sqrt(x^2 + y^2)
+            if d <= config.probeRadius
+                z = sqrt(config.probeRadius^2 - d^2)
+            else
+                theta = (0.5*pi) - (0.5*config.probeAngle)
+                z = - tan(theta) * (d - config.probeRadius)
+            end
+            tip[ix, iy] = z
+        end
+    end
+    tip .= tip .- maximum(tip)
+    return 0
 end
 
 function AfmizeConfig(r::Float64)
