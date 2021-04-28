@@ -1,133 +1,110 @@
+function compute_xc_yc(tip)
+    tip_xsiz, tip_ysiz = size(tip)
+    xc = floor(Int, tip_xsiz/2) - 1
+    yc = floor(Int, tip_ysiz/2) - 1
+    return xc, yc
+end
+
 function ireflect(surface)
     surface2 = - surface[end:-1:1, end:-1:1]
     return surface2
 end
 
-function idilation(surface, tip, xc, yc)
-    # i - pxmin <= surf_xsiz
-    # i - surf_xsiz <= pxmin
-    #
-    # pxmin + xc >= 1
-    # pxmin >= 1 - xc
-    #
-    # i - pxmax >= 1
-    # i - 1 >= pxmax
-    #
-    # pxmax + xc <= tip_xsiz
-    # pxmax <= tip_xsiz - xc
+function idilation(surface, tip)
+    xc, yc = compute_xc_yc(tip)
     surf_xsiz, surf_ysiz = size(surface)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(surface)
-    for i = 1:surf_xsiz
-        pxmin = max(i-surf_xsiz, 1-xc)
-        pxmax = min(i-1, tip_xsiz-xc)
-        for j = 1:surf_ysiz
-            pymin = max(j-surf_ysiz, 1-yc)
-            pymax = min(j-1, tip_ysiz-yc)
+    for i = 0:(surf_xsiz-1)
+        pxmin = max(i-surf_xsiz+1, -xc)
+        pxmax = min(i, tip_xsiz-xc-1)
+        for j = 0:(surf_ysiz-1)
+            pymin = max(j-surf_ysiz+1, -yc)
+            pymax = min(j, tip_ysiz-yc-1)
 
-            dil_max = surface[i-pxmin, j-pymin] + tip[pxmin+xc, pymin+yc]
+            dil_max = surface[i-pxmin+1, j-pymin+1] + tip[pxmin+xc+1, pymin+yc+1]
             for px = pxmin:pxmax
                 for py = pymin:pymax
-                    temp = surface[i-px, j-py] + tip[px+xc, py+yc]
+                    temp = surface[i-px+1, j-py+1] + tip[px+xc+1, py+yc+1]
                     dil_max = max(temp, dil_max)
                 end
             end
-            r[i, j] = dil_max
+            r[i+1, j+1] = dil_max
         end
     end
     return r
 end
 
-function ierosion(image, tip, xc, yc)
-    # i + pxmin >= 1
-    # 1 - i <= pxmin
-    #
-    # pxmin + xc >= 1
-    # 1 - xc <= pxmin
-    #
-    # i + pxmax <= im_xsiz
-    # im_xsiz - i >= pxmax
-    #
-    # pxmax + xc <= tip_xsiz
-    # tip_xsiz - xc >= pxmax
+function ierosion(image, tip)
+    xc, yc = compute_xc_yc(tip)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(image)
-    for i = 1:im_xsiz
-        pxmin = max(1-i, 1-xc)
-        pxmax = min(im_xsiz-i, tip_xsiz-xc)
-        for j = 1:im_ysiz
-            pymin = max(1-j, 1-yc)
-            pymax = min(im_ysiz-j, tip_ysiz-yc)
-            eros_min = image[i+pxmin, j+pymin] - tip[pxmin+xc, pymin+yc]
+    for i = 0:(im_xsiz-1)
+        pxmin = max(-i, -xc)
+        pxmax = min(im_xsiz-i, tip_xsiz-xc) - 1
+        for j = 0:(im_ysiz-1)
+            pymin = max(-j, -yc)
+            pymax = min(im_ysiz-j, tip_ysiz-yc) - 1
+            eros_min = image[i+pxmin+1, j+pymin+1] - tip[pxmin+xc+1, pymin+yc+1]
             for px = pxmin:pxmax
                 for py = pymin:pymax
-                    temp = image[i+px, j+py] - tip[px+xc, py+yc]
+                    temp = image[i+px+1, j+py+1] - tip[px+xc+1, py+yc+1]
                     eros_min = min(temp, eros_min)
                 end
             end
-            r[i, j] = eros_min
+            r[i+1, j+1] = eros_min
         end
     end
     return r
 end
 
 function iopen(image, tip)
-    cartesian_index = argmax(tip)
-    xc = cartesian_index[1]
-    yc = cartesian_index[2]
-    r = ierosion(image, tip, xc, yc)
-    r = idilation(r, tip, xc, yc)
+    r = ierosion(image, tip)
+    r = idilation(r, tip)
     return r
 end
 
-function itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
+function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
+    xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
-    interior = (tip_xsiz <= ixp ) & (ixp <= im_xsiz-tip_xsiz) & (tip_ysiz <= jxp) & (jxp <= im_ysiz-tip_ysiz)
+    interior = (tip_xsiz <= ixp-1 ) & (ixp <= im_xsiz-tip_xsiz) & (tip_ysiz <= jxp-1) & (jxp <= im_ysiz-tip_ysiz)
     count = 0
 
     if interior
-
         # ixp is x', point image location
         # ix is x, tip coordinate
-        for ix = 1:tip_xsiz
-            for jx = 1:tip_ysiz
-
+        for ix = 0:(tip_xsiz-1)
+            for jx = 0:(tip_ysiz-1)
                 dil = - eltype(image)(Inf)
                 # id is d
-                for id = 1:tip_xsiz
-                    for jd = 1:tip_ysiz
+                for id = 0:(tip_xsiz-1)
+                    for jd = 0:(tip_ysiz-1)
                         # if tip apex is above the image height, modification does not occur
-                        if (image[ixp, jxp] - image[ixp+xc-id+1, jxp+yc-jd+1]) > tip0[id, jd]
+                        if (image[ixp+1, jxp+1] - image[ixp+xc-id+1, jxp+yc-jd+1]) > tip0[id+1, jd+1]
                             continue
                         end
-                        temp = image[ixp+ix-id+1, jxp+jx-jd+1] - image[ixp, jxp] + thresh
+                        temp = image[ixp+ix-id+1, jxp+jx-jd+1] - image[ixp+1, jxp+1] + thresh
                         dil = max(dil, temp)
                     end
                 end
-
                 if isinf(-dil)
                     continue
                 end
-
-                if dil < tip0[ix, jx]
-                    tip0[ix, jx] = dil
+                if dil < tip0[ix+1, jx+1]
+                    tip0[ix+1, jx+1] = dil
                     count += 1
                 end
-
             end
         end
         return count
-
     end
-
     return count
 end
 
-function itip_estimate_iter!(tip0, xc, yc, image, thresh)
-    # tip_xsiz <= ixp + xc
-    # xc + xic <= im_xsiz
+function itip_estimate_iter!(tip0, image; thresh=0.0)
+    xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
     count = 0
@@ -135,7 +112,7 @@ function itip_estimate_iter!(tip0, xc, yc, image, thresh)
     for ixp = (tip_xsiz-xc):(im_xsiz-xc)
         for jxp = (tip_ysiz-yc):(im_ysiz-yc)
             if (image[ixp, jxp] - open_image[ixp, jxp]) > thresh
-                c = itip_estimate_point!(tip0, xc, yc, image, thresh, ixp, jxp)
+                c = itip_estimate_point!(tip0, image, ixp, jxp, thresh=thresh)
                 if c > 0
                     count += 1
                 end
@@ -145,12 +122,13 @@ function itip_estimate_iter!(tip0, xc, yc, image, thresh)
     return count
 end
 
-function itip_estimate!(tip0, xc, yc, image, thresh)
+function itip_estimate!(tip0, image; thresh=0.0)
+    xc, yc = compute_xc_yc(tip0)
     iter = 0
     count = 1
     while count > 0
         iter += 1
-        count = itip_estimate_iter!(tip0, xc, yc, image, thresh)
+        count = itip_estimate_iter!(tip0, image, thresh=thresh)
         @printf "Finished iteration %d\n" iter
         @printf "%d image locations produced refinement\n" count
     end
