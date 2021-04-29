@@ -1,7 +1,7 @@
 function compute_xc_yc(tip)
     tip_xsiz, tip_ysiz = size(tip)
-    xc = floor(Int, tip_xsiz/2) - 1
-    yc = floor(Int, tip_ysiz/2) - 1
+    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
+    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp) - 1
     return xc, yc
 end
 
@@ -69,20 +69,15 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
     xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
-    interior = (tip_xsiz <= ixp-1 ) & (ixp <= im_xsiz-tip_xsiz) & (tip_ysiz <= jxp-1) & (jxp <= im_ysiz-tip_ysiz)
+    interior = (tip_xsiz <= (ixp-1) ) & (ixp <= (im_xsiz-tip_xsiz)) & (tip_ysiz <= (jxp-1)) & (jxp <= (im_ysiz-tip_ysiz))
     count = 0
-
     if interior
-        # ixp is x', point image location
-        # ix is x, tip coordinate
         for ix = 0:(tip_xsiz-1)
             for jx = 0:(tip_ysiz-1)
                 dil = - eltype(image)(Inf)
-                # id is d
                 for id = 0:(tip_xsiz-1)
                     for jd = 0:(tip_ysiz-1)
-                        # if tip apex is above the image height, modification does not occur
-                        if (image[ixp+1, jxp+1] - image[ixp+xc-id+1, jxp+yc-jd+1]) > tip0[id+1, jd+1]
+                        if ((image[ixp+1, jxp+1] - image[ixp+xc-id+1, jxp+yc-jd+1]) > 0.0) | (xc == id & yc == jd)
                             continue
                         end
                         temp = image[ixp+ix-id+1, jxp+jx-jd+1] - image[ixp+1, jxp+1] + thresh
@@ -98,7 +93,6 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
                 end
             end
         end
-        return count
     end
     return count
 end
@@ -109,9 +103,9 @@ function itip_estimate_iter!(tip0, image; thresh=0.0)
     tip_xsiz, tip_ysiz = size(tip0)
     count = 0
     open_image = iopen(image, tip0)
-    for ixp = (tip_xsiz-xc):(im_xsiz-xc)
-        for jxp = (tip_ysiz-yc):(im_ysiz-yc)
-            if (image[ixp, jxp] - open_image[ixp, jxp]) > thresh
+    for ixp = (tip_xsiz-xc-1):(im_xsiz-xc-1)
+        for jxp = (tip_ysiz-yc-1):(im_ysiz-yc-1)
+            if (image[ixp+1, jxp+1] - open_image[ixp+1, jxp+1]) > thresh
                 c = itip_estimate_point!(tip0, image, ixp, jxp, thresh=thresh)
                 if c > 0
                     count += 1
@@ -292,8 +286,10 @@ end
 
 function afmize!(tip::Matrix, config::AfmizeConfig)
     tip_xsiz, tip_ysiz = size(tip)
-    xc = Int(ceil(tip_xsiz/2))
-    yc = Int(ceil(tip_ysiz/2))
+    xc, yc = compute_xc_yc(tip)
+    xc += 1
+    yc += 1
+    @show xc, yc
     for ix = 1:tip_xsiz
         for iy = 1:tip_ysiz
             x = config.resolution.x * abs(ix - xc)
@@ -302,7 +298,8 @@ function afmize!(tip::Matrix, config::AfmizeConfig)
             if d <= config.probeRadius
                 z = sqrt(config.probeRadius^2 - d^2)
             else
-                theta = (0.5*pi) - (0.5*config.probeAngle)
+                #theta = (0.5*pi) - (0.5*config.probeAngle)
+                theta = (0.5*pi) - (config.probeAngle)
                 z = - tan(theta) * (d - config.probeRadius)
             end
             tip[ix, iy] = z
