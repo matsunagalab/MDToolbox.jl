@@ -1,4 +1,4 @@
-function get_atom_type(ta)
+function get_atom_type(ta::TrjArray{T,U}) where {T,U}
     atom_type = Array{String}(undef, ta.natom)
     ace_score = Array{Float64}(undef, ta.natom)
     
@@ -326,6 +326,446 @@ function get_atom_type(ta)
     return ace_score
 end
 
+function get_ace_score(ta::TrjArray{T,U}, iatom) where {T,U}
+    atom_type = Array{String}(undef, ta.natom)
+    ace_score = Array{Float64}(undef, ta.natom)
+    
+            # ATOM TYPE "N"
+        if ta.atomname[iatom] == "N"
+            atom_type[iatom] = "N" 
+            ace_score[iatom] = -0.495
+
+            # ATOM TYPE "C"
+        elseif ta.atomname[iatom] == "C"
+            atom_type[iatom] = "C"
+            ace_score[iatom] = -0.464
+
+            # ATOM TYPE "O"
+        elseif ta.atomname[iatom] == "O" || ta.atomname[iatom] == "OXT"
+            atom_type[iatom] = "O"
+            ace_score[iatom] = -0.079
+
+            # ATOM TYPE "GCA"
+        elseif ta.resname[iatom] == "GLY" && ta.atomname[iatom] == "CA"
+            atom_type[iatom] = "GCA"
+            ace_score[iatom] = -0.008
+
+            # ATOM TYPE "CA"
+        elseif ta.atomname[iatom] == "CA"
+            atom_type[iatom] = "CA"
+            ace_score[iatom] = -0.553
+       
+            # ATOM TYPE "CB"
+        elseif ta.resname[iatom] ==  "ALA" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "ASN" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "CYS" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "LEU" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "MET" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "PRO" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "PRO" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "PRO" && ta.atomname[iatom] == "CD"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "THR" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "CB"
+            ace_score[iatom] = -0.353
+        
+            # ATOM TYPE "KNZ"
+        elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CE"
+            atom_type[iatom] = "KNZ"
+            ace_score[iatom] = 1.334
+        elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "NZ"
+            atom_type[iatom] = "KNZ"
+            ace_score[iatom] = 1.334
+        
+            # ATOM TYPE "KCD"
+        elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CD"
+            atom_type[iatom] = "KCD"
+            ace_score[iatom] = 1.046
+            
+            # ATOM TYPE "DOD"
+        elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "DOD"
+            ace_score[iatom] = 0.933
+        elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "OD1"
+            atom_type[iatom] = "DOD"
+            ace_score[iatom] = 0.933
+        elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "OD2"
+            atom_type[iatom] = "DOD"
+            ace_score[iatom] = 0.933
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "CD"
+            atom_type[iatom] = "DOD"
+            ace_score[iatom] = 0.933
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "OE1"
+            atom_type[iatom] = "DOD"
+            ace_score[iatom] = 0.933
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "OE2"
+            atom_type[iatom] = "DOD"
+            ace_score[iatom] = 0.933
+        
+            # ATOM TYPE "RNH"
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CZ"
+            atom_type[iatom] = "RNH"
+            ace_score[iatom] = 0.726
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NH1"
+            atom_type[iatom] = "RNH"
+            ace_score[iatom] = 0.726
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NH2"
+            atom_type[iatom] = "RNH"
+            ace_score[iatom] = 0.726
+
+            # ATOM TYPE "NND"
+        elseif ta.resname[iatom] ==  "ASN" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "NND"
+            ace_score[iatom] = 0.693
+        elseif ta.resname[iatom] ==  "ASN" && ta.atomname[iatom] == "OD1"
+            atom_type[iatom] = "NND"
+            ace_score[iatom] = 0.693
+        elseif ta.resname[iatom] ==  "ASN" && ta.atomname[iatom] == "ND2"
+            atom_type[iatom] = "NND"
+            ace_score[iatom] = 0.693
+        elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "CD"
+            atom_type[iatom] = "NND"
+            ace_score[iatom] = 0.693
+        elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "OE1"
+            atom_type[iatom] = "NND"
+            ace_score[iatom] = 0.693
+        elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "NE2"
+            atom_type[iatom] = "NND"
+            ace_score[iatom] = 0.693
+
+            # ATOM TYPE "RNE"
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CD"
+            atom_type[iatom] = "RNE"
+            ace_score[iatom] = 0.606
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NE"
+            atom_type[iatom] = "RNE"
+            ace_score[iatom] = 0.606
+
+            # ATOM TYPE "SOG"
+        elseif ta.resname[iatom] ==  "SER" && ta.atomname[iatom] == "CB"
+            atom_type[iatom] = "SOG"
+            ace_score[iatom] = 0.232
+        elseif ta.resname[iatom] ==  "SER" && ta.atomname[iatom] == "OG"
+            atom_type[iatom] = "SOG"
+            ace_score[iatom] = 0.232
+        elseif ta.resname[iatom] ==  "THR" && ta.atomname[iatom] == "OG1"
+            atom_type[iatom] = "SOG"
+            ace_score[iatom] = 0.232
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "OH"
+            atom_type[iatom] = "SOG"
+            ace_score[iatom] = 0.232
+
+            # ATOM TYPE "HNE"
+        elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "HNE"
+            ace_score[iatom] = 0.061
+        elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "ND1"
+            atom_type[iatom] = "HNE"
+            ace_score[iatom] = 0.061
+        elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "CD2"
+            atom_type[iatom] = "HNE"
+            ace_score[iatom] = 0.061
+        elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "CE1"
+            atom_type[iatom] = "HNE"
+            ace_score[iatom] = 0.061
+        elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "NE2"
+            atom_type[iatom] = "HNE"
+            ace_score[iatom] = 0.061
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "NE1"
+            atom_type[iatom] = "HNE"
+            ace_score[iatom] = 0.061
+
+            # ATOM TYPE "YCZ"
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CE1"
+            atom_type[iatom] = "YCZ"
+            ace_score[iatom] = -0.289
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CE2"
+            atom_type[iatom] = "YCZ"
+            ace_score[iatom] = -0.289
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CZ"
+            atom_type[iatom] = "YCZ"
+            ace_score[iatom] = -0.289
+
+            # ATOM TYPE "FCZ"
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CG1"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "LEU" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "MET" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "MET" && ta.atomname[iatom] == "SD"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CD1"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CD2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CE1"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CE2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "PHE" && ta.atomname[iatom] == "CZ"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "THR" && ta.atomname[iatom] == "CG2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CD1"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CD2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CE2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CE3"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CZ2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CZ3"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "CH2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CG"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CD1"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+        elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CD2"
+            atom_type[iatom] = "FCZ"
+            ace_score[iatom] = -0.432
+
+            # ATOM TYPE "LCD"
+        elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CG2"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CD"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CD1"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "LEU" && ta.atomname[iatom] == "CD1"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "LEU" && ta.atomname[iatom] == "CD2"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "MET" && ta.atomname[iatom] == "CE"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CG1"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+        elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CG2"
+            atom_type[iatom] = "LCD"
+            ace_score[iatom] = -0.987
+
+            # ATOM TYPE "CSG"
+        elseif ta.resname[iatom] ==  "CYS" && ta.atomname[iatom] == "SG"
+            atom_type[iatom] = "CSG"
+            ace_score[iatom] = -1.827
+
+
+        else
+            println("error: faled to assign atom type " * ta.atomname[iatom] * "-" * ta.resname[iatom])
+        end
+
+    return ace_score[iatom]
+end
+
+function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
+    
+  # generate grid coordinates of receptor
+    decenter!(receptor)
+    decenter!(ligand)
+
+  # determine size of ligand
+    x_min = minimum(ligand.xyz[iframe, 1:3:end])
+    y_min = minimum(ligand.xyz[iframe, 2:3:end])
+    z_min = minimum(ligand.xyz[iframe, 3:3:end])
+    x_max = maximum(ligand.xyz[iframe, 1:3:end])
+    y_max = maximum(ligand.xyz[iframe, 2:3:end])
+    z_max = maximum(ligand.xyz[iframe, 3:3:end])
+    size_ligand = sqrt((x_max-x_min)^2 + (y_max-y_min)^2 + (z_max-z_min)^2)
+    size_ligand = size_ligand*2 
+
+    LDS_x_grid = collect(x_min:grid_space:x_max)
+    LDS_y_grid = collect(y_min:grid_space:y_max)
+    LDS_z_grid = collect(z_min:grid_space:z_max)
+
+    LDS_nx = length(LDS_x_grid)
+    LDS_ny = length(LDS_y_grid)
+    LDS_nz = length(LDS_z_grid)
+
+  # extension grid of receptor using size of ligand
+    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
+    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
+    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
+    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
+    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
+    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
+
+    RDS_x_grid = collect(x_min:grid_space:x_max)
+    RDS_y_grid = collect(y_min:grid_space:y_max)
+    RDS_z_grid = collect(z_min:grid_space:z_max)
+    
+    RDS_nx = length(RDS_x_grid)
+    RDS_ny = length(RDS_y_grid)
+    RDS_nz = length(RDS_z_grid)
+
+    grid_RDS = zeros(complex(T), RDS_nx, RDS_ny, RDS_nz)
+    grid_LDS = zeros(complex(T), RDS_nx, RDS_ny, RDS_nz)
+    
+    
+  # generate grid coordinates of ligand at every rotation by quaternions
+    nq = size(quaternions, 1)
+    for iq = 1:nq
+    
+      # rotate ligand by quaternions
+        ligand = rotate(ligand, quaternions[iq, :])
+
+      # assign ace score for RDS
+        for iatom = 1:receptor.natom
+          # invert atoms coordinates into grid coordinates
+            x = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            y = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            z = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nz/2, RoundNearestTiesAway)
+        
+          # determin Real part
+            ix_min = x - 6/grid_space
+            iy_min = y - 6/grid_space
+            iz_min = z - 6/grid_space
+            ix_max = x + 6/grid_space
+            iy_max = y + 6/grid_space
+            iz_max = z + 6/grid_space
+ 
+            for ix = ix_min:ix_max
+                for iy = iy_min:iy_max
+                    for iz = iz_min:iz_max
+                        grid_RDS[Int(ix), Int(iy), Int(iz)] += get_ace_score(receptor, iatom)
+                    end
+                end
+            end
+
+          # determine Imag part 
+            grid_RDS[Int(x), Int(y), Int(z)] += 1.0im
+        end
+
+      # assign ace score for LDS
+        for iatom = 1:ligand.natom
+          # invert atoms coordinates into grid coordinates
+            x = round(ligand.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            y = round(ligand.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            z = round(ligand.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nz/2, RoundNearestTiesAway)
+      
+          # determin Real part
+            ix_min = x - 6/grid_space
+            iy_min = y - 6/grid_space
+            iz_min = z - 6/grid_space
+            ix_max = x + 6/grid_space
+            iy_max = y + 6/grid_space
+            iz_max = z + 6/grid_space
+
+            for ix = ix_min:ix_max
+                for iy = iy_min:iy_max
+                    for iz = iz_min:iz_max
+                        grid_RDS[Int(ix), Int(iy), Int(iz)] += get_ace_score(ligand, iatom)
+                    end
+                end
+            end
+
+            # determine Imag part 
+            grid_LDS[Int(x), Int(y), Int(z)] += 1.0im
+        end
+
+      # compute DS socre with FFT
+
+    end
+
+    return grid_RDS[:, :, 150]
+    @save 
+end
+
 function golden_section_spiral(n)
     points = zeros(Float64, n, 3)
     inc = pi * (3.0 - sqrt(5.0))
@@ -399,13 +839,13 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, 
         for ipoint in 1:npoint
             is_accessible = true
             point = points[ipoint, :] .* (ta.radius[iatom] + probe_radius)
-            point[1] += ta.xyz[iframe, 3*(iatom-1)+1]
+            point[iframe] += ta.xyz[iframe, 3*(iatom-1)+1]
             point[2] += ta.xyz[iframe, 3*(iatom-1)+2]
             point[3] += ta.xyz[iframe, 3*(iatom-1)+3]
             for j in 1:length(neighbor_list_iatom)
                 jatom = neighbor_list_iatom[j]
                 d = 0.0
-                d += (point[1] - ta.xyz[iframe, 3*(jatom-1)+1])^2
+                d += (point[iframe] - ta.xyz[iframe, 3*(jatom-1)+1])^2
                 d += (point[2] - ta.xyz[iframe, 3*(jatom-1)+2])^2
                 d += (point[3] - ta.xyz[iframe, 3*(jatom-1)+3])^2
                 d = sqrt(d)
@@ -439,19 +879,19 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
         y = ta.xyz[iframe, 3*(iatom-1)+2]
         z = ta.xyz[iframe, 3*(iatom-1)+3]
 
-        dx = x - x_grid[1]
+        dx = x - x_grid[iframe]
         ix_min = floor(U, (dx - rcut)/grid_space) + 1
         ix_min = max(ix_min, 1)
         ix_max = floor(U, (dx + rcut)/grid_space) + 2
         ix_max = min(ix_max, nx)
 
-        dy = y - y_grid[1]
+        dy = y - y_grid[iframe]
         iy_min = floor(U, (dy - rcut)/grid_space) + 1
         iy_min = max(iy_min, 1)
         iy_max = floor(U, (dy + rcut)/grid_space) + 2
         iy_max = min(iy_max, ny)
 
-        dz = z - z_grid[1]
+        dz = z - z_grid[iframe]
         iz_min = floor(U, (dz - rcut)/grid_space) + 1
         iz_min = max(iz_min, 1)
         iz_max = floor(U, (dz + rcut)/grid_space) + 2
@@ -481,19 +921,19 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
         y = ta.xyz[iframe, 3*(iatom-1)+2]
         z = ta.xyz[iframe, 3*(iatom-1)+3]
 
-        dx = x - x_grid[1]
+        dx = x - x_grid[iframe]
         ix_min = floor(U, (dx - rcut)/grid_space) + 1
         ix_min = max(ix_min, 1)
         ix_max = floor(U, (dx + rcut)/grid_space) + 2
         ix_max = min(ix_max, nx)
 
-        dy = y - y_grid[1]
+        dy = y - y_grid[iframe]
         iy_min = floor(U, (dy - rcut)/grid_space) + 1
         iy_min = max(iy_min, 1)
         iy_max = floor(U, (dy + rcut)/grid_space) + 2
         iy_max = min(iy_max, ny)
 
-        dz = z - z_grid[1]
+        dz = z - z_grid[iframe]
         iz_min = floor(U, (dz - rcut)/grid_space) + 1
         iz_min = max(iz_min, 1)
         iz_max = floor(U, (dz + rcut)/grid_space) + 2
@@ -535,7 +975,7 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     ret = []
     for t in 1:tops
         id = argmax(score)
-        dx_estimated = id[1]
+        dx_estimated = id[iframe]
         dy_estimated = id[2]
         dz_estimated = id[3]
         push!(ret, (score[id], dx_estimated, dy_estimated, dz_estimated, iq))        
@@ -627,7 +1067,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     quate_tops = zeros(Float64, tops, 4)
 
     for t in 1:tops
-        score_tops[t] = result_tops[t][1]
+        score_tops[t] = result_tops[t][iframe]
         trans_tops[t, 1] = result_tops[t][2]
         trans_tops[t, 2] = result_tops[t][3]
         trans_tops[t, 3] = result_tops[t][4]
@@ -747,7 +1187,7 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
             score_max = maximum(score)
             if score_best < score_max
                 id = argmax(score)
-                dx_estimated = id[1]
+                dx_estimated = id[iframe]
                 dy_estimated = id[2]
                 receptor_best = deepcopy(receptor_rot)
                 ligand_best = deepcopy(ligand_rot)
