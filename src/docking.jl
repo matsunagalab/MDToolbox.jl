@@ -708,16 +708,16 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
         for iatom = 1:receptor.natom
           # invert atoms coordinates into grid coordinates
             x = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            y = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            z = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            y = round(receptor.xyz[iframe, 3*(iatom-1)+2] / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            z = round(receptor.xyz[iframe, 3*(iatom-1)+3] / grid_space + RDS_nz/2, RoundNearestTiesAway)
         
           # determin Real part
-            ix_min = x - 6/grid_space
-            iy_min = y - 6/grid_space
-            iz_min = z - 6/grid_space
-            ix_max = x + 6/grid_space
-            iy_max = y + 6/grid_space
-            iz_max = z + 6/grid_space
+            ix_min = round((receptor.xyz[iframe, 3*(iatom-1)+1] - 6) / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            iy_min = round((receptor.xyz[iframe, 3*(iatom-1)+2] - 6) / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            iz_min = round((receptor.xyz[iframe, 3*(iatom-1)+3] - 6) / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            ix_max = round((receptor.xyz[iframe, 3*(iatom-1)+1] - 6) / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            iy_max = round((receptor.xyz[iframe, 3*(iatom-1)+2] - 6) / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            iz_max = round((receptor.xyz[iframe, 3*(iatom-1)+3] - 6) / grid_space + RDS_nz/2, RoundNearestTiesAway)
  
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
@@ -731,6 +731,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             grid_RDS[Int(x), Int(y), Int(z)] += 1.0im
         end
 
+        #=
       # assign ace score for LDS
         for iatom = 1:ligand.natom
           # invert atoms coordinates into grid coordinates
@@ -757,13 +758,12 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             # determine Imag part 
             grid_LDS[Int(x), Int(y), Int(z)] += 1.0im
         end
-
+        =#
       # compute DS socre with FFT
 
     end
 
-    return grid_RDS[:, :, 150]
-    @save 
+    return grid_RDS
 end
 
 function golden_section_spiral(n)
