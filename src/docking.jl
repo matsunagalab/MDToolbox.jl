@@ -712,17 +712,18 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             z = round(receptor.xyz[iframe, 3*(iatom-1)+3] / grid_space + RDS_nz/2, RoundNearestTiesAway)
         
           # determin Real part
-            ix_min = round((receptor.xyz[iframe, 3*(iatom-1)+1] - 6) / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            iy_min = round((receptor.xyz[iframe, 3*(iatom-1)+2] - 6) / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            iz_min = round((receptor.xyz[iframe, 3*(iatom-1)+3] - 6) / grid_space + RDS_nz/2, RoundNearestTiesAway)
-            ix_max = round((receptor.xyz[iframe, 3*(iatom-1)+1] - 6) / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            iy_max = round((receptor.xyz[iframe, 3*(iatom-1)+2] - 6) / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            iz_max = round((receptor.xyz[iframe, 3*(iatom-1)+3] - 6) / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            ix_min = round((receptor.xyz[iframe, 3*(iatom-1)+1] - 6) / grid_space + RDS_nx/2, RoundToZero)
+            iy_min = round((receptor.xyz[iframe, 3*(iatom-1)+2] - 6) / grid_space + RDS_ny/2, RoundToZero)
+            iz_min = round((receptor.xyz[iframe, 3*(iatom-1)+3] - 6) / grid_space + RDS_nz/2, RoundToZero)
+            ix_max = round((receptor.xyz[iframe, 3*(iatom-1)+1] + 6) / grid_space + RDS_nx/2, RoundToZero)
+            iy_max = round((receptor.xyz[iframe, 3*(iatom-1)+2] + 6) / grid_space + RDS_ny/2, RoundToZero)
+            iz_max = round((receptor.xyz[iframe, 3*(iatom-1)+3] + 6) / grid_space + RDS_nz/2, RoundToZero)
  
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
                     for iz = iz_min:iz_max
                         grid_RDS[Int(ix), Int(iy), Int(iz)] += get_ace_score(receptor, iatom)
+                        
                     end
                 end
             end
@@ -759,6 +760,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             grid_LDS[Int(x), Int(y), Int(z)] += 1.0im
         end
         =#
+
       # compute DS socre with FFT
 
     end
