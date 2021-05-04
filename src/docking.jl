@@ -1,6 +1,6 @@
 function get_atom_type(ta::TrjArray{T,U}) where {T,U}
+    ace_score = Array{T}(undef, ta.natom)
     atom_type = Array{String}(undef, ta.natom)
-    ace_score = Array{Float64}(undef, ta.natom)
     
     for iatom = 1:ta.natom
             # ATOM TYPE "N"
@@ -323,7 +323,7 @@ function get_atom_type(ta::TrjArray{T,U}) where {T,U}
             println("error: faled to assign atom type " * ta.atomname[iatom] * "-" * ta.resname[iatom])
         end
     end
-    return ace_score
+    return TrjArray(ta, ace_score=ace_score)
 end
 
 function get_ace_score(ta::TrjArray{T,U}, iatom) where {T,U}
@@ -722,8 +722,11 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
                     for iz = iz_min:iz_max
-                        grid_RDS[Int(ix), Int(iy), Int(iz)] += get_ace_score(receptor, iatom)
-                        
+                        grid_RDS[Int(ix), Int(iy), Int(iz)] += receptor.ace_score[iatom]
+                        if ix >= 100 && ix <= 200
+                            #println(Int(ix), Int(iy), Int(iz))
+                            #println(grid_RDS[Int(ix), Int(iy), Int(iz)])
+                        end
                     end
                 end
             end
@@ -765,7 +768,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
 
     end
 
-    return grid_RDS
+    return grid_RDS[100, 100, 100]
 end
 
 function golden_section_spiral(n)
