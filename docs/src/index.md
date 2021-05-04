@@ -26,14 +26,19 @@ julia> using MDToolbox
 
 In preparation
 
-## License
-
-
-
 ## Contents
 
 ```@contents
-Pages = ["fileio.md", "structure.md", "reduction.md", "wham.md", "mbar.md", "msm.md", "license.md"]
+Pages = ["getting_started01.md", 
+        "getting_started02.md", 
+        "getting_started03.md", 
+        "fileio.md", 
+        "structure.md", 
+        "reduction.md", 
+        "wham.md", 
+        "mbar.md", 
+        "msm.md", 
+        "license.md"]
 Depth = 2
 ```
 

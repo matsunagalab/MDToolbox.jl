@@ -4,6 +4,9 @@ makedocs(sitename="MDToolbox.jl",
         pages = [
         "MDToolbox.jl" => "index.md", 
         "Getting started" => [
+            "getting_started01.md", 
+            "getting_started02.md",
+            "getting_started03.md"
         ], 
         "Examples" => [
         ], 
