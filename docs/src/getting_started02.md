@@ -15,47 +15,100 @@ t = TrjArray(xyz=rand(10, 3))
 `TrjArray` displays the information of its topology and trajectory on the standard ouput for users. For example, the following are the outputs from `TrjArray` just after loading a pdb file. 
 
 ```julia
-t = mdload("1nmr.pdb")
-20x1290 TrjArray{Float64, Int64}
-| A                          | A                          | A                          |  …   A                          | A                          |
-| 1GLY                       | 1GLY                       | 1GLY                       |  …   85VAL                      | 85VAL                      |
-| 1N                         | 2CA                        | 3C                         |  …   1289HG22                   | 1290HG23                   |
-|    28.53   -26.27   -28.94 |    29.17   -26.75   -27.68 |    29.57   -25.61   -26.77 |  …      -7.86   -13.77     5.44 |    -9.59   -13.85     5.12 |
-|    14.90   -22.61   -39.37 |    15.46   -21.51   -38.53 |    14.63   -21.25   -37.29 |        -12.22   -15.81    16.41 |   -13.19   -16.57    17.66 |
-|    23.41    -2.86   -46.88 |    22.10    -3.25   -47.48 |    21.09    -3.72   -46.45 |        -20.27   -10.55    13.26 |   -18.87   -11.64    13.29 |
-|    32.55     2.61   -26.67 |    33.27     3.91   -26.53 |    34.03     4.01   -25.23 |        -17.33   -15.69    15.29 |   -18.58   -15.84    16.52 |
-|    28.06    -2.79     6.71 |    26.82    -2.08     7.14 |    25.79    -1.99     6.03 |        -15.29    -8.49     7.07 |   -13.81    -7.58     7.35 |
-|    18.58     1.82   -32.61 |    18.49     2.73   -33.78 |    17.08     3.23   -34.03 |  …     -11.52   -13.25    13.40 |   -10.73   -11.69    13.65 |
-|    18.83   -25.48   -17.28 |    19.60   -24.35   -17.87 |    20.66   -24.82   -18.85 |         -9.46   -13.49    12.92 |   -10.70   -12.47    13.67 |
-|    23.19   -14.27   -19.63 |    24.34   -14.74   -18.81 |    24.34   -14.16   -17.41 |        -15.02   -11.41     7.39 |   -16.62   -11.77     8.03 |
-|    13.03     4.56   -33.69 |    13.94     4.98   -34.80 |    14.57     6.34   -34.54 |         -8.15   -13.56    16.57 |    -7.91   -12.72    18.11 |
-|    33.84   -12.66   -35.98 |    33.07   -12.78   -34.72 |    33.80   -12.20   -33.53 |        -26.30    -5.86    15.89 |   -27.17    -5.87    14.35 |
-|    16.87    -4.29   -29.61 |    17.68    -4.56   -30.84 |    18.55    -3.38   -31.22 |  …     -12.64    -9.46    13.16 |   -12.40   -10.92    14.13 |
-|    -0.75    -1.61   -29.23 |     0.53    -1.27   -28.55 |     1.75    -1.63   -29.38 |        -13.61   -13.56    20.23 |   -12.35   -14.79    20.13 |
-|    18.30    -7.25   -33.42 |    19.19    -8.43   -33.59 |    19.44    -9.15   -32.28 |        -16.17   -16.37    14.80 |   -16.02   -14.71    15.36 |
-|     5.11   -12.01   -17.20 |     6.47   -11.52   -17.57 |     6.77   -11.71   -19.04 |         -4.85    -9.56     8.53 |    -3.89    -9.68    10.00 |
-|    25.43     1.83   -30.51 |    26.00     1.39   -31.81 |    26.16     2.54   -32.79 |        -23.89    -7.36    17.90 |   -22.18    -7.18    18.30 |
-|    12.85   -11.80   -35.78 |    11.42   -11.45   -35.56 |    11.08   -11.26   -34.10 |  …     -24.66     0.20    14.78 |   -23.75    -1.22    15.28 |
-|    16.98     0.72   -33.26 |    16.95     0.68   -34.75 |    16.06    -0.43   -35.28 |        -13.51   -12.24    21.06 |   -13.74   -13.90    20.52 |
-|    15.89    -2.89   -34.57 |    14.46    -2.58   -34.81 |    13.54    -3.75   -34.51 |        -14.64    -5.21     8.71 |   -15.94    -5.95     9.64 |
-|    30.24    11.26   -16.06 |    30.76    12.62   -15.76 |    30.91    13.47   -17.00 |         -6.57   -15.12    20.61 |    -7.38   -15.35    19.06 |
-|    28.91    17.14   -29.35 |    27.45    17.34   -29.54 |    26.67    17.19   -28.25 |        -21.13   -14.49    14.75 |   -21.74   -14.16    13.12 |
+t = readpdb("data/3gb1.pdb")
+    32x855 TrjArray{Float64, Int64}
+    | A                          | A                          |  …   A                          |
+    | 1MET                       | 1MET                       |  …   56GLU                      |
+    | 1N                         | 2CA                        |  …   855HG3                     |
+    |   -13.15    -1.71     5.51 |   -12.20    -2.85     5.70 |  …      10.24     2.24    -4.53 |
+    |   -13.16    -2.75     4.19 |   -12.38    -3.43     5.26 |         10.29     1.79    -3.20 |
+    |   -13.26    -2.20     5.12 |   -12.23    -3.26     5.29 |         11.09     3.24    -6.13 |
+    |   -12.45    -4.30     6.28 |   -12.25    -3.22     5.28 |         11.75     2.57    -3.31 |
+    |   -13.05    -1.52     5.31 |   -12.15    -2.68     5.56 |         10.46     1.51    -3.50 |
+    |   -12.98    -3.74     6.65 |   -12.43    -3.31     5.34 |  …      11.26     3.06    -3.59 |
+    |   -13.03    -2.10     3.64 |   -12.47    -2.79     4.83 |         10.38     1.53    -3.30 |
+    |   -13.00    -2.17     5.21 |   -12.09    -3.19     5.78 |         11.32     3.37    -5.78 |
+    |   -12.57    -2.96     3.87 |   -12.12    -3.42     5.21 |         10.36     1.38    -3.53 |
+    |   -12.60    -2.85     4.27 |   -12.16    -3.02     5.68 |         10.44     1.40    -3.37 |
+    |   -13.12    -1.61     4.72 |   -12.34    -2.60     5.52 |  …      10.96     3.58    -5.68 |
+    |             ⋮              |             ⋮              |  ⋱               ⋮              |
+    |   -13.46    -2.54     6.05 |   -12.41    -3.14     5.18 |         10.33     1.63    -3.72 |
+    |   -12.61    -4.31     6.34 |   -12.22    -3.51     5.15 |         10.26     1.56    -3.59 |
+    |   -13.24    -2.72     6.28 |   -12.16    -3.34     5.45 |         11.30     2.91    -3.41 |
+    |   -13.21    -2.29     5.61 |   -12.13    -3.31     5.53 |         11.76     2.84    -5.65 |
+    |   -12.75    -2.42     4.33 |   -12.22    -2.96     5.61 |  …      11.53     3.05    -5.67 |
+    |   -13.32    -2.12     5.10 |   -12.27    -3.17     5.25 |         10.38     1.88    -3.32 |
+    |   -13.07    -2.31     4.32 |   -12.27    -3.22     5.19 |         11.65     3.11    -5.90 |
+    |   -12.76    -3.69     6.68 |   -12.11    -3.33     5.38 |         11.51     2.97    -5.63 |
+    |   -13.21    -2.55     5.53 |   -12.06    -3.41     5.11 |         10.26     1.60    -3.20 |
+    |   -13.13    -2.12     4.11 |   -12.34    -3.00     5.02 |  …      12.68     3.28    -4.88 |
+    |   -12.81    -2.86     4.32 |   -12.23    -3.33     5.62 |          9.98     2.33    -5.34 |
 ```
 
-Here, the first three rows display the topology infomation contained in the `TrjArray`-type variable `t`. The 1st row shows chain IDs and names. The 2nd row shows residue IDs and names. The 3rd row shows atom IDs and names. 
+Here, the first three rows display the topology information contained in the `TrjArray`-type variable `t`. The 1st row shows chain IDs and names. 
+The 2nd row shows residue IDs and names. The 3rd row shows atom IDs and names. 
 
-The rest of the rows are the XYZ coordinates of each atoms. Different rows corresponds to different frames. So, the coordinates of an each structure are displayed in an each single row. 
+The rest of the rows are the XYZ coordinates of atoms. The rows represent frames of the trajectory. So, the coordinates of each structure are contained in the respective row. 
 
-The users can directly access to the topology and trajectory data contained in a `TrjArray`-type variable. For example, atomnames can be accessed by `t.atomname`
+Users can directly access the topology and trajectory data contained in a `TrjArray`-type variable. For example, atom names can be accessed from `t.atomname`
 
 ```julia
 t.atomname
-
+    855-element Vector{String}:
+    "N"
+    "CA"
+    "C"
+    "O"
+    ⋮
+    "HB2"
+    "HB3"
+    "HG2"
+    "HG3"
 ```
 
-Trajectory variable is a matrix whose row vectors consist of coordinate variables. The rows represent frames in the trajectory. For simulation data, the sequence of frames represents molecular dynamics. 
-For example, the coordinate at the 10th frame is extracted by
+Likewise, residue names can be accessed from `t.resname`
 
+```julia
+t.resid
+    855-element Vector{Int64}:
+      1
+      1
+      1
+      1
+      ⋮
+     56
+     56
+     56
+     56
+```
+
+XYZ coordinates of atoms at every frames are storec in `t.xyz`. 
+
+`TrjArray` containes the following variables:
+
+|  variable name  | type                               |    content                         |
+| --------------- | ---------------------------------- | ---------------------------------- |    
+| natom           |  Int                               | The number of atoms                |
+| nframe          |  Int                               | The number of frames or structures |
+| xyz             |  nframe x (natom*3) Matrix{Float}  | XYZ coordinates of atoms           |
+| boxsize         |  nframe x 3 Matrix{Float}          | XYZ size of simulation box         |
+| chainname       |  natom Vector{String}              | Chain names                        |
+| chainid         |  natom Vector{Int}                 | Chain IDs                          |
+| resname         |  natom Vector{String}              | Resisude names                     |
+| resid           |  natom Vector{Int}                 | Residue IDs                        |
+| atomname        |  natom Vector{String}              | Atom names                         |
+| atomid          |  natom Vector{Int}                 | Atom IDs                           |
+| mass            |  natom Vector{Float}               | Masses                             |
+| radius          |  natom Vector{Float}               | VDW radii of atoms                 |
+| charge          |  natom Vector{Float}               | Partial chages of atoms            |
+| sasa            |  natom Vector{Float}               | Solvent accessible surface areas   |
+| list_bond       |  nbond x 2 Matrix{Int}             | Atom ID pairs for bonds            |
+| list_angle      |  nangle x 2 Matrix{Int}            | Atom ID triples for angles         |
+| list_dihedral   |  ndihedral x 2 Matrix{Int}         | Atom ID quadruplets for dihedrals  |
+| list_improper   |  nimproper x 2 Matrix{Int}         | Atom ID quadruplets for impropers  |
+| list_cmap       |  ncmap x 2 Matrix{Int}             | Atom ID quadruplets for cmaps      |
+
+For example, the coordinate at the 10th frame is extracted by
  
   crd = trj(10, :);
 
