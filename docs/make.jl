@@ -3,6 +3,7 @@ using Documenter, MDToolbox
 makedocs(sitename="MDToolbox.jl",
         pages = [
         "MDToolbox.jl" => "index.md", 
+        "Installation" => "installation.md", 
         "Getting started" => [
             "getting_started01.md", 
             "getting_started02.md",
