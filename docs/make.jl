@@ -10,6 +10,9 @@ makedocs(sitename="MDToolbox.jl",
             "getting_started03.md"
         ], 
         "Examples" => [
+            "superimpose_rmsd.md",
+            "free_energy_surface.md",
+            "wham.md"
         ], 
         "References" => [
             "fileio.md",
