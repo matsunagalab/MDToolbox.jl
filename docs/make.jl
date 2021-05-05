@@ -21,6 +21,7 @@ makedocs(sitename="MDToolbox.jl",
             "wham.md",
             "mbar.md",
             "msm.md"],
+        "Workflow for developers" => "workflow_for_developers.md", 
         "License" => "license.md"
             ]
 )
