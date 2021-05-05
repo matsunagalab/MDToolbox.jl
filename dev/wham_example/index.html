@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>WHAM (Weighted Histogram Analysis Method) · MDToolbox.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">MDToolbox.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">MDToolbox.jl</a></li><li><a class="tocitem" href="../installation/">Installation</a></li><li><span class="tocitem">Getting started</span><ul><li><a class="tocitem" href="../getting_started01/">Input and Output</a></li><li><a class="tocitem" href="../getting_started02/">TrjArray type</a></li><li><a class="tocitem" href="../getting_started03/">Atom selection</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../superimpose_rmsd/">Superimpose and RMSD</a></li><li><a class="tocitem" href="../free_energy_surface/">Free energy surface from MD data</a></li><li><a class="tocitem" href="../wham/">WHAM (Weighted Histogram Analysis Method)</a></li></ul></li><li><span class="tocitem">References</span><ul><li><a class="tocitem" href="../fileio/">File IO</a></li><li><a class="tocitem" href="../structure/">Structural computations</a></li><li><a class="tocitem" href="../reduction/">Reductions</a></li><li><a class="tocitem" href="../wham/">WHAM (Weighted Histogram Analysis Method)</a></li><li><a class="tocitem" href="../mbar/">MBAR (Multistate Bennett acceptance ratio)</a></li><li><a class="tocitem" href="../msm/">Makorv state models</a></li></ul></li><li><a class="tocitem" href="../license/">License</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>WHAM (Weighted Histogram Analysis Method)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>WHAM (Weighted Histogram Analysis Method)</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/matsunagalab/MDToolbox.jl/blob/master/docs/src/wham_example.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="WHAM-(Weighted-Histogram-Analysis-Method)"><a class="docs-heading-anchor" href="#WHAM-(Weighted-Histogram-Analysis-Method)">WHAM (Weighted Histogram Analysis Method)</a><a id="WHAM-(Weighted-Histogram-Analysis-Method)-1"></a><a class="docs-heading-anchor-permalink" href="#WHAM-(Weighted-Histogram-Analysis-Method)" title="Permalink"></a></h1><pre><code class="language-julia">using PyPlot, StatsBase, Printf, DelimitedFiles, MDToolbox
+PyPlot.plt.style.use(&quot;seaborn-colorblind&quot;);
+ENV[&quot;COLUMNS&quot;] = 110; #display width for MDToolbox</code></pre><pre><code class="language-julia"># constants
+KBT = KB_kcalpermol*300.0</code></pre><pre><code class="language-none">0.59616123</code></pre><pre><code class="language-julia"># umbrella window centers
+umbrella_center = 0:3:180
+K = length(umbrella_center)</code></pre><pre><code class="language-none">61</code></pre><pre><code class="language-julia"># define edges for histogram bin
+M = 80; # number of bins
+edge = range(-1, stop=181, length=M+1)
+#edge = linspace(-1, 181, M+1)
+bin_center = 0.5 .* (edge[2:end] .+ edge[1:(end-1)])</code></pre><pre><code class="language-none">0.1375:2.275:179.8625</code></pre><pre><code class="language-julia"># read dihedral angle data
+data_k = []
+for k = 1:K
+  filename = @sprintf &quot;data/umbrella_alat/3_prod/run_%d.dat&quot; umbrella_center[k]
+  x = readdlm(filename);
+  push!(data_k, x[:, 2])
+end</code></pre><pre><code class="language-julia"># calculate histogram (h_km)
+# h_km: histogram (data counts) of k-th umbrella data counts in m-th data bin
+h_km = zeros(Int64, K, M)
+for k = 1:K
+  h = fit(Histogram, data_k[k], edge)
+  h_m = h.weights
+  h_km[k, :] = h_m
+end</code></pre><pre><code class="language-julia"># bias-energy
+# bias_km: bias-factor of k-th umbrella-window evaluated at m-th bin-center
+function minimum_image(center, x)
+  dx = x .- center
+  dx = dx .- round.(dx./360.0).*360.0;
+  dx
+end
+
+bias_km = zeros(Float64, K, M)
+spring_constant = 200.0 * (pi/180.0)^2; # conversion of the unit from kcal/mol/rad^2 to kcal/mol/deg^2
+for k = 1:K
+  for m = 1:M
+    #bias_km[k, m] = (spring_constant./KBT) * (minimum_image(Float64(umbrella_center[k]), bin_center[m])).^2
+    bias_km[k, m] = (spring_constant./KBT) * (Float64(umbrella_center[k]) - bin_center[m]).^2
+  end
+end</code></pre><pre><code class="language-julia"># solve WHAM equations, and
+# calculate probabilities in the dihedral angle space, and evaluate the potential of mean force (PMF)
+f_k, pmf_m = wham(h_km, bias_km)
+pmf_m = KBT .* pmf_m;
+pmf_m = pmf_m .- pmf_m[1]</code></pre><pre><code class="language-none">1×80 Matrix{Float64}:
+ 0.0  -0.0169813  0.0474963  0.00841217  0.119576  …  -6.87585  -7.06385  -7.13125  -7.21599  -7.13709</code></pre><pre><code class="language-julia">using JLD2
+@save &quot;wham.jld2&quot; bin_center pmf_m</code></pre><pre><code class="language-julia">fig, ax = subplots(figsize=(8, 6))
+ax.plot(bin_center, pmf_m[:], linewidth=3)
+xlabel(&quot;Angle [degree]&quot;,fontsize=20)
+ylabel(&quot;Potential of mean force [kcal/mol]&quot;,fontsize=20)
+
+# detailed options (if your prefer to change details)
+ax.set(xlim=[-1, 181], ylim=[-8, 12])
+ax.xaxis.set_tick_params(which=&quot;major&quot;,labelsize=15)
+ax.yaxis.set_tick_params(which=&quot;major&quot;,labelsize=15)
+ax.grid(linestyle=&quot;--&quot;, linewidth=0.5)
+tight_layout()
+
+savefig(&quot;wham.png&quot;, dpi=350)</code></pre><p><img src="../wham.png" alt="png"/></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 5 May 2021 08:14">Wednesday 5 May 2021</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
