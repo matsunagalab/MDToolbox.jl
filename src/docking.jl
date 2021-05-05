@@ -699,7 +699,7 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
     @show "step 2"
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
 
-    # spape complementarity of receptor
+    # shape complementarity of receptor
     @show "step 3"
     iatom_surface = receptor2.sasa .> 1.0
     iatom_core = .!iatom_surface
@@ -737,7 +737,7 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
         for x in rot_x_pi
             R = [1.0 0.0 0.0; 0.0 cos(x) -sin(x); 0.0 sin(x) cos(x)]
             receptor_rot = rotate_with_matrix(receptor_rot, R)
-            R = [cos(2*pi/nfold) -sin(2*pi/nfold) 0.0; sin(2*pi/nfold) cos(2*pi/nfold) 0.0; 0.0 0.0 1.0]
+            R = [cos(2.0*pi/nfold) -sin(2.0*pi/nfold) 0.0; sin(2.0*pi/nfold) cos(2.0*pi/nfold) 0.0; 0.0 0.0 1.0]
             ligand_rot = rotate_with_matrix(receptor_rot, R)
             assign_shape_complementarity!(grid_RSC, receptor_rot, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
             assign_shape_complementarity!(grid_LSC, ligand_rot, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)

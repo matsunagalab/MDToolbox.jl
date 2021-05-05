@@ -2,7 +2,7 @@ MDToolbox.jl is licensed under the BSD 3-Clause License.
 
 >  Author: Yasuhiro Matsunaga (ymatsunaga@mail.saitama-u.ac.jp), Tomonori Ogane
 >  Copyright (c) 2018-2019, RIKEN.
->  Copyright (c) 2019-2020, Saitama University
+>  Copyright (c) 2019-2021, Saitama University
 >  All rights reserved.
 >
 >  Redistribution and use in source and binary forms, with or without

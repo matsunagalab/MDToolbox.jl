@@ -77,7 +77,6 @@ end
     clusterkcenters(ta::AbstractMatrix, kcluster::Int; nReplicates::Int=10) -> F
 
 Perform clustering with K-center algorithm for a TrjArray variable `ta`.
-```
 """
 function clusterkcenters(ta::TrjArray, kcluster::Int; nReplicates::Int=10)
     X = ta.xyz
