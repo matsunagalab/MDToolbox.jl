@@ -1,5 +1,7 @@
 # MDToolbox.jl
 
+## What is MDToolbox.jl?
+
 MDToolbox.jl is a Julia package for molecular dynamics (MD) trajectories analysis and modeling of biomolecules. The package contains functions covering the following types of scientific computations:
 
 - I/O for trajectory, coordinate, and topology files used for MD simulations
