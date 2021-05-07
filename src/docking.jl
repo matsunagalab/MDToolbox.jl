@@ -667,7 +667,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     y_max = maximum(ligand.xyz[iframe, 2:3:end])
     z_max = maximum(ligand.xyz[iframe, 3:3:end])
     size_ligand = sqrt((x_max-x_min)^2 + (y_max-y_min)^2 + (z_max-z_min)^2)
-    size_ligand = size_ligand*2 
+    #size_ligand = size_ligand*2 
 
     LDS_x_grid = collect(x_min:grid_space:x_max)
     LDS_y_grid = collect(y_min:grid_space:y_max)
@@ -676,6 +676,8 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     LDS_nx = length(LDS_x_grid)
     LDS_ny = length(LDS_y_grid)
     LDS_nz = length(LDS_z_grid)
+
+    println("grid size of ligand is ", LDS_nx, "," LDS_ny, "," LDS_nz)
 
   # extension grid of receptor using size of ligand
     x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
@@ -693,82 +695,112 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     RDS_ny = length(RDS_y_grid)
     RDS_nz = length(RDS_z_grid)
 
+    println("RDS x grid size is " , RDS_nx)
+    println("RDS y grid size is " , RDS_ny)
+    println("RDS z grid size is " , RDS_nz)
+
     grid_RDS = zeros(complex(T), RDS_nx, RDS_ny, RDS_nz)
     grid_LDS = zeros(complex(T), RDS_nx, RDS_ny, RDS_nz)
     
     
   # generate grid coordinates of ligand at every rotation by quaternions
     nq = size(quaternions, 1)
+    score_DS_max = Vector{T}(undef, nq)
+    score_DS_min = Vector{T}(undef, nq)
     for iq = 1:nq
-    
+        grid_RDS .= 0.0 + 0.0im
+        grid_LDS .= 0.0 + 0.0im
+        
       # rotate ligand by quaternions
         ligand = rotate(ligand, quaternions[iq, :])
 
       # assign ace score for RDS
         for iatom = 1:receptor.natom
-          # invert atoms coordinates into grid coordinates
-            x = round(receptor.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            y = round(receptor.xyz[iframe, 3*(iatom-1)+2] / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            z = round(receptor.xyz[iframe, 3*(iatom-1)+3] / grid_space + RDS_nz/2, RoundNearestTiesAway)
+
+          # create atom coordinates of receptor
+            x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
+            y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
+            z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
+
+          # invert atom coordinates into grid coordinates
+            x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
         
-          # determin Real part
-            ix_min = round((receptor.xyz[iframe, 3*(iatom-1)+1] - 6) / grid_space + RDS_nx/2, RoundToZero)
-            iy_min = round((receptor.xyz[iframe, 3*(iatom-1)+2] - 6) / grid_space + RDS_ny/2, RoundToZero)
-            iz_min = round((receptor.xyz[iframe, 3*(iatom-1)+3] - 6) / grid_space + RDS_nz/2, RoundToZero)
-            ix_max = round((receptor.xyz[iframe, 3*(iatom-1)+1] + 6) / grid_space + RDS_nx/2, RoundToZero)
-            iy_max = round((receptor.xyz[iframe, 3*(iatom-1)+2] + 6) / grid_space + RDS_ny/2, RoundToZero)
-            iz_max = round((receptor.xyz[iframe, 3*(iatom-1)+3] + 6) / grid_space + RDS_nz/2, RoundToZero)
+          # determin Real part of RDS
+            ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
+            iy_min = round(Int, (y_atom - 6) / grid_space + RDS_ny/2, RoundToZero)
+            iz_min = round(Int, (z_atom - 6) / grid_space + RDS_nz/2, RoundToZero)
+            ix_max = round(Int, (x_atom + 6) / grid_space + RDS_nx/2, RoundToZero)
+            iy_max = round(Int, (y_atom + 6) / grid_space + RDS_ny/2, RoundToZero)
+            iz_max = round(Int, (z_atom + 6) / grid_space + RDS_nz/2, RoundToZero)
  
+
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
                     for iz = iz_min:iz_max
-                        grid_RDS[Int(ix), Int(iy), Int(iz)] += receptor.ace_score[iatom]
-                        if ix >= 100 && ix <= 200
-                            #println(Int(ix), Int(iy), Int(iz))
-                            #println(grid_RDS[Int(ix), Int(iy), Int(iz)])
+                        #println(grid_RDS[Int(ix), Int(iy), Int(iz)])
+                        dist = sqrt((x_atom - RDS_x_grid[ix])^2 + (y_atom - RDS_y_grid[iy])^2 + (z_atom - RDS_z_grid[iz])^2)
+                        if dist <= 6
+                            grid_RDS[ix, iy, iz] += receptor.ace_score[iatom]
                         end
                     end
                 end
             end
 
-          # determine Imag part 
-            grid_RDS[Int(x), Int(y), Int(z)] += 1.0im
+
+          # determine Imag part of RDS
+            grid_RDS[x, y, z] += 1.0im
+
+
         end
 
-        #=
+        @show sum(imag(grid_RDS))
+
       # assign ace score for LDS
         for iatom = 1:ligand.natom
+
+          # create atom coordinates of ligand
+            x_atom = ligand.xyz[iframe, 3*(iatom-1)+1]
+            y_atom = ligand.xyz[iframe, 3*(iatom-1)+2]
+            z_atom = ligand.xyz[iframe, 3*(iatom-1)+3]
+            
           # invert atoms coordinates into grid coordinates
-            x = round(ligand.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            y = round(ligand.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            z = round(ligand.xyz[iframe, 3*(iatom-1)+1] / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
       
-          # determin Real part
-            ix_min = x - 6/grid_space
-            iy_min = y - 6/grid_space
-            iz_min = z - 6/grid_space
-            ix_max = x + 6/grid_space
-            iy_max = y + 6/grid_space
-            iz_max = z + 6/grid_space
+          # determin Real part of LDS
+            ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
+            iy_min = round(Int, (y_atom - 6) / grid_space + RDS_ny/2, RoundToZero)
+            iz_min = round(Int, (z_atom - 6) / grid_space + RDS_nz/2, RoundToZero)
+            ix_max = round(Int, (x_atom + 6) / grid_space + RDS_nx/2, RoundToZero)
+            iy_max = round(Int, (y_atom + 6) / grid_space + RDS_ny/2, RoundToZero)
+            iz_max = round(Int, (z_atom + 6) / grid_space + RDS_nz/2, RoundToZero)
 
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
                     for iz = iz_min:iz_max
-                        grid_RDS[Int(ix), Int(iy), Int(iz)] += get_ace_score(ligand, iatom)
+                        dist = sqrt((x_atom - RDS_x_grid[ix])^2 + (y_atom - RDS_y_grid[iy])^2 + (z_atom - RDS_z_grid[iz])^2)
+                        if dist <= 6
+                            grid_LDS[ix, iy, iz] += ligand.ace_score[iatom]
+                        end
                     end
                 end
             end
 
-            # determine Imag part 
-            grid_LDS[Int(x), Int(y), Int(z)] += 1.0im
+            # determine Imag part of LDS
+            grid_LDS[x, y, z] += 1.0im
         end
-        =#
 
       # compute DS socre with FFT
+        t = ifft(ifft(grid_RDS) .* fft(grid_LDS))
+        score_DS_max[iq] = maximum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
+        score_DS_min[iq] = minimum(imag(t)) / 2 * LDS_nx * LDS_ny * LDS_nz
 
     end
 
-    return grid_RDS[100, 100, 100]
+    return score_DS_max, score_DS_min
 end
 
 function golden_section_spiral(n)
