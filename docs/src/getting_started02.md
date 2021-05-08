@@ -130,7 +130,7 @@ t.xyz[3, 1:3:end]
 `TrjArray` containes the following variables:
 
 |  variable name  | type                               |    content                         |
-| --------------- | ---------------------------------- | ---------------------------------- |    
+| :-------------- | :--------------------------------- | :--------------------------------- |    
 | natom           |  Int                               | The number of atoms                |
 | nframe          |  Int                               | The number of frames or structures |
 | xyz             |  nframe x (natom*3) Matrix{Float}  | XYZ coordinates of atoms           |

@@ -80,7 +80,7 @@ t[3:5, 1:3]
     |   -13.05    -1.52     5.31 |   -12.15    -2.68     5.56 |   -10.73    -2.16     5.80 |
 ```
 
-Atom selections can be described by strings. For example, residue ID == 10 can be selected by
+Also, atoms can be selected by strings. For example, residue ID == 10 can be selected by
 
 ```julia
 t[:, "resid 10"]
@@ -97,7 +97,7 @@ t[:, "resid 10"]
     |    14.56     1.13    -1.20 |    16.01     0.83    -1.11 |         14.94     2.44    -7.45 |
 ```
 
-The colon in the row can be omitted as follows,
+The colon in the row can be omitted,
 
 ```julia
 t["resid 10"]
@@ -131,7 +131,7 @@ t["resid 10:13"]
 |    14.56     1.13    -1.20 |    16.01     0.83    -1.11 |         16.27    -3.58     4.58 |
 ```
 
-Also, atoms can be specified by names. For example, residue name of GLU ASP can be selected by
+Not only IDs, names can be specified. For example, residue name of GLU ASP can be selected by
 
 ```julia
 t["resname GLU ASP"]
@@ -168,7 +168,7 @@ t["atomname CA and resid 1:20"]
 The following keywords are avaiable for atom selections by strings
 
 |  keywords       | description                        |  examples                                  |
-| --------------- | ---------------------------------- | ------------------------------------------ |    
+| :-------------- | :--------------------------------- | :----------------------------------------- |
 | chainname       | specify chain names                | `chainname A` `chainname A B`              |
 | chainid         | specify chain IDs                  | `chainid 1`  `chainid 1:3` `chainid 1:3 5` |
 | resname         | specify residue names              | `resname ARG` `resname GLU ASP`            |
