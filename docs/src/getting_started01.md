@@ -1,6 +1,6 @@
 # Input and Output
 
-Typical usages of I/O functions for MD files are as follows. 
+Typical usages of I/O functions for MD files are shown in belows. 
 
 ## PDB files
 

@@ -11,12 +11,12 @@ using MDToolbox
 
 ## Docker image
 
-Using the docker image, MDToolbox.jl can be readily used within REPL or Jupyter(Lab).
+A docker image for MDToolbox.jl is available,
 
 ```bash
 ## REPL
-$ docker run --rm -p 8888:8888 -e JUPYTER_ENABLE_LAB=yes -v "$PWD":/home/jovyan/work matsunagalab/mdtoolbox.jl julia
+$ docker run -it --rm -v "$PWD":/home/jovyan/work matsunagalab/mdtoolbox julia
 
 ## JupyterLab
-$ docker run --rm -p 8888:8888 -e JUPYTER_ENABLE_LAB=yes -v "$PWD":/home/jovyan/work matsunagalab/mdtoolbox.jl
+$ docker run --rm -p 8888:8888 -e JUPYTER_ENABLE_LAB=yes -v "$PWD":/home/jovyan/work matsunagalab/mdtoolbox
 ```
