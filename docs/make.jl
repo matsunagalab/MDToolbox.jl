@@ -12,7 +12,7 @@ makedocs(sitename="MDToolbox.jl",
         "Examples" => [
             "superimpose_rmsd.md",
             "free_energy_surface.md",
-            "wham.md"
+            "wham_example.md"
         ], 
         "References" => [
             "fileio.md",
