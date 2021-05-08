@@ -20,8 +20,8 @@ AMBER NetCDF trajectory file
 t = mdload("run.pdb")
 
 # read AMBER NetCDF data and generate a new variable t whose type is TrjArray
-# the topology information can be attached as the option `top=t`
-t = mdload("run.nc", t=top)
+# the topology information can be attached by the option `top=t`
+t = mdload("run.nc", top=t)
 
 # after some calculations
 mdsave("run_edited.nc", t)
@@ -36,7 +36,7 @@ t = mdload("run.psf")
 t = mdload("run.pdb")
 
 # read dcd file and generate a new variable t whose type is TrjArray
-# the topology information can be attached as the option `top=t`
+# the topology information can be attached by the option `top=t`
 t = mdload("run.dcd", top=t)
 # after some calculations
 mdsave("run_edit.dcd", t)
