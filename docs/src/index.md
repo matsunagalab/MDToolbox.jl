@@ -7,6 +7,7 @@ MDToolbox.jl is a Julia package for molecular dynamics (MD) trajectories analysi
 - I/O for trajectory, coordinate, and topology files used for MD simulations
 - Unique type (TrjArray) for storing and processing MD trajectory data
 - Flexible atom selections
+- Various structural calculations
 - Least-squares fitting of structures
 - Potential of mean force (PMF) or free energy profile from unbiased MD trajectories
 - Statistical estimates (WHAM and MBAR methods) from biased MD trajectories
