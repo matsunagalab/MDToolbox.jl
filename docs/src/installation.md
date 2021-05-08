@@ -2,7 +2,7 @@
 
 ## Installation of the package
 
-Julia version 1.5 or later is required.
+Julia version 1.6 or later is required.
 
 ```julia
 ]add https://github.com/matsunagalab/MDToolbox.jl.git

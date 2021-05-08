@@ -8,7 +8,7 @@ A Julia package for molecular dynamics trajectories analysis and modeling of bio
 
 Some functions have been ported into Julia from our old MATLAB/Octave toolbox https://github.com/ymatsunaga/mdtoolbox
 
-Julia version 1.5 or later is required. 
+Julia version 1.6 or later is required. 
 ```
 julia> ]add https://github.com/matsunagalab/MDToolbox.jl.git
 julia> using MDToolbox
