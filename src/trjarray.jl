@@ -420,13 +420,22 @@ function select_atom(ta::TrjArray, s::AbstractString)
     s = replace(s, "solvents" => "solvent")
     s = replace(s, "proteins" => "protein")
 
+    """
+    this code is licensed under the GNU LGPL version 2.1, or at your option a later version of the license.  (Copyright (c) R.T McGibbon et al.), see LICENSE.md
+    """
     s = replace(s, "water" => "resname H2O SOL WAT HHO OHH HOH OH2 TIP TIP2 TIP3 TIP4")
 
+    """
+    this code is licensed under the GNU LGPL version 2.1, or at your option a later version of the license.  (Copyright (c) R.T McGibbon et al.), see LICENSE.md
+    """
     s = replace(s, "hydrogen" => "atomname 1H 2H 3H H1 H2 H3 H4 H5 H HA 1HA 2HA HB 1HB " *
     "2HB 3HB HG 1HG 2HG 1HG1 2HG1 3HG1 1HG2 2HG2 3HG2 1HD 2HD 1HD1 2HD1 3HD1 1HD2 2HD2 " *
     "3HD2 1HH1 2HH1 1HH2 2HH2 HE 1HE 2HE 3HE 1HE1 2HE1 1HE2 2HE2 HD1 HD2 HE1 HNZ1 HNZ2 " *
     "HNZ3 HG1 HH HH1 HH2 ")
 
+    """
+    this code is licensed under the GNU LGPL version 2.1, or at your option a later version of the license.  (Copyright (c) R.T McGibbon et al.), see LICENSE.md
+    """
     s = replace(s, "solvent" => "resname 118 119 1AL 1CU 2FK 2HP 2OF 3CO 3MT 3NI 3OF 4MO " * 
     "543 6MO ACT AG AL ALF ATH AU AU3 AUC AZI Ag BA BAR BCT BEF BF4 BO4 BR BS3 BSY Be CA " *
     "CA+2 Ca+2 CAC CAD CAL CD CD1 CD3 CD5 CE CES CHT CL CL- CLA Cl- CO CO3 CO5 CON CR CS " *
@@ -438,6 +447,9 @@ function select_atom(ta::TrjArray, s::AbstractString)
     "PO4 POT PR PT PT4 PTN RB RH3 RHD RU RUB Ra SB SCN SE4 SEK SM SMO SO3 SO4 SOD SR Sm Sn " *
     "T1A TB TBA TCN TEA THE TL TMA TRA UNX V V2+ VN3 VO4 W WO5 Y1 YB YB2 YH YT3 ZN ZN2 ZN3 ZNA ZNO ZO3")
 
+    """
+    this code is licensed under the GNU LGPL version 2.1, or at your option a later version of the license.  (Copyright (c) R.T McGibbon et al.), see LICENSE.md
+    """
     s = replace(s, "protein" => "resname ACE NME 00C 01W 02K 02L 03Y 07O 08P 0A0 0A1 0A2 " *
     "0A8 0AA 0AB 0AC 0AF 0AG 0AH 0AK 0BN 0CS 0E5 0EA 0FL 0NC 0WZ 0Y8 143 193 1OP 1PA 1PI " *
     "1TQ 1TY 1X6 200 23F 23S 26B 2AD 2AG 2AO 2AS 2CO 2DO 2FM 2HF 2KK 2KP 2LU 2ML 2MR 2MT " *
