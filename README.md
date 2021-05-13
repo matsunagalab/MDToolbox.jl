@@ -10,6 +10,6 @@ Some functions have been ported into Julia from our old MATLAB/Octave toolbox ht
 
 Julia version 1.6 or later is required. 
 ```
-julia> ]add https://github.com/matsunagalab/MDToolbox.jl.git
+julia> ]add MDToolbox.jl.git
 julia> using MDToolbox
 ```
