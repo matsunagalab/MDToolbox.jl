@@ -770,8 +770,8 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
 
       # compute DS socre with FFT
         t = ifft(ifft(grid_RDS) .* fft(grid_LDS))
-        score_DS_max[iq] = maximum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
-        score_DS_min[iq] = minimum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
+        score_DS_max[iq] = maximum(imag(t)) / 2 * (nx * ny * nz)
+        score_DS_min[iq] = minimum(imag(t)) / 2 * (nx * ny * nz)
     end
 
     return score_DS_max, score_DS_min
