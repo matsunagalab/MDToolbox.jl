@@ -669,15 +669,15 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     size_ligand = sqrt((x_max-x_min)^2 + (y_max-y_min)^2 + (z_max-z_min)^2)
     #size_ligand = size_ligand*2 
 
-    LDS_x_grid = collect(x_min:grid_space:x_max)
-    LDS_y_grid = collect(y_min:grid_space:y_max)
-    LDS_z_grid = collect(z_min:grid_space:z_max)
+    #LDS_x_grid = collect(x_min:grid_space:x_max)
+    #LDS_y_grid = collect(y_min:grid_space:y_max)
+    #LDS_z_grid = collect(z_min:grid_space:z_max)
 
-    LDS_nx = length(LDS_x_grid)
-    LDS_ny = length(LDS_y_grid)
-    LDS_nz = length(LDS_z_grid)
+    #LDS_nx = length(LDS_x_grid)
+    #LDS_ny = length(LDS_y_grid)
+    #LDS_nz = length(LDS_z_grid)
 
-    println("grid size of ligand is ", LDS_nx, "," LDS_ny, "," LDS_nz)
+    #println("grid size of ligand is , $LDS_nx,  $LDS_ny, $LDS_nz")
 
   # extension grid of receptor using size of ligand
     x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
@@ -723,17 +723,27 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
 
           # invert atom coordinates into grid coordinates
-            x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            #x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            #y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            #z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            x = argmin(abs.(x_atom .- RDS_x_grid))
+            y = argmin(abs.(y_atom .- RDS_y_grid))
+            z = argmin(abs.(z_atom .- RDS_z_grid))
         
           # determin Real part of RDS
-            ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
-            iy_min = round(Int, (y_atom - 6) / grid_space + RDS_ny/2, RoundToZero)
-            iz_min = round(Int, (z_atom - 6) / grid_space + RDS_nz/2, RoundToZero)
-            ix_max = round(Int, (x_atom + 6) / grid_space + RDS_nx/2, RoundToZero)
-            iy_max = round(Int, (y_atom + 6) / grid_space + RDS_ny/2, RoundToZero)
-            iz_max = round(Int, (z_atom + 6) / grid_space + RDS_nz/2, RoundToZero)
+            #ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
+            #iy_min = round(Int, (y_atom - 6) / grid_space + RDS_ny/2, RoundToZero)
+            #iz_min = round(Int, (z_atom - 6) / grid_space + RDS_nz/2, RoundToZero)
+            #ix_max = round(Int, (x_atom + 6) / grid_space + RDS_nx/2, RoundToZero)
+            #iy_max = round(Int, (y_atom + 6) / grid_space + RDS_ny/2, RoundToZero)
+            #iz_max = round(Int, (z_atom + 6) / grid_space + RDS_nz/2, RoundToZero)
+            
+            ix_min = findfirst(abs.(x_atom .- RDS_x_grid) .< 6.0))
+            iy_min = findfirst(abs.(y_atom .- RDS_y_grid) .< 6.0))
+            iz_min = findfirst(abs.(z_atom .- RDS_z_grid) .< 6.0))
+            ix_max = findlast(abs.(x_atom .- RDS_x_grid) .< 6.0))
+            iy_max = findlast(abs.(y_atom .- RDS_y_grid) .< 6.0))
+            iz_max = findlast(abs.(z_atom .- RDS_z_grid) .< 6.0))
  
 
             for ix = ix_min:ix_max
@@ -741,7 +751,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
                     for iz = iz_min:iz_max
                         #println(grid_RDS[Int(ix), Int(iy), Int(iz)])
                         dist = sqrt((x_atom - RDS_x_grid[ix])^2 + (y_atom - RDS_y_grid[iy])^2 + (z_atom - RDS_z_grid[iz])^2)
-                        if dist <= 6
+                        if dist < 6.0
                             grid_RDS[ix, iy, iz] += receptor.ace_score[iatom]
                         end
                     end
@@ -766,9 +776,12 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             z_atom = ligand.xyz[iframe, 3*(iatom-1)+3]
             
           # invert atoms coordinates into grid coordinates
-            x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            #x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
+            #y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
+            #z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
+            x = argmin(abs.(x_atom .- RDS_x_grid))
+            y = argmin(abs.(y_atom .- RDS_y_grid))
+            z = argmin(abs.(z_atom .- RDS_z_grid))
       
           # determin Real part of LDS
             ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
@@ -782,7 +795,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
                 for iy = iy_min:iy_max
                     for iz = iz_min:iz_max
                         dist = sqrt((x_atom - RDS_x_grid[ix])^2 + (y_atom - RDS_y_grid[iy])^2 + (z_atom - RDS_z_grid[iz])^2)
-                        if dist <= 6
+                        if dist < 6.0
                             grid_LDS[ix, iy, iz] += ligand.ace_score[iatom]
                         end
                     end
@@ -796,7 +809,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
       # compute DS socre with FFT
         t = ifft(ifft(grid_RDS) .* fft(grid_LDS))
         score_DS_max[iq] = maximum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
-        score_DS_min[iq] = minimum(imag(t)) / 2 * LDS_nx * LDS_ny * LDS_nz
+        score_DS_min[iq] = minimum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
 
     end
 
