@@ -730,15 +730,15 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
         grid_LDS .= 0.0 + 0.0im
         
       # rotate ligand by quaternions
-        ligand = rotate(ligand, quaternions[iq, :])
+        ligand_rotated = rotate(ligand, quaternions[iq, :])
 
       # assign ace score for LDS
-        for iatom = 1:ligand.natom
+        for iatom = 1:ligand_rotated.natom
 
           # create atom coordinates of ligand
-            x_atom = ligand.xyz[iframe, 3*(iatom-1)+1]
-            y_atom = ligand.xyz[iframe, 3*(iatom-1)+2]
-            z_atom = ligand.xyz[iframe, 3*(iatom-1)+3]
+            x_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+1]
+            y_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+2]
+            z_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+3]
             
           # invert atoms coordinates into grid coordinates
             x = argmin(abs.(x_atom .- x_grid))
@@ -746,12 +746,12 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             z = argmin(abs.(z_atom .- z_grid))
       
           # determin Real part of LDS
-            ix_min = round(Int, (x_atom - 6.0) / grid_space + nx/2, RoundToZero)
-            iy_min = round(Int, (y_atom - 6.0) / grid_space + ny/2, RoundToZero)
-            iz_min = round(Int, (z_atom - 6.0) / grid_space + nz/2, RoundToZero)
-            ix_max = round(Int, (x_atom + 6.0) / grid_space + nx/2, RoundToZero)
-            iy_max = round(Int, (y_atom + 6.0) / grid_space + ny/2, RoundToZero)
-            iz_max = round(Int, (z_atom + 6.0) / grid_space + nz/2, RoundToZero)
+            ix_min = findfirst(abs.(x_atom .- x_grid) .< 6.0)
+            iy_min = findfirst(abs.(y_atom .- y_grid) .< 6.0)
+            iz_min = findfirst(abs.(z_atom .- z_grid) .< 6.0)
+            ix_max = findlast(abs.(x_atom .- x_grid) .< 6.0)
+            iy_max = findlast(abs.(y_atom .- y_grid) .< 6.0)
+            iz_max = findlast(abs.(z_atom .- z_grid) .< 6.0)
 
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
