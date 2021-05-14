@@ -667,17 +667,6 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     y_max = maximum(ligand.xyz[iframe, 2:3:end])
     z_max = maximum(ligand.xyz[iframe, 3:3:end])
     size_ligand = sqrt((x_max-x_min)^2 + (y_max-y_min)^2 + (z_max-z_min)^2)
-    #size_ligand = size_ligand*2 
-
-    #LDS_x_grid = collect(x_min:grid_space:x_max)
-    #LDS_y_grid = collect(y_min:grid_space:y_max)
-    #LDS_z_grid = collect(z_min:grid_space:z_max)
-
-    #LDS_nx = length(LDS_x_grid)
-    #LDS_ny = length(LDS_y_grid)
-    #LDS_nz = length(LDS_z_grid)
-
-    #println("grid size of ligand is , $LDS_nx,  $LDS_ny, $LDS_nz")
 
   # extension grid of receptor using size of ligand
     x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
@@ -687,85 +676,61 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
     z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
 
-    RDS_x_grid = collect(x_min:grid_space:x_max)
-    RDS_y_grid = collect(y_min:grid_space:y_max)
-    RDS_z_grid = collect(z_min:grid_space:z_max)
+    x_grid = collect(x_min:grid_space:x_max)
+    y_grid = collect(y_min:grid_space:y_max)
+    z_grid = collect(z_min:grid_space:z_max)
     
-    RDS_nx = length(RDS_x_grid)
-    RDS_ny = length(RDS_y_grid)
-    RDS_nz = length(RDS_z_grid)
+    nx = length(x_grid)
+    ny = length(y_grid)
+    nz = length(z_grid)
 
-    println("RDS x grid size is " , RDS_nx)
-    println("RDS y grid size is " , RDS_ny)
-    println("RDS z grid size is " , RDS_nz)
-
-    grid_RDS = zeros(complex(T), RDS_nx, RDS_ny, RDS_nz)
-    grid_LDS = zeros(complex(T), RDS_nx, RDS_ny, RDS_nz)
+    grid_RDS = zeros(complex(T), nx, ny, nz)
+    grid_LDS = zeros(complex(T), nx, ny, nz)  
     
+  # assign ace score for RDS
+    for iatom = 1:receptor.natom
+        # create atom coordinates of receptor
+        x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
+        y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
+        z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
+        
+        # invert atom coordinates into grid coordinates
+        x = argmin(abs.(x_atom .- x_grid))
+        y = argmin(abs.(y_atom .- y_grid))
+        z = argmin(abs.(z_atom .- z_grid))
+        
+        # determin Real part of RDS
+        ix_min = findfirst(abs.(x_atom .- x_grid) .< 6.0)
+        iy_min = findfirst(abs.(y_atom .- y_grid) .< 6.0)
+        iz_min = findfirst(abs.(z_atom .- z_grid) .< 6.0)
+        ix_max = findlast(abs.(x_atom .- x_grid) .< 6.0)
+        iy_max = findlast(abs.(y_atom .- y_grid) .< 6.0)
+        iz_max = findlast(abs.(z_atom .- z_grid) .< 6.0)
+        
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    dist = sqrt((x_atom - x_grid[ix])^2 + (y_atom - y_grid[iy])^2 + (z_atom - z_grid[iz])^2)
+                    if dist < 6.0
+                        grid_RDS[ix, iy, iz] += receptor.ace_score[iatom]
+                    end
+                end
+            end
+        end
+        
+        # determine Imag part of RDS
+        grid_RDS[x, y, z] += 1.0im
+    end
     
   # generate grid coordinates of ligand at every rotation by quaternions
     nq = size(quaternions, 1)
     score_DS_max = Vector{T}(undef, nq)
     score_DS_min = Vector{T}(undef, nq)
     for iq = 1:nq
-        grid_RDS .= 0.0 + 0.0im
         grid_LDS .= 0.0 + 0.0im
         
       # rotate ligand by quaternions
         ligand = rotate(ligand, quaternions[iq, :])
-
-      # assign ace score for RDS
-        for iatom = 1:receptor.natom
-
-          # create atom coordinates of receptor
-            x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
-            y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
-            z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
-
-          # invert atom coordinates into grid coordinates
-            #x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            #y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            #z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
-            x = argmin(abs.(x_atom .- RDS_x_grid))
-            y = argmin(abs.(y_atom .- RDS_y_grid))
-            z = argmin(abs.(z_atom .- RDS_z_grid))
-        
-          # determin Real part of RDS
-            #ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
-            #iy_min = round(Int, (y_atom - 6) / grid_space + RDS_ny/2, RoundToZero)
-            #iz_min = round(Int, (z_atom - 6) / grid_space + RDS_nz/2, RoundToZero)
-            #ix_max = round(Int, (x_atom + 6) / grid_space + RDS_nx/2, RoundToZero)
-            #iy_max = round(Int, (y_atom + 6) / grid_space + RDS_ny/2, RoundToZero)
-            #iz_max = round(Int, (z_atom + 6) / grid_space + RDS_nz/2, RoundToZero)
-            
-            ix_min = findfirst(abs.(x_atom .- RDS_x_grid) .< 6.0))
-            iy_min = findfirst(abs.(y_atom .- RDS_y_grid) .< 6.0))
-            iz_min = findfirst(abs.(z_atom .- RDS_z_grid) .< 6.0))
-            ix_max = findlast(abs.(x_atom .- RDS_x_grid) .< 6.0))
-            iy_max = findlast(abs.(y_atom .- RDS_y_grid) .< 6.0))
-            iz_max = findlast(abs.(z_atom .- RDS_z_grid) .< 6.0))
- 
-
-            for ix = ix_min:ix_max
-                for iy = iy_min:iy_max
-                    for iz = iz_min:iz_max
-                        #println(grid_RDS[Int(ix), Int(iy), Int(iz)])
-                        dist = sqrt((x_atom - RDS_x_grid[ix])^2 + (y_atom - RDS_y_grid[iy])^2 + (z_atom - RDS_z_grid[iz])^2)
-                        if dist < 6.0
-                            grid_RDS[ix, iy, iz] += receptor.ace_score[iatom]
-                        end
-                    end
-                end
-            end
-
-
-          # determine Imag part of RDS
-            grid_RDS[x, y, z] += 1.0im
-
-
-        end
-
-        @show sum(imag(grid_RDS))
 
       # assign ace score for LDS
         for iatom = 1:ligand.natom
@@ -776,25 +741,22 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             z_atom = ligand.xyz[iframe, 3*(iatom-1)+3]
             
           # invert atoms coordinates into grid coordinates
-            #x = round(Int, x_atom / grid_space + RDS_nx/2, RoundNearestTiesAway)
-            #y = round(Int, y_atom / grid_space + RDS_ny/2, RoundNearestTiesAway)
-            #z = round(Int, z_atom / grid_space + RDS_nz/2, RoundNearestTiesAway)
-            x = argmin(abs.(x_atom .- RDS_x_grid))
-            y = argmin(abs.(y_atom .- RDS_y_grid))
-            z = argmin(abs.(z_atom .- RDS_z_grid))
+            x = argmin(abs.(x_atom .- x_grid))
+            y = argmin(abs.(y_atom .- y_grid))
+            z = argmin(abs.(z_atom .- z_grid))
       
           # determin Real part of LDS
-            ix_min = round(Int, (x_atom - 6) / grid_space + RDS_nx/2, RoundToZero)
-            iy_min = round(Int, (y_atom - 6) / grid_space + RDS_ny/2, RoundToZero)
-            iz_min = round(Int, (z_atom - 6) / grid_space + RDS_nz/2, RoundToZero)
-            ix_max = round(Int, (x_atom + 6) / grid_space + RDS_nx/2, RoundToZero)
-            iy_max = round(Int, (y_atom + 6) / grid_space + RDS_ny/2, RoundToZero)
-            iz_max = round(Int, (z_atom + 6) / grid_space + RDS_nz/2, RoundToZero)
+            ix_min = round(Int, (x_atom - 6.0) / grid_space + nx/2, RoundToZero)
+            iy_min = round(Int, (y_atom - 6.0) / grid_space + ny/2, RoundToZero)
+            iz_min = round(Int, (z_atom - 6.0) / grid_space + nz/2, RoundToZero)
+            ix_max = round(Int, (x_atom + 6.0) / grid_space + nx/2, RoundToZero)
+            iy_max = round(Int, (y_atom + 6.0) / grid_space + ny/2, RoundToZero)
+            iz_max = round(Int, (z_atom + 6.0) / grid_space + nz/2, RoundToZero)
 
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
                     for iz = iz_min:iz_max
-                        dist = sqrt((x_atom - RDS_x_grid[ix])^2 + (y_atom - RDS_y_grid[iy])^2 + (z_atom - RDS_z_grid[iz])^2)
+                        dist = sqrt((x_atom - x_grid[ix])^2 + (y_atom - y_grid[iy])^2 + (z_atom - z_grid[iz])^2)
                         if dist < 6.0
                             grid_LDS[ix, iy, iz] += ligand.ace_score[iatom]
                         end
@@ -810,7 +772,6 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
         t = ifft(ifft(grid_RDS) .* fft(grid_LDS))
         score_DS_max[iq] = maximum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
         score_DS_min[iq] = minimum(imag(t)) / 2 * RDS_nx * RDS_ny * RDS_nz
-
     end
 
     return score_DS_max, score_DS_min
