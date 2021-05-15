@@ -4,15 +4,19 @@ This note explains typical workflows for developers who are interested in adding
 
 ## Setup of MDToolbox.jl source codes
 
-### 1. Fork the MDToolbox.jl repository https://github.com/matsunagalab/MDToolbox.jl to your in GitHub. Just press the fork button to fork the repo. 
+#### 1. Fork the MDToolbox.jl repository. 
 
-### 2. Clone (download) the forked repository. In your terminal, run the following command: 
+Just press the fork button at GitHub https://github.com/matsunagalab/MDToolbox.jl to fork the repo. 
+
+#### 2. Clone (download) the forked repository. 
+
+In the terminal, run the following command: 
 
 ```bash
 $ git clone https://github.com/your_account_name/MDToolbox.jl.git
 ```
 
-### 3. Add the downloaded source codes as developmental codes in Julia
+#### 3. Add the downloaded source codes as developmental codes in Julia
 
 ```julia
 $ julia
@@ -25,7 +29,7 @@ julia> using MDToolbox
 
 ## Workflow for adding your original function
 
-### 1. Edit `src/MDToolbox.jl`
+#### 1. Edit `src/MDToolbox.jl`
 
 Suppose that your new function name is `wham()`, and the definition of `wham()` is now being coded in `wham.jl`.
 
@@ -40,7 +44,7 @@ export wham
 include("wham.jl")
 ```
 
-### 2. Write your codes in `wham.jl`
+#### 2. Write your codes in `wham.jl`
 
 During the coding, it is recommended to execute test codes in your REPL or jupyter. Also, it is convenient to use `Reivse` package which enables you to modify codes, making changes active without restarting Julia.
 
