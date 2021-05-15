@@ -1,33 +1,33 @@
 function get_atom_type(ta)
     atom_type = Array{String}(undef, ta.natom)
     ace_score = Array{Float64}(undef, ta.natom)
-
+    
     for iatom = 1:ta.natom
-            # ATOM TYPE "N"
+        # ATOM TYPE "N"
         if ta.atomname[iatom] == "N"
             atom_type[iatom] = "N"
             ace_score[iatom] = -0.495
-
+            
             # ATOM TYPE "C"
         elseif ta.atomname[iatom] == "C"
             atom_type[iatom] = "C"
             ace_score[iatom] = -0.464
-
+            
             # ATOM TYPE "O"
         elseif ta.atomname[iatom] == "O" || ta.atomname[iatom] == "OXT"
             atom_type[iatom] = "O"
             ace_score[iatom] = -0.079
-
+            
             # ATOM TYPE "GCA"
         elseif ta.resname[iatom] == "GLY" && ta.atomname[iatom] == "CA"
             atom_type[iatom] = "GCA"
             ace_score[iatom] = -0.008
-
+            
             # ATOM TYPE "CA"
         elseif ta.atomname[iatom] == "CA"
             atom_type[iatom] = "CA"
             ace_score[iatom] = -0.553
-
+            
             # ATOM TYPE "CB"
         elseif ta.resname[iatom] ==  "ALA" && ta.atomname[iatom] == "CB"
             atom_type[iatom] = "CB"
@@ -89,7 +89,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CB"
             atom_type[iatom] = "CB"
             ace_score[iatom] = -0.353
-
+            
             # ATOM TYPE "KNZ"
         elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CE"
             atom_type[iatom] = "KNZ"
@@ -97,12 +97,12 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "NZ"
             atom_type[iatom] = "KNZ"
             ace_score[iatom] = 1.334
-
+            
             # ATOM TYPE "KCD"
         elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CD"
             atom_type[iatom] = "KCD"
             ace_score[iatom] = 1.046
-
+            
             # ATOM TYPE "DOD"
         elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "DOD"
@@ -122,7 +122,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "OE2"
             atom_type[iatom] = "DOD"
             ace_score[iatom] = 0.933
-
+            
             # ATOM TYPE "RNH"
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CZ"
             atom_type[iatom] = "RNH"
@@ -133,7 +133,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NH2"
             atom_type[iatom] = "RNH"
             ace_score[iatom] = 0.726
-
+            
             # ATOM TYPE "NND"
         elseif ta.resname[iatom] ==  "ASN" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "NND"
@@ -153,7 +153,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "NE2"
             atom_type[iatom] = "NND"
             ace_score[iatom] = 0.693
-
+            
             # ATOM TYPE "RNE"
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CD"
             atom_type[iatom] = "RNE"
@@ -161,7 +161,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NE"
             atom_type[iatom] = "RNE"
             ace_score[iatom] = 0.606
-
+            
             # ATOM TYPE "SOG"
         elseif ta.resname[iatom] ==  "SER" && ta.atomname[iatom] == "CB"
             atom_type[iatom] = "SOG"
@@ -175,7 +175,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "OH"
             atom_type[iatom] = "SOG"
             ace_score[iatom] = 0.232
-
+            
             # ATOM TYPE "HNE"
         elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "HNE"
@@ -195,7 +195,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "NE1"
             atom_type[iatom] = "HNE"
             ace_score[iatom] = 0.061
-
+            
             # ATOM TYPE "YCZ"
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CE1"
             atom_type[iatom] = "YCZ"
@@ -206,7 +206,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CZ"
             atom_type[iatom] = "YCZ"
             ace_score[iatom] = -0.289
-
+            
             # ATOM TYPE "FCZ"
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "FCZ"
@@ -286,7 +286,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CD2"
             atom_type[iatom] = "FCZ"
             ace_score[iatom] = -0.432
-
+            
             # ATOM TYPE "LCD"
         elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CG2"
             atom_type[iatom] = "LCD"
@@ -312,7 +312,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CG2"
             atom_type[iatom] = "LCD"
             ace_score[iatom] = -0.987
-
+            
             # ATOM TYPE "CSG"
         elseif ta.resname[iatom] ==  "CYS" && ta.atomname[iatom] == "SG"
             atom_type[iatom] = "CSG"
@@ -357,18 +357,63 @@ function set_radius(ta::TrjArray{T, U}) where {T, U}
             error("failed to assign element: " * ta.atomname[iatom])
         end
     end
-
+    
     radius_dict = Dict("H" => 1.20, 
-                       "C" => 1.70, 
-                       "N" => 1.55, 
-                       "O" => 1.52, 
-                       "S" => 1.80)
-
+    "C" => 1.70, 
+    "N" => 1.55, 
+    "O" => 1.52, 
+    "S" => 1.80)
+    
     for iatom = 1:ta.natom
         radius[iatom] = radius_dict[element[iatom]]
     end
-
+    
     return TrjArray(ta, radius=radius)
+end
+
+function set_charge(ta)
+    charge = Array{Float64}(undef, ta.natom)
+    
+    is_first = true
+    for iatom = 1:ta.natom
+        # ATOM TYPE "N"
+        if ta.atomname[iatom] == "N"
+            if is_first
+                charge[iatom] = 1.0
+                is_first = false
+            else
+                charge[iatom] = 0.5
+            end
+            
+            # ATOM TYPE "O"
+        elseif ta.atomname[iatom] == "O" 
+            charge[iatom] = -0.5
+        elseif  ta.atomname[iatom] == "OXT"
+            charge[iatom] = -1.0
+            
+        elseif  ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NH1"
+            charge[iatom] = 0.5
+        elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NH2"
+            charge[iatom] = 0.5
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "OE1"
+            charge[iatom] = -0.5
+        elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "OE2"
+            charge[iatom] = -0.5
+        elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "OD1"
+            charge[iatom] = -0.5
+        elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "OD2"
+            charge[iatom] = -0.5
+        elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "NZ"
+            charge[iatom] = 1.0
+        elseif ta.resname[iatom] ==  "PRO" && ta.atomname[iatom] == "N"
+            charge[iatom] = -0.1
+            
+        else
+            charge[iatom] = 0.0
+        end
+    end
+    
+    return TrjArray(ta, charge=charge)
 end
 
 function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, iframe=1::Int, candicate = 10) where {T, U}
@@ -385,10 +430,10 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, 
         push!(neighbor_list[i], j)
         push!(neighbor_list[j], i)
     end
-
+    
     # generate uniform points on a unit sphere
     points = golden_section_spiral(npoint)
-
+    
     # compute the ratio of exposed area for each sphere
     sasa = Array{T}(undef, ta.natom)
     for iatom = 1:ta.natom
@@ -418,43 +463,43 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, 
         end
         sasa[iatom] = 4.0 * pi * (ta.radius[iatom] + probe_radius)^2 * n_accessible_point / npoint
     end
-
+    
     return TrjArray(ta, sasa=sasa)
 end
 
 function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space, 
-                                       rcut1, rcut2, x_grid, y_grid, z_grid, iframe) where {T,U}
+    rcut1, rcut2, x_grid, y_grid, z_grid, iframe) where {T,U}
     grid .= 0.0 + 0.0im
     nx, ny, nz = size(grid)
-
+    
     for iatom = 1:ta.natom
         rcut = rcut1[iatom]
         if rcut < 0.0
             continue
         end
-
+        
         x = ta.xyz[iframe, 3*(iatom-1)+1]
         y = ta.xyz[iframe, 3*(iatom-1)+2]
         z = ta.xyz[iframe, 3*(iatom-1)+3]
-
+        
         dx = x - x_grid[1]
         ix_min = floor(U, (dx - rcut)/grid_space) + 1
         ix_min = max(ix_min, 1)
         ix_max = floor(U, (dx + rcut)/grid_space) + 2
         ix_max = min(ix_max, nx)
-
+        
         dy = y - y_grid[1]
         iy_min = floor(U, (dy - rcut)/grid_space) + 1
         iy_min = max(iy_min, 1)
         iy_max = floor(U, (dy + rcut)/grid_space) + 2
         iy_max = min(iy_max, ny)
-
+        
         dz = z - z_grid[1]
         iz_min = floor(U, (dz - rcut)/grid_space) + 1
         iz_min = max(iz_min, 1)
         iz_max = floor(U, (dz + rcut)/grid_space) + 2
         iz_max = min(iz_max, nz)
-
+        
         for ix = ix_min:ix_max
             for iy = iy_min:iy_max
                 for iz = iz_min:iz_max
@@ -468,35 +513,35 @@ function assign_shape_complementarity!(grid, ta::TrjArray{T, U}, grid_space,
             end
         end
     end
-
+    
     for iatom = 1:ta.natom
         rcut = rcut2[iatom]
         if rcut < 0.0
             continue
         end
-
+        
         x = ta.xyz[iframe, 3*(iatom-1)+1]
         y = ta.xyz[iframe, 3*(iatom-1)+2]
         z = ta.xyz[iframe, 3*(iatom-1)+3]
-
+        
         dx = x - x_grid[1]
         ix_min = floor(U, (dx - rcut)/grid_space) + 1
         ix_min = max(ix_min, 1)
         ix_max = floor(U, (dx + rcut)/grid_space) + 2
         ix_max = min(ix_max, nx)
-
+        
         dy = y - y_grid[1]
         iy_min = floor(U, (dy - rcut)/grid_space) + 1
         iy_min = max(iy_min, 1)
         iy_max = floor(U, (dy + rcut)/grid_space) + 2
         iy_max = min(iy_max, ny)
-
+        
         dz = z - z_grid[1]
         iz_min = floor(U, (dz - rcut)/grid_space) + 1
         iz_min = max(iz_min, 1)
         iz_max = floor(U, (dz + rcut)/grid_space) + 2
         iz_max = min(iz_max, nz)
-
+        
         for ix = ix_min:ix_max
             for iy = iy_min:iy_max
                 for iz = iz_min:iz_max
@@ -516,7 +561,7 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     ligand2_rotated = rotate(ligand2, quaternion)
     assign_shape_complementarity!(grid_LSC, ligand2_rotated, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
     #grid_LSC .= grid_LSC[end:-1:1, end:-1:1, end:-1:1]
-
+    
     if CUDA.functional()
         grid_RSC_gpu = cu(grid_RSC)
         grid_LSC_gpu = cu(grid_LSC)
@@ -562,27 +607,27 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     # generate grid coordinates for receptor
     receptor2, _dummy = decenter(receptor)
     ligand2, _dummy = decenter(ligand)
-
+    
     x_min, x_max = minimum(ligand2.xyz[iframe, 1:3:end]), maximum(ligand2.xyz[iframe, 1:3:end])
     y_min, y_max = minimum(ligand2.xyz[iframe, 2:3:end]), maximum(ligand2.xyz[iframe, 2:3:end])
     z_min, z_max = minimum(ligand2.xyz[iframe, 3:3:end]), maximum(ligand2.xyz[iframe, 3:3:end])
     size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
     size_ligand = size_ligand*2
-
+    
     x_min = minimum(receptor2.xyz[iframe, 1:3:end]) - size_ligand - grid_space
     y_min = minimum(receptor2.xyz[iframe, 2:3:end]) - size_ligand - grid_space
     z_min = minimum(receptor2.xyz[iframe, 3:3:end]) - size_ligand - grid_space
-
+    
     x_max = maximum(receptor2.xyz[iframe, 1:3:end]) + size_ligand + grid_space
     y_max = maximum(receptor2.xyz[iframe, 2:3:end]) + size_ligand + grid_space
     z_max = maximum(receptor2.xyz[iframe, 3:3:end]) + size_ligand + grid_space
-
+    
     x_grid = collect(x_min:grid_space:x_max)
     y_grid = collect(y_min:grid_space:y_max)
     z_grid = collect(z_min:grid_space:z_max)
-
+    
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
-
+    
     # shape complementarity of receptor
     iatom_surface = receptor2.sasa .> 1.0
     iatom_core = .!iatom_surface
@@ -593,10 +638,10 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut2[iatom_core] .= -1.0
     rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
     rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
-
+    
     grid_RSC = zeros(complex(T), nx, ny, nz)
     assign_shape_complementarity!(grid_RSC, receptor2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-
+    
     # shape complementarity of ligand
     iatom_surface = ligand2.sasa .> 1.0
     iatom_core = .!iatom_surface
@@ -608,7 +653,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
     
     grid_LSC = zeros(complex(T), nx, ny, nz)
-
+    
     # compute score with FFT
     nq = size(quaternions, 1)
     s = @showprogress pmap(q -> compute_docking_score_with_fft(quaternions[q, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, q), 1:nq)
@@ -619,11 +664,11 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     end
     sort!(result_tops, rev=true)
     resize!(result_tops, tops)
-
+    
     score_tops = zeros(T, tops)
     trans_tops = zeros(Int64, tops, 3)
     quate_tops = zeros(Float64, tops, 4)
-
+    
     for t in 1:tops
         score_tops[t] = result_tops[t][1]
         trans_tops[t, 1] = result_tops[t][2]
@@ -631,7 +676,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
         trans_tops[t, 3] = result_tops[t][4]
         quate_tops[t, :] .= quaternions[result_tops[t][5], :]
     end
-
+    
     itop = 1
     ligand_return = rotate(ligand2, quate_tops[itop, :])
     dx = (trans_tops[itop, 1]-1) * grid_space
@@ -649,7 +694,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
     ligand_return.xyz[iframe, 1:3:end] .+= dx
     ligand_return.xyz[iframe, 2:3:end] .+= dy
     ligand_return.xyz[iframe, 3:3:end] .+= dz
-
+    
     for itop = 2:tops
         ligand_tmp = rotate(ligand2, quate_tops[itop, :])
         dx = (trans_tops[itop, 1]-1) * grid_space
@@ -669,7 +714,7 @@ function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions;
         ligand_tmp.xyz[iframe, 3:3:end] .+= dz
         ligand_return = [ligand_return; ligand_tmp]
     end
-
+    
     return (receptor=receptor2, ligand=ligand_return, score=score_tops, grid_RSC=grid_RSC, grid_LSC=grid_LSC)
 end
 
@@ -677,28 +722,28 @@ end
 function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:20.0, grid_space=1.2, iframe=1, tops=10, nfold=3) where {T, U}
     # generate grid coordinates for receptor
     receptor2, _dummy = decenter(receptor)
-
+    
     @show "step 1"
     x_min, x_max = minimum(receptor2.xyz[iframe, 1:3:end]), maximum(receptor2.xyz[iframe, 1:3:end])
     y_min, y_max = minimum(receptor2.xyz[iframe, 2:3:end]), maximum(receptor2.xyz[iframe, 2:3:end])
     z_min, z_max = minimum(receptor2.xyz[iframe, 3:3:end]), maximum(receptor2.xyz[iframe, 3:3:end])
     size_receptor = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
-
+    
     x_min = minimum(receptor2.xyz[iframe, 1:3:end]) - size_receptor - grid_space
     y_min = minimum(receptor2.xyz[iframe, 2:3:end]) - size_receptor - grid_space
     z_min = minimum(receptor2.xyz[iframe, 3:3:end]) - size_receptor - grid_space
-
+    
     x_max = maximum(receptor2.xyz[iframe, 1:3:end]) + size_receptor + grid_space
     y_max = maximum(receptor2.xyz[iframe, 2:3:end]) + size_receptor + grid_space
     z_max = maximum(receptor2.xyz[iframe, 3:3:end]) + size_receptor + grid_space
-
+    
     x_grid = collect(x_min:grid_space:x_max)
     y_grid = collect(y_min:grid_space:y_max)
     z_grid = collect(z_min:grid_space:z_max)
-
+    
     @show "step 2"
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
-
+    
     # shape complementarity of receptor
     @show "step 3"
     iatom_surface = receptor2.sasa .> 1.0
@@ -710,13 +755,13 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
     rcut2[iatom_core] .= -1.0
     rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
     rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
-
+    
     @show nx ny nz
     @show "step 4"
     grid_RSC = zeros(complex(T), nx, ny, nz)
     grid_LSC = zeros(complex(T), nx, ny, nz)
     #assign_shape_complementarity!(grid_RSC, receptor2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-
+    
     @show "step 4.1"
     # compute score with FFT
     #nq = size(quaternions, 1)
@@ -765,6 +810,151 @@ function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:
     end
     ligand_return.xyz[iframe, 1:3:end] .+= dx
     ligand_return.xyz[iframe, 2:3:end] .+= dy
-
+    
     return (receptor=receptor_best, ligand=ligand_return, score=score_best)
+end
+
+function docking_by_electrostatic_energy(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
+    
+    # generate grid coordinates of receptor
+    decenter!(receptor)
+    decenter!(ligand)
+    
+    # determine size of ligand
+    x_min = minimum(ligand.xyz[iframe, 1:3:end])
+    y_min = minimum(ligand.xyz[iframe, 2:3:end])
+    z_min = minimum(ligand.xyz[iframe, 3:3:end])
+    x_max = maximum(ligand.xyz[iframe, 1:3:end])
+    y_max = maximum(ligand.xyz[iframe, 2:3:end])
+    z_max = maximum(ligand.xyz[iframe, 3:3:end])
+    size_ligand = sqrt((x_max-x_min)^2 + (y_max-y_min)^2 + (z_max-z_min)^2)
+    
+    # extension grid of receptor using size of ligand
+    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
+    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
+    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
+    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
+    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
+    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
+    
+    x_grid = collect(x_min:grid_space:x_max)
+    y_grid = collect(y_min:grid_space:y_max)
+    z_grid = collect(z_min:grid_space:z_max)
+    
+    nx = length(x_grid)
+    ny = length(y_grid)
+    nz = length(z_grid)
+    
+    grid_elec = zeros(T, nx, ny, nz)      
+    # assign ace score for RDS
+    for iatom = 1:receptor.natom
+        # create atom coordinates of receptor
+        x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
+        y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
+        z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
+        
+        # determin Real part of RDS
+        rcut = 20.0
+        ix_min = findfirst(abs.(x_atom .- x_grid) .< rcut)
+        iy_min = findfirst(abs.(y_atom .- y_grid) .< rcut)
+        iz_min = findfirst(abs.(z_atom .- z_grid) .< rcut)
+        ix_max = findlast(abs.(x_atom .- x_grid) .< rcut)
+        iy_max = findlast(abs.(y_atom .- y_grid) .< rcut)
+        iz_max = findlast(abs.(z_atom .- z_grid) .< rcut)
+        
+        # ６Åの判別（まだ条件分岐をつくってないので注意）    
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    dist = sqrt((x_atom - x_grid[ix])^2 + (y_atom - y_grid[iy])^2 + (z_atom - z_grid[iz])^2)
+                    if dist < 2.0
+                        grid_elec[ix, iy, iz] += 0.0
+                    elseif dist < 6.0
+                        dielec = 4.0
+                        grid_elec[ix, iy, iz] += receptor.charge[iatom] / (dielec * dist^2)
+                    elseif dist < 8.0
+                        dielec = 38.0*dist - 224.0
+                        grid_elec[ix, iy, iz] += receptor.charge[iatom] / (dielec * dist^2)
+                    else
+                        dielec = 80.0
+                        grid_elec[ix, iy, iz] += receptor.charge[iatom] / (dielec * dist^2)
+                    end
+                end
+            end
+        end
+    end
+    
+    for iatom = 1:receptor.natom
+        if receptor.radius[iatom] > 1.0
+            rcut = receptor.radius[iatom] * sqrt(0.8)
+        else
+            rcut = receptor.radius[iatom] * sqrt(1.5)
+        end
+        
+        x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
+        y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
+        z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
+        
+        ix_min = findfirst(abs.(x_atom .- x_grid) .< rcut)
+        iy_min = findfirst(abs.(y_atom .- y_grid) .< rcut)
+        iz_min = findfirst(abs.(z_atom .- z_grid) .< rcut)
+        ix_max = findlast(abs.(x_atom .- x_grid) .< rcut)
+        iy_max = findlast(abs.(y_atom .- y_grid) .< rcut)
+        iz_max = findlast(abs.(z_atom .- z_grid) .< rcut)
+        
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    grid_elec[ix, iy, iz] = 0.0
+                end
+            end
+        end
+    end  
+    
+    # generate grid coordinates of ligand at every rotation by quaternions
+    grid_charge = zeros(T, nx, ny, nz)
+    score = similar(grid_charge)
+    nq = size(quaternions, 1)
+    @showprogress for iq = 1:nq
+        grid_charge .= 0.0
+        
+        # rotate ligand by quaternions
+        ligand_rotated = rotate(ligand, quaternions[iq, :])
+        
+        # assign ace score for LDS
+        for iatom = 1:ligand_rotated.natom
+            
+            # create atom coordinates of ligand
+            x_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+1]
+            y_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+2]
+            z_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+3]
+            
+            # invert atoms coordinates into grid coordinates
+            ix_min = floor(Int, (x_atom - x_grid[1]) / grid_space)
+            iy_min = floor(Int, (y_atom - y_grid[1]) / grid_space)
+            iz_min = floor(Int, (z_atom - z_grid[1]) / grid_space)
+            
+            a = x_atom - x_grid[ix_min] - (0.5*grid_space)
+            b = y_atom - y_grid[iy_min] - (0.5*grid_space)
+            c = z_atom - z_grid[iz_min] - (0.5*grid_space)
+            
+            for ix = 1:2
+                for iy = 1:2
+                    for iz = 1:2
+                        X = (-1)^ix * (0.5*grid_space)
+                        Y = (-1)^iy * (0.5*grid_space)
+                        Z = (-1)^iz * (0.5*grid_space)
+                        weight = (X + a)*(Y + b)*(Z + c) / (X*Y*Z) / 8.0
+                        grid_charge[ix_min+ix-1, iy_min+iy-1, iz_min+iz-1] = weight * ligand.charge[iatom]
+                    end
+                end
+            end
+        end
+        
+        # compute elec socre with FFT
+        t = ifft(fft(grid_elec) .* conj.(fft(conj.(grid_charge))))
+        score = real(t)
+    end
+    
+    return score
 end
