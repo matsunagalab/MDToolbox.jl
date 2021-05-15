@@ -19,6 +19,10 @@ Some functions have been imported to this package from our old MATLAB/Octave too
 
 In preparation
 
+## License
+
+MDToolbox.jl is licensed under the BSD 3-Clause License.
+
 ## Contents
 
 ```@contents
@@ -35,8 +39,7 @@ Pages = ["installation.md",
         "wham.md", 
         "mbar.md", 
         "msm.md", 
-        "workflow_for_developers.md", 
-        "license.md"]
+        "workflow_for_developers.md"]
 Depth = 2
 ```
 
