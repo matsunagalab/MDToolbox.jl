@@ -217,9 +217,9 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
                 blocksize_4dims = read(io, Int32)
             end
             # get data
-            x[iframe, 1:3:end] .= crd_x[index2];
-            y[iframe, 1:3:end] .= crd_y[index2];
-            z[iframe, 1:3:end] .= crd_z[index2];
+            xyz[iframe, 1:3:end] .= crd_x[index2];
+            xyz[iframe, 2:3:end] .= crd_y[index2];
+            xyz[iframe, 3:3:end] .= crd_z[index2];
             if header_ischarmm_extrablock == true
                 boxsize[iframe, :] = dummy[[1 3 6]];
             end
