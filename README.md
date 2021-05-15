@@ -13,7 +13,7 @@ Julia version 1.6 or later is required.
 $ julia
 julia> 
 # enter the package mode by pressing ]
-pkg> develop MDToolbox
+pkg> add MDToolbox
 # return to the REPL mode by pressing BACKSPACE or DELETE
 julia> using MDToolbox
 ```
