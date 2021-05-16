@@ -309,6 +309,10 @@ function afmize!(tip::Matrix, config::AfmizeConfig)
     return 0
 end
 
+"""
+the following codes are licensed under the MIT license (Copyright (c) 2018-2021 Tohru Niina), see LICENSE.md
+"""
+
 function AfmizeConfig(r::Float64)
     return AfmizeConfig(10.0 * (pi / 180),
                         r,

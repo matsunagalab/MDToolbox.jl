@@ -23,8 +23,8 @@ using Base.Threads
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, to3, select_atom
 export mdload, mdsave, readdcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readcrd
-export centerofmass, decenter, decenter!, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
-export rotate, rotate!, rotate_with_matrix
+export centerofmass, decenter, decenter!, orient!
+export rotate, rotate!, rotate_with_matrix, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
 export compute_distance, compute_distancemap, compute_contactmap, compute_angle, compute_dihedral
 export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
 export clusterkcenters, compute_cov, rsvd, pca, tica

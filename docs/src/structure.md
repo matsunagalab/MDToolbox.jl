@@ -13,6 +13,10 @@ decenter!(ta::TrjArray{T, U}; isweight::Bool=true, index::AbstractVector=Vector{
 ```
 
 ```@docs
+orient!(ta::TrjArray{T, U}) where {T, U}
+```
+
+```@docs
 rotate(ta::TrjArray{T, U}, quater::AbstractVector{T}) where {T, U}
 ```
 

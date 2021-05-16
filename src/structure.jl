@@ -121,6 +121,61 @@ function decenter!(ta::TrjArray{T, U}; isweight::Bool=true,
     nothing
 end
 
+"""
+    orient!(ta::TrjArray)
+
+Orient the molecule using its principal axes of inertia. 
+
+# Example
+```julia-repl
+julia> ta = mdload("ak.pdb")
+julia> orient!(ta)
+```
+"""
+function orient!(ta::TrjArray{T, U}) where {T, U}
+    natom = ta.natom
+    natom3 = natom*3
+    decenter!(ta)
+    if isempty(ta.mass)
+        mass = ones(T, ta.natom)
+    else
+        mass = ta.mass
+    end
+
+    I = zeros(T, 3, 3)
+    for iframe = 1:ta.nframe
+        x = view(ta.xyz, iframe, 1:3:natom3)
+        y = view(ta.xyz, iframe, 2:3:natom3)
+        z = view(ta.xyz, iframe, 3:3:natom3)
+
+        I[1, 1] = sum(mass.*(y.^2 + z.^2));
+        I[2, 2] = sum(mass.*(x.^2 + z.^2));
+        I[3, 3] = sum(mass.*(x.^2 + y.^2));
+        
+        I[1, 2] = - sum(mass.*(x.*y));
+        I[2, 1] = I[1, 2]
+        
+        I[1, 3] = - sum(mass.*(x.*z));
+        I[3, 1] = I[1, 3]
+        
+        I[2, 3] = - sum(mass.*(y.*z));
+        I[3, 2] = I[2, 3]
+
+        F = svd(I)
+        p_axis = F.Vt[end:-1:1, :]; #z-axis has the largest inertia
+
+        # check reflection
+        if det(p_axis) < 0.0
+            p_axis[1, :] .= - p_axis[1, :]
+        end
+
+        # project onto the principal axis of inertia
+        proj = p_axis * reshape(ta.xyz[iframe, :], 3, natom)
+        ta.xyz[iframe, 1:3:end] .= proj[1, :]
+        ta.xyz[iframe, 2:3:end] .= proj[2, :]
+        ta.xyz[iframe, 3:3:end] .= proj[3, :]
+    end
+end
 
 ###### superimpose #################
 function innerproduct(iframe::U, ref_xyz::Matrix{T}, ta_xyz::Matrix{T},

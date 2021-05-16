@@ -1,33 +1,33 @@
 function get_atom_type(ta)
     atom_type = Array{String}(undef, ta.natom)
     ace_score = Array{Float64}(undef, ta.natom)
-    
+
     for iatom = 1:ta.natom
         # ATOM TYPE "N"
         if ta.atomname[iatom] == "N"
             atom_type[iatom] = "N"
             ace_score[iatom] = -0.495
-            
+
             # ATOM TYPE "C"
         elseif ta.atomname[iatom] == "C"
             atom_type[iatom] = "C"
             ace_score[iatom] = -0.464
-            
+
             # ATOM TYPE "O"
         elseif ta.atomname[iatom] == "O" || ta.atomname[iatom] == "OXT"
             atom_type[iatom] = "O"
             ace_score[iatom] = -0.079
-            
+
             # ATOM TYPE "GCA"
         elseif ta.resname[iatom] == "GLY" && ta.atomname[iatom] == "CA"
             atom_type[iatom] = "GCA"
             ace_score[iatom] = -0.008
-            
+
             # ATOM TYPE "CA"
         elseif ta.atomname[iatom] == "CA"
             atom_type[iatom] = "CA"
             ace_score[iatom] = -0.553
-            
+
             # ATOM TYPE "CB"
         elseif ta.resname[iatom] ==  "ALA" && ta.atomname[iatom] == "CB"
             atom_type[iatom] = "CB"
@@ -89,7 +89,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CB"
             atom_type[iatom] = "CB"
             ace_score[iatom] = -0.353
-            
+
             # ATOM TYPE "KNZ"
         elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CE"
             atom_type[iatom] = "KNZ"
@@ -97,12 +97,12 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "NZ"
             atom_type[iatom] = "KNZ"
             ace_score[iatom] = 1.334
-            
+
             # ATOM TYPE "KCD"
         elseif ta.resname[iatom] ==  "LYS" && ta.atomname[iatom] == "CD"
             atom_type[iatom] = "KCD"
             ace_score[iatom] = 1.046
-            
+
             # ATOM TYPE "DOD"
         elseif ta.resname[iatom] ==  "ASP" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "DOD"
@@ -122,7 +122,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "GLU" && ta.atomname[iatom] == "OE2"
             atom_type[iatom] = "DOD"
             ace_score[iatom] = 0.933
-            
+
             # ATOM TYPE "RNH"
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CZ"
             atom_type[iatom] = "RNH"
@@ -133,7 +133,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NH2"
             atom_type[iatom] = "RNH"
             ace_score[iatom] = 0.726
-            
+
             # ATOM TYPE "NND"
         elseif ta.resname[iatom] ==  "ASN" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "NND"
@@ -153,7 +153,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "GLN" && ta.atomname[iatom] == "NE2"
             atom_type[iatom] = "NND"
             ace_score[iatom] = 0.693
-            
+
             # ATOM TYPE "RNE"
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CD"
             atom_type[iatom] = "RNE"
@@ -161,7 +161,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "NE"
             atom_type[iatom] = "RNE"
             ace_score[iatom] = 0.606
-            
+
             # ATOM TYPE "SOG"
         elseif ta.resname[iatom] ==  "SER" && ta.atomname[iatom] == "CB"
             atom_type[iatom] = "SOG"
@@ -175,7 +175,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "OH"
             atom_type[iatom] = "SOG"
             ace_score[iatom] = 0.232
-            
+
             # ATOM TYPE "HNE"
         elseif ta.resname[iatom] ==  "HIS" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "HNE"
@@ -195,7 +195,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TRP" && ta.atomname[iatom] == "NE1"
             atom_type[iatom] = "HNE"
             ace_score[iatom] = 0.061
-            
+
             # ATOM TYPE "YCZ"
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CE1"
             atom_type[iatom] = "YCZ"
@@ -206,7 +206,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CZ"
             atom_type[iatom] = "YCZ"
             ace_score[iatom] = -0.289
-            
+
             # ATOM TYPE "FCZ"
         elseif ta.resname[iatom] ==  "ARG" && ta.atomname[iatom] == "CG"
             atom_type[iatom] = "FCZ"
@@ -286,7 +286,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "TYR" && ta.atomname[iatom] == "CD2"
             atom_type[iatom] = "FCZ"
             ace_score[iatom] = -0.432
-            
+
             # ATOM TYPE "LCD"
         elseif ta.resname[iatom] ==  "ILE" && ta.atomname[iatom] == "CG2"
             atom_type[iatom] = "LCD"
@@ -312,7 +312,7 @@ function get_atom_type(ta)
         elseif ta.resname[iatom] ==  "VAL" && ta.atomname[iatom] == "CG2"
             atom_type[iatom] = "LCD"
             ace_score[iatom] = -0.987
-            
+
             # ATOM TYPE "CSG"
         elseif ta.resname[iatom] ==  "CYS" && ta.atomname[iatom] == "SG"
             atom_type[iatom] = "CSG"
