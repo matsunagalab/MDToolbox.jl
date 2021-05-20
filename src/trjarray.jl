@@ -22,6 +22,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
     charge::AbstractArray{T}
     sasa::AbstractArray{T}
     ace_score::AbstractArray{T}
+    atom_type::AbstractArray{T}
     list_bond::AbstractArray{U}
     list_angle::AbstractArray{U}
     list_dihedral::AbstractArray{U}
@@ -30,7 +31,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
     natom::Int64
     nframe::Int64
 
-    function TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score,
+    function TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score, atom_type,
                       list_bond, list_angle, list_dihedral, list_improper, list_cmap) where {T, U}
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
@@ -51,7 +52,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
 
         # check size and define natom
         natom = 0
-        vec_collection = [chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score]
+        vec_collection = [chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score, atom_type]
         if !isempty(xyz)
             natom = U(size(xyz, 2)/3)
         else
@@ -72,7 +73,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
         end
         natom = U(natom)
 
-        return new(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score,
+        return new(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score, atom_type,
                    list_bond, list_angle, list_dihedral, list_improper, list_cmap, natom, nframe)
     end
 end
@@ -83,11 +84,11 @@ function TrjArray{T, U}(;xyz = Matrix{T}(undef, 0, 0),
                   chainname = Vector{String}(undef, 0), chainid = Vector{U}(undef, 0),
                   resname = Vector{String}(undef, 0), resid = Vector{U}(undef, 0),
                   atomname = Vector{String}(undef, 0), atomid = Vector{U}(undef, 0),
-                  mass = Vector{T}(undef, 0), radius = Vector{T}(undef, 0), charge = Vector{T}(undef, 0), sasa = Vector{T}(undef, 0), ace_score = Vector{T}(undef, 0),
+                  mass = Vector{T}(undef, 0), radius = Vector{T}(undef, 0), charge = Vector{T}(undef, 0), sasa = Vector{T}(undef, 0), ace_score = Vector{T}(undef, 0), atom_type = Vector{T}(undef, 0),
                   list_bond = Matrix{U}(undef, 0, 0), list_angle = Matrix{U}(undef, 0, 0),
                   list_dihedral = Matrix{U}(undef, 0, 0), list_improper = Matrix{U}(undef, 0, 0),
                   list_cmap = Matrix{U}(undef, 0, 0)) where {T, U}
-    TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score,
+    TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomid, mass, radius, charge, sasa, ace_score, atom_type, 
              list_bond, list_angle, list_dihedral, list_improper, list_cmap)
 end
 
@@ -96,7 +97,7 @@ TrjArray(ta::TrjArray{T, U}; xyz = nothing,
     chainname = nothing, chainid = nothing,
     resname = nothing, resid = nothing,
     atomname = nothing, atomid = nothing,
-    mass = nothing, radius = nothing, charge = nothing, sasa = nothing, ace_score = nothing, 
+    mass = nothing, radius = nothing, charge = nothing, sasa = nothing, ace_score = nothing, atom_type = nothing, 
     list_bond = nothing, list_angle = nothing,
     list_dihedral = nothing, list_improper = nothing,
     list_cmap = nothing) where {T, U} = TrjArray{T, U}(
@@ -113,6 +114,7 @@ TrjArray(ta::TrjArray{T, U}; xyz = nothing,
         charge = isnothing(charge) ? ta.charge : charge,
         sasa = isnothing(sasa) ? ta.sasa : sasa,
         ace_score = isnothing(ace_score) ? ta.ace_score : ace_score,
+        atom_type = isnothing(atom_type) ? ta.atom_type : atom_type,
         list_bond = isnothing(list_bond) ? ta.list_bond : list_bond, 
         list_angle = isnothing(list_angle) ? ta.list_angle : list_angle, 
         list_dihedral = isnothing(list_dihedral) ? ta.list_dihedral : list_dihedral, 
@@ -124,7 +126,7 @@ TrjArray(xyz::AbstractArray{T}, boxsize::AbstractArray{T}, ta::TrjArray{T, U}) w
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
-                      mass = ta.mass, radius = ta.radius, charge = ta.charge, sasa = ta.sasa, ace_score = ta.ace_score,
+                      mass = ta.mass, radius = ta.radius, charge = ta.charge, sasa = ta.sasa, ace_score = ta.ace_score, atom_type = ta.atom_type, 
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
                       list_cmap = ta.list_cmap)
@@ -134,7 +136,7 @@ TrjArray(xyz::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
                       atomname = ta.atomname, atomid = ta.atomid,
-                      mass = ta.mass, radius = ta.radius, charge = ta.charge, sasa = ta.sasa, ace_score = ta.ace_score,
+                      mass = ta.mass, radius = ta.radius, charge = ta.charge, sasa = ta.sasa, ace_score = ta.ace_score, atom_type = ta.atom_type, 
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
                       list_cmap = ta.list_cmap)
@@ -247,6 +249,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::Int) where {T, U} = TrjArray{T, U}(
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r:r],
              ace_score = isempty(ta.ace_score) ? ta.ace_score : ta.ace_score[r:r],
+             atom_type = isempty(ta.atom_type) ? ta.atom_type : ta.atom_type[r:r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r:r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r:r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r:r),
@@ -278,6 +281,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::UnitRange{Int}) where {T, U} = TrjArray
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r],
              ace_score = isempty(ta.ace_score) ? ta.ace_score : ta.ace_score[r],
+             atom_type = isempty(ta.atom_type) ? ta.atom_type : ta.atom_type[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
@@ -310,6 +314,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{S}) where {T, U, S <: In
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r],
              ace_score = isempty(ta.ace_score) ? ta.ace_score : ta.ace_score[r],
+             atom_type = isempty(ta.atom_type) ? ta.atom_type : ta.atom_type[r], 
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
@@ -341,6 +346,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r],
              ace_score = isempty(ta.ace_score) ? ta.ace_score : ta.ace_score[r],
+             atom_type = isempty(ta.atom_type) ? ta.atom_type : ta.atom_type[r],
              list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
              list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
              list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
@@ -540,7 +546,7 @@ copy(ta::TrjArray)::TrjArray =
              ta.chainname, ta.chainid,
              ta.resname, ta.resid,
              ta.atomname, ta.atomid,
-             ta.mass, ta.radius, ta.charge, ta.sasa, ta.ace_score, 
+             ta.mass, ta.radius, ta.charge, ta.sasa, ta.ace_score, ta.atom_type,
              ta.list_bond, ta.list_angle, ta.list_dihedral, ta.list_improper, ta.list_cmap)
 
 ###### accessors to field values #################
