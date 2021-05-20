@@ -1,4 +1,4 @@
-function get_atom_type_with_ace_score(ta::TrjArray{T,U}) where {T,U}
+function get_ace_score(ta::TrjArray{T,U}) where {T,U}
     ace_score = Array{T}(undef, ta.natom)
     atom_type = Array{String}(undef, ta.natom)
     
@@ -323,7 +323,7 @@ function get_atom_type_with_ace_score(ta::TrjArray{T,U}) where {T,U}
             println("error: faled to assign atom type " * ta.atomname[iatom] * "-" * ta.resname[iatom])
         end
     end
-    return TrjArray(ta, ace_score=ace_score, atom_type=atom_type)
+    return TrjArray(ta, ace_score=ace_score)
 end
 
 
@@ -369,14 +369,14 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
         z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
 
       # calculate the index 
-        ix_min = findfirst(abs.(x_atom .- x_grid) .<= 6.0)
-        iy_min = findfirst(abs.(y_atom .- y_grid) .<= 6.0)
-        iz_min = findfirst(abs.(z_atom .- z_grid) .<= 6.0)
-        ix_max = findlast(abs.(x_atom .- x_grid)  .<= 6.0)
-        iy_max = findlast(abs.(y_atom .- y_grid)  .<= 6.0)
-        iz_max = findlast(abs.(z_atom .- z_grid)  .<= 6.0)   
+        ix_min = argmin(abs.(x_atom .- x_grid) .<= 6.0)
+        iy_min = argmin(abs.(y_atom .- y_grid) .<= 6.0)
+        iz_min = argmin(abs.(z_atom .- z_grid) .<= 6.0)
+        ix_max = argmax(abs.(x_atom .- x_grid) .<= 6.0)
+        iy_max = argmax(abs.(y_atom .- y_grid) .<= 6.0)
+        iz_max = argmax(abs.(z_atom .- z_grid) .<= 6.0)   
 
-      # assign a ACE socre of the atom to the Real portion of RDS
+      # assign a ACE socre of the atom to the grid point within 6A of Real portion of RDS
         for ix = ix_min:ix_max
             for iy = iy_min:iy_max
                 for iz = iz_min:iz_max
@@ -388,12 +388,12 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             end
         end
         
-      # convert atom coordinates into grid coordinates
+      # detect a nearest grid point
         x = argmin(abs.(x_atom .- x_grid))
         y = argmin(abs.(y_atom .- y_grid))
         z = argmin(abs.(z_atom .- z_grid))
 
-      # assign 1 to the Imag part of RDS
+      # assign 1 to the nearest grid point of Imag portion of RDS
         grid_RDS[x, y, z] += 1.0im
     end
     
