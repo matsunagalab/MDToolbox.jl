@@ -391,12 +391,10 @@ function fastCalcRMSDAndRotation(A::Vector{T}, E0::T, wsum_inv::T) where {T}
     return r1, rot
 end
 
-function applyrotation!(iframe, x, y, z, ta2, rot)
-    for i in 1:ta2.natom
-        @inbounds x[iframe, i] = rot[1] * ta2.xyz[iframe, 3*(i-1)+1] + rot[2] * ta2.xyz[iframe, 3*(i-1)+2] + rot[3] * ta2.xyz[iframe, 3*(i-1)+3]
-        @inbounds y[iframe, i] = rot[4] * ta2.xyz[iframe, 3*(i-1)+1] + rot[5] * ta2.xyz[iframe, 3*(i-1)+2] + rot[6] * ta2.xyz[iframe, 3*(i-1)+3]
-        @inbounds z[iframe, i] = rot[7] * ta2.xyz[iframe, 3*(i-1)+1] + rot[8] * ta2.xyz[iframe, 3*(i-1)+2] + rot[9] * ta2.xyz[iframe, 3*(i-1)+3]
-    end
+function applyrotation!(iframe::U, x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta2::TrjArray{T, U}, rot::Vector{T}) where {T, U}
+    x[iframe, :] .= rot[1] .* ta2.xyz[iframe, 1:3:end] .+ rot[2] .* ta2.xyz[iframe, 2:3:end] .+ rot[3] .* ta2.xyz[iframe, 3:3:end]
+    y[iframe, :] .= rot[4] .* ta2.xyz[iframe, 1:3:end] .+ rot[5] .* ta2.xyz[iframe, 2:3:end] .+ rot[6] .* ta2.xyz[iframe, 3:3:end]
+    z[iframe, :] .= rot[7] .* ta2.xyz[iframe, 1:3:end] .+ rot[8] .* ta2.xyz[iframe, 2:3:end] .+ rot[9] .* ta2.xyz[iframe, 3:3:end]
 end
 
 """
