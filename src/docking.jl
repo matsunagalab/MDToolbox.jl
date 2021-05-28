@@ -875,7 +875,6 @@ function rotate_with_matrix_gpu!(x, y, z, R)
         y[iatom] = y_new
         z[iatom] = z_new
     end
-    sync_threads()
     return
 end
 
@@ -931,12 +930,24 @@ function rotate_gpu!(x, y, z, q)
     return nothing
 end
 
-function filter_tops!(score_tops, cartesian_tops, score)
-    tops = size(score)
-    if any(score .> minimum(score_tops))
-        id = findall(score .> minimum(score_tops))
-        sort!()
+function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
+    if any(score .> score_tops[tops+1])
+        c = findall(score .> score_tops[tops+1])
+        s = score[c]
+        if isempty(s)
+            return
+        end
+        nrows = length(s)
+        nrows = min(nrows, tops)
+        score_tops[(tops+1):(tops+nrows)] .= s[1:nrows]
+        cartesian_tops[(tops+1):(tops+nrows)] .= c[1:nrows]
+        iq_tops[(tops+1):(tops+nrows)] .= iq
+        id = sortperm(score_tops, rev=true)
+        score_tops .= score_tops[id]
+        cartesian_tops .= cartesian_tops[id]
+        iq_tops .= iq_tops[id]
     end
+    return
 end
 
 function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Matrix{T}; deg=15.0, grid_space=1.2, iframe=1, tops=10) where {T, U}
@@ -1027,6 +1038,10 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
     Ry = [1.0 0.0 0.0; 0.0 cos(theta) -sin(theta); 0.0 sin(theta) cos(theta)]
     Rz = [1.0 0.0 0.0; 0.0 cos(theta) -sin(theta); 0.0 sin(theta) cos(theta)]
 
+    score_tops = fill(typemin(eltype(Float32)), 2*tops)
+    cartesian_tops = Vector{CartesianIndex{3}}(undef, 2*tops)
+    iq_tops = fill(-1, 2*tops);
+
     println("step5: docking")
     if CUDA.functional()
         grid_RSC_d = cu(grid_RSC)
@@ -1046,22 +1061,25 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
         value_core_d = cu(value_core)
         value_surface_d = cu(value_surface)
 
-        nblocks = 100
+        nblocks = ceil(Int, length(x)/256)
 
         R_d = cu(Rx)
         t_d = similar(grid_RSC_d)
         score_d = real(t_d)
-        #quaternions_d = cu(quaternions)
-        for ideg = 1:ndeg
+        quaternions_d = cu(quaternions)
+        for iq = 1:size(quaternions, 1)
             x_d .= x_org
             y_d .= y_org
             z_d .= z_org
-            @time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_with_matrix_gpu!(x_d, y_d, z_d, R_d)
-            #@time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_gpu!(x_d, y_d, z_d, quaternions_d[iq, :])
-            @time CUDA.@sync @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
-            @time CUDA.@sync @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
-            @time t_d .= ifft(fft(grid_RSC_d) .* conj.(fft(conj.(grid_LSC_d))))
-            @time score_d .= real(t_d)
+            grid_LSC_d .= zero(eltype(grid_LSC_d))
+            #@time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_with_matrix_gpu!(x_d, y_d, z_d, R_d)
+            @cuda threads=256 blocks=nblocks rotate_gpu!(x_d, y_d, z_d, quaternions_d[iq, :])
+            @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
+            @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
+            t_d .= ifft(fft(grid_RSC_d) .* conj.(fft(conj.(grid_LSC_d))))
+            score_d .= real(t_d)
+
+            filter_tops!(score_tops, cartesian_tops, iq_tops, Array(score_d), iq, tops)
         end
         #score = Array(score_d)
     else
@@ -1069,7 +1087,30 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
         #score = real(t)
     end
 
-    grid_LSC = Array(grid_LSC_d)
+    ligand_init = deepcopy(ligand[iframe, :])
+    ligand_return = deepcopy(ligand[0, :])
+    for itop = 1:tops
+        iq = iq_tops[itop]
+        ligand_tmp = rotate(ligand_init, quaternions[iq, :])
+        dx = (cartesian_tops[itop][1]-1) * grid_space
+        if dx > (nx*grid_space / 2.0)
+            dx = dx - (nx*grid_space)
+        end
+        dy = (cartesian_tops[itop][2]-1) * grid_space
+        if dy > (ny*grid_space / 2.0)
+            dy = dy - (ny*grid_space)
+        end
+        dz = (cartesian_tops[itop][3]-1) * grid_space
+        if dz > (nz*grid_space / 2.0)
+            dz = dz - (nz*grid_space)
+        end
+        ligand_tmp.xyz[iframe, 1:3:end] .+= dx
+        ligand_tmp.xyz[iframe, 2:3:end] .+= dy
+        ligand_tmp.xyz[iframe, 3:3:end] .+= dz
+        ligand_return = [ligand_return; ligand_tmp]
+    end
+
+    return (receptor=receptor, ligand=ligand_return, score=score_tops, iq=iq_tops, cartesian=cartesian_tops, grid_RSC=grid_RSC, grid_LSC=grid_LSC)
 end
 
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
