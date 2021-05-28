@@ -939,8 +939,8 @@ function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
         end
         nrows = length(s)
         nrows = min(nrows, tops)
-        score_tops[(tops+1):(tops+nrows)] .= s[1:nrows]
-        cartesian_tops[(tops+1):(tops+nrows)] .= c[1:nrows]
+        score_tops[(tops+1):(tops+nrows)] .= Array(s[1:nrows])
+        cartesian_tops[(tops+1):(tops+nrows)] .= Array(c[1:nrows])
         iq_tops[(tops+1):(tops+nrows)] .= iq
         id = sortperm(score_tops, rev=true)
         score_tops .= score_tops[id]
@@ -1079,7 +1079,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
             t_d .= ifft(fft(grid_RSC_d) .* conj.(fft(conj.(grid_LSC_d))))
             score_d .= real(t_d)
 
-            filter_tops!(score_tops, cartesian_tops, iq_tops, Array(score_d), iq, tops)
+            filter_tops!(score_tops, cartesian_tops, iq_tops, score_d, iq, tops)
         end
         #score = Array(score_d)
     else
