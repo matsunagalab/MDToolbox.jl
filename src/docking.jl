@@ -603,6 +603,475 @@ function compute_docking_score_on_xyplane(grid_RSC, grid_LSC)
     return score[:, :, 1]
 end
 
+function spread_nearest!(grid, x, y, z, natom, grid_x, grid_y, grid_z, rcut)
+    T = eltype(grid)
+    grid .= zero(T)
+
+    for iatom = 1:natom
+        dx = x[iatom] .- grid_x
+        dy = y[iatom] .- grid_y
+        dz = z[iatom] .- grid_z
+        ix = argmin(abs.(dx))
+        iy = argmin(abs.(dy))
+        iz = argmin(abs.(dz))
+        grid[ix, iy, iz] += T(1)
+    end
+            
+    return
+end
+
+function spread_nearest_gpu!(grid, x, y, z, natom, grid_x, grid_y, grid_z)
+    T = eltype(grid)
+    ngid = gridDim().x*blockDim().x
+    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+
+    grid_x_min = grid_x[1]
+    grid_y_min = grid_y[1]
+    grid_z_min = grid_z[1]
+
+    grid_x_delta = grid_x[2] - grid_x[1]
+    grid_y_delta = grid_y[2] - grid_y[1]
+    grid_z_delta = grid_z[2] - grid_z[1]
+
+    grid_x_delta_half = grid_x_delta*0.5
+    grid_y_delta_half = grid_y_delta*0.5
+    grid_z_delta_half = grid_z_delta*0.5
+
+
+    ntile = ceil(Int, natom/ngid)
+
+    for itile = 1:ntile
+        iatom = ngid*(itile-1) + gid + 1
+        if iatom > natom
+            return nothing
+        end
+        atom_x = x[iatom]
+        atom_y = y[iatom]
+        atom_z = z[iatom]
+        
+        ix = ceil(Int, (atom_x - grid_x_min)/grid_x_delta + grid_x_delta_half) + 1
+        iy = ceil(Int, (atom_y - grid_y_min)/grid_y_delta + grid_y_delta_half) + 1
+        iz = ceil(Int, (atom_z - grid_z_min)/grid_z_delta + grid_z_delta_half) + 1
+        @atomic grid[ix,iy,iz] += T(1)
+    end
+
+    return nothing
+end
+
+function spread_neighbors_add!(grid, x, y, z, grid_x, grid_y, grid_z, rcut, charge)
+    T = eltype(grid)
+    natom = length(x)
+    nx, ny, nz = size(grid)
+
+    for iatom = 1:natom
+        for ix = 1:nx
+            dx = x[iatom] - grid_x[ix]
+            if abs(dx) > rcut[iatom]
+                continue
+            end
+            for iy = 1:ny
+                dy = y[iatom] - grid_y[iy]
+                if abs(dy) > rcut[iatom]
+                    continue
+                end
+                for iz = 1:nz
+                    dz = z[iatom] - grid_z[iz]
+                    if abs(dz) > rcut[iatom]
+                        continue
+                    end
+                    d = dx*dx + dy*dy + dz*dz
+                    if d < rcut[iatom]*rcut[iatom]
+                        grid[ix, iy, iz] += charge[iatom]
+                    end
+                end
+            end
+        end
+    end
+            
+    return
+end
+
+function spread_neighbors_add_gpu!(grid, x, y, z, grid_x, grid_y, grid_z, rcut, charge)
+    T = eltype(grid)
+    natom = length(x)
+    ngid = gridDim().x*blockDim().x
+    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+
+    grid_x_min = grid_x[1]
+    grid_y_min = grid_y[1]
+    grid_z_min = grid_z[1]
+
+    grid_x_delta = grid_x[2] - grid_x[1]
+    grid_y_delta = grid_y[2] - grid_y[1]
+    grid_z_delta = grid_z[2] - grid_z[1]
+
+    nx, ny, nz = size(grid)
+
+    ntile = ceil(Int, natom/ngid)
+
+    for itile = 1:ntile
+        iatom = ngid*(itile-1) + gid + 1
+        if iatom > natom
+            return
+        end
+        atom_x = x[iatom]
+        atom_y = y[iatom]
+        atom_z = z[iatom]
+        r = rcut[iatom]
+        r2 = r*r
+        c = charge[iatom]
+
+        ix_min = max(floor(Int, (atom_x - r - grid_x_min)/grid_x_delta) - 1, 1)
+        iy_min = max(floor(Int, (atom_y - r - grid_y_min)/grid_y_delta) - 1, 1)
+        iz_min = max(floor(Int, (atom_z - r - grid_z_min)/grid_z_delta) - 1, 1)
+
+        ix_max = min(floor(Int, (atom_x + r - grid_x_min)/grid_x_delta) + 2, nx)
+        iy_max = min(floor(Int, (atom_y + r - grid_y_min)/grid_y_delta) + 2, ny)
+        iz_max = min(floor(Int, (atom_z + r - grid_z_min)/grid_z_delta) + 2, nz)        
+
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    xx = grid_x_min + grid_x_delta*(ix-1)
+                    yy = grid_y_min + grid_y_delta*(iy-1)
+                    zz = grid_z_min + grid_z_delta*(iz-1)
+                    d = (atom_x - xx)^2 + (atom_y - yy)^2 + (atom_z - zz)^2
+                    if d < r2
+                        #@cuprintln("called")
+                        @atomic grid[ix,iy,iz] += c
+                    end
+                end
+            end
+        end
+    end
+
+    return
+end
+
+function spread_neighbors_substitute!(grid, x, y, z, grid_x, grid_y, grid_z, rcut, charge)
+    T = eltype(grid)
+    natom = length(x)
+    nx, ny, nz = size(grid)
+
+    for iatom = 1:natom
+        for ix = 1:nx
+            dx = x[iatom] - grid_x[ix]
+            if abs(dx) > rcut[iatom]
+                continue
+            end
+            for iy = 1:ny
+                dy = y[iatom] - grid_y[iy]
+                if abs(dy) > rcut[iatom]
+                    continue
+                end
+                for iz = 1:nz
+                    dz = z[iatom] - grid_z[iz]
+                    if abs(dz) > rcut[iatom]
+                        continue
+                    end
+                    d = dx*dx + dy*dy + dz*dz
+                    if d < rcut[iatom]*rcut[iatom]
+                        grid[ix, iy, iz] = charge[iatom]
+                    end
+                end
+            end
+        end
+    end
+            
+    return
+end
+
+function spread_neighbors_substitute_gpu!(grid, x, y, z, grid_x, grid_y, grid_z, rcut, charge)
+    T = eltype(grid)
+    natom = length(x)
+    ngid = gridDim().x*blockDim().x
+    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+
+    grid_x_min = grid_x[1]
+    grid_y_min = grid_y[1]
+    grid_z_min = grid_z[1]
+
+    grid_x_delta = grid_x[2] - grid_x[1]
+    grid_y_delta = grid_y[2] - grid_y[1]
+    grid_z_delta = grid_z[2] - grid_z[1]
+
+    nx, ny, nz = size(grid)
+
+    ntile = ceil(Int, natom/ngid)
+
+    for itile = 1:ntile
+        iatom = ngid*(itile-1) + gid + 1
+        if iatom > natom
+            return
+        end
+        atom_x = x[iatom]
+        atom_y = y[iatom]
+        atom_z = z[iatom]
+        r = rcut[iatom]
+        r2 = r*r
+        c = charge[iatom]
+
+        ix_min = max(floor(Int, (atom_x - r - grid_x_min)/grid_x_delta) - 1, 1)
+        iy_min = max(floor(Int, (atom_y - r - grid_y_min)/grid_y_delta) - 1, 1)
+        iz_min = max(floor(Int, (atom_z - r - grid_z_min)/grid_z_delta) - 1, 1)
+
+        ix_max = min(floor(Int, (atom_x + r - grid_x_min)/grid_x_delta) + 2, nx)
+        iy_max = min(floor(Int, (atom_y + r - grid_y_min)/grid_y_delta) + 2, ny)
+        iz_max = min(floor(Int, (atom_z + r - grid_z_min)/grid_z_delta) + 2, nz)        
+
+        for ix = ix_min:ix_max
+            for iy = iy_min:iy_max
+                for iz = iz_min:iz_max
+                    xx = grid_x_min + grid_x_delta*(ix-1)
+                    yy = grid_y_min + grid_y_delta*(iy-1)
+                    zz = grid_z_min + grid_z_delta*(iz-1)
+                    d = (atom_x - xx)^2 + (atom_y - yy)^2 + (atom_z - zz)^2
+                    if d < r2
+                        #@cuprintln("called")
+                        grid[ix,iy,iz] = c
+                    end
+                end
+            end
+        end
+    end
+
+    return
+end
+
+function rotate_with_matrix!(x, y, z, R)
+    natom = length(x)
+    for iatom = 1:natom
+        x_curr = x[iatom]
+        y_curr = y[iatom]
+        z_curr = z[iatom]
+        x_new = R[1, 1]*x_curr + R[1, 2]*y_curr + R[1, 3]*z_curr
+        y_new = R[2, 1]*x_curr + R[2, 2]*y_curr + R[2, 3]*z_curr
+        z_new = R[3, 1]*x_curr + R[3, 2]*y_curr + R[3, 3]*z_curr
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    return
+end
+
+function rotate_with_matrix_gpu!(x, y, z, R)
+    natom = length(x)
+    ngid = gridDim().x*blockDim().x
+    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+
+    ntile = ceil(Int, natom/ngid)
+    for itile = 1:ntile
+        iatom = ngid*(itile-1) + gid + 1
+        if iatom > natom
+            return
+        end
+        x_curr = x[iatom]
+        y_curr = y[iatom]
+        z_curr = z[iatom]
+        x_new = R[1, 1]*x_curr + R[1, 2]*y_curr + R[1, 3]*z_curr
+        y_new = R[2, 1]*x_curr + R[2, 2]*y_curr + R[2, 3]*z_curr
+        z_new = R[3, 1]*x_curr + R[3, 2]*y_curr + R[3, 3]*z_curr
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    sync_threads()
+    return
+end
+
+function rotate!(x, y, z, q::AbstractVector{T}) where {T, U}
+    r1 = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * quater[3]
+    r2 = 2.0 * (q[1] * q[2] + q[3] * q[4])
+    r3 = 2.0 * (q[1] * q[3] - q[2] * q[4])
+    r4 = 2.0 * (q[1] * q[2] - q[3] * q[4])
+    r5 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[3] * q[3]
+    r6 = 2.0 * (q[2] * q[3] + q[1] * q[4])
+    r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
+    r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
+    r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
+    for iatom = 1:natom
+        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
+        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
+        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    return nothing
+end
+
+function rotate_gpu!(x, y, z, q)
+    natom = length(x)
+    ngid = gridDim().x*blockDim().x
+    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+
+    r1 = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]
+    r2 = 2.0 * (q[1] * q[2] + q[3] * q[4])
+    r3 = 2.0 * (q[1] * q[3] - q[2] * q[4])
+    r4 = 2.0 * (q[1] * q[2] - q[3] * q[4])
+    r5 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[3] * q[3]
+    r6 = 2.0 * (q[2] * q[3] + q[1] * q[4])
+    r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
+    r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
+    r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
+
+    ntile = ceil(Int, natom/ngid)
+    for itile = 1:ntile
+        iatom = ngid*(itile-1) + gid + 1
+        if iatom > natom
+            return
+        end
+        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
+        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
+        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    return nothing
+end
+
+function filter_tops!(score_tops, cartesian_tops, score)
+    tops = size(score)
+    if any(score .> minimum(score_tops))
+        id = findall(score .> minimum(score_tops))
+        sort!()
+    end
+end
+
+function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Matrix{T}; deg=15.0, grid_space=1.2, iframe=1, tops=10) where {T, U}
+    decenter!(receptor)
+    decenter!(ligand)
+
+    # Assign atom radius
+    println("step1: assigning atom radius")
+    receptor = set_radius(receptor)
+    ligand = set_radius(ligand)    
+
+    # Solvent accessible surface
+    println("step2: computing SASA")
+    receptor = compute_sasa(receptor, 1.4)
+    ligand = compute_sasa(ligand, 1.4)
+
+    # Determine grid size and coordinates
+    println("step3: computing grid size and coordinates")
+    x_min, x_max = minimum(ligand.xyz[iframe, 1:3:end]), maximum(ligand.xyz[iframe, 1:3:end])
+    y_min, y_max = minimum(ligand.xyz[iframe, 2:3:end]), maximum(ligand.xyz[iframe, 2:3:end])
+    z_min, z_max = minimum(ligand.xyz[iframe, 3:3:end]), maximum(ligand.xyz[iframe, 3:3:end])
+    size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
+    size_ligand = size_ligand*2
+    
+    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
+    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
+    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
+    
+    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
+    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
+    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
+    
+    x_grid = collect(x_min:grid_space:x_max)
+    y_grid = collect(y_min:grid_space:y_max)
+    z_grid = collect(z_min:grid_space:z_max)
+    
+    nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
+
+    println("step4: assigning values to grid points")
+    # receptor grid: shape complementarity
+    grid_RSC = zeros(Complex{T}, (nx, ny, nz))
+
+    id_surface = receptor.sasa .> 1.0
+    id_core = .!id_surface
+
+    x = receptor.xyz[iframe, 1:3:end]
+    y = receptor.xyz[iframe, 2:3:end]
+    z = receptor.xyz[iframe, 3:3:end]
+    rcut = zeros(T, receptor.natom)
+    rcut[id_core] .= receptor.radius[id_core] .* sqrt(1.5)
+    rcut[id_surface] .= receptor.radius[id_surface] .* sqrt(0.8)
+    value_core = fill(Complex{T}(9im), receptor.natom)
+
+    x_surface = x[id_surface]
+    y_surface = y[id_surface]
+    z_surface = z[id_surface]
+    rcut_surface = receptor.radius[id_surface] .+ 3.4
+    value_surface = fill(Complex{T}(1.0), length(rcut_surface))
+    
+    spread_neighbors_substitute!(grid_RSC, x_surface, y_surface, z_surface, x_grid, y_grid, z_grid, rcut_surface, value_surface)
+    spread_neighbors_substitute!(grid_RSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
+
+    # receptor grid: shape complementarity
+    grid_LSC = zeros(Complex{T}, (nx, ny, nz))
+
+    id_surface = ligand.sasa .> 1.0
+    id_core = .!id_surface
+
+    x = ligand.xyz[iframe, 1:3:end]
+    y = ligand.xyz[iframe, 2:3:end]
+    z = ligand.xyz[iframe, 3:3:end]
+    rcut = zeros(T, ligand.natom)
+    rcut[id_core] .= ligand.radius[id_core] .* sqrt(1.5)
+    rcut[id_surface] .= ligand.radius[id_surface] .* sqrt(0.8)
+    value_core = fill(Complex{T}(9im), ligand.natom)
+    rcut_surface = ligand.radius[id_surface] .+ 3.4
+    value_surface = fill(Complex{T}(1.0), length(rcut_surface))
+
+    x_surface = x[id_surface]
+    y_surface = y[id_surface]
+    z_surface = z[id_surface]
+    spread_neighbors_substitute!(grid_LSC, x_surface, y_surface, z_surface, x_grid, y_grid, z_grid, rcut_surface, value_surface)
+    spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
+
+    ndeg = floor(Int, 360.0/deg)
+    theta = deg * (pi/180.0)
+    Rx = [1.0 0.0 0.0; 0.0 cos(theta) -sin(theta); 0.0 sin(theta) cos(theta)]
+    Ry = [1.0 0.0 0.0; 0.0 cos(theta) -sin(theta); 0.0 sin(theta) cos(theta)]
+    Rz = [1.0 0.0 0.0; 0.0 cos(theta) -sin(theta); 0.0 sin(theta) cos(theta)]
+
+    println("step5: docking")
+    if CUDA.functional()
+        grid_RSC_d = cu(grid_RSC)
+        grid_LSC_d = cu(grid_LSC)
+        x_grid_d = cu(x_grid)
+        y_grid_d = cu(y_grid)
+        z_grid_d = cu(z_grid)
+        id_surface_d = cu(id_surface)
+        x_org = cu(x)
+        y_org = cu(y)
+        z_org = cu(z)
+        x_d = cu(x)
+        y_d = cu(y)
+        z_d = cu(z)
+        rcut_d = cu(rcut)
+        rcut_surface_d = cu(rcut_surface)
+        value_core_d = cu(value_core)
+        value_surface_d = cu(value_surface)
+
+        nblocks = 100
+
+        R_d = cu(Rx)
+        t_d = similar(grid_RSC_d)
+        score_d = real(t_d)
+        #quaternions_d = cu(quaternions)
+        for ideg = 1:ndeg
+            x_d .= x_org
+            y_d .= y_org
+            z_d .= z_org
+            @time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_with_matrix_gpu!(x_d, y_d, z_d, R_d)
+            #@time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_gpu!(x_d, y_d, z_d, quaternions_d[iq, :])
+            @time CUDA.@sync @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
+            @time CUDA.@sync @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
+            @time t_d .= ifft(fft(grid_RSC_d) .* conj.(fft(conj.(grid_LSC_d))))
+            @time score_d .= real(t_d)
+        end
+        #score = Array(score_d)
+    else
+        #t = ifft(fft(grid_RSC) .* conj.(fft(conj.(grid_LSC))))
+        #score = real(t)
+    end
+
+    grid_LSC = Array(grid_LSC_d)
+end
+
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
     # generate grid coordinates for receptor
     receptor2, _dummy = decenter(receptor)
