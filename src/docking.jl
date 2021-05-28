@@ -340,7 +340,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     Lx_max = maximum(ligand.xyz[iframe, 1:3:end])
     Ly_max = maximum(ligand.xyz[iframe, 2:3:end])
     Lz_max = maximum(ligand.xyz[iframe, 3:3:end])
-    size_of_Ligand = sqrt((x_max-x_min)^2 + (y_max-y_min)^2 + (z_max-z_min)^2)
+    size_of_Ligand = sqrt((Lx_max-Lx_min)^2 + (Ly_max-Ly_min)^2 + (Lz_max-Lz_min)^2)
 
   # extension a box size using the size of Ligand
     x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_of_Ligand - grid_space
@@ -354,9 +354,9 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     y_grid = collect(y_min:grid_space:y_max)
     z_grid = collect(z_min:grid_space:z_max)
     
-    nx = length(x_grid)
-    ny = length(y_grid)
-    nz = length(z_grid)
+    @show nx = length(x_grid)
+    @show ny = length(y_grid)
+    @show nz = length(z_grid)
   # create grid coordinates of RDS and LDS with initialized
     grid_RDS = zeros(complex(T), nx, ny, nz)
     grid_LDS = zeros(complex(T), nx, ny, nz)  
@@ -368,7 +368,6 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
         y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
         z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
 
-      # calculate the index 
         ix_min = argmin(abs.(x_atom .- x_grid) .<= 6.0)
         iy_min = argmin(abs.(y_atom .- y_grid) .<= 6.0)
         iz_min = argmin(abs.(z_atom .- z_grid) .<= 6.0)
@@ -402,7 +401,7 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
     score_DS_max = Vector{T}(undef, nq)
     score_DS_min = Vector{T}(undef, nq)
     ret = []
-    for iq = 1:nq
+    @showprogress for iq = 1:nq
         grid_LDS .= 0.0 + 0.0im
         
       # rotate ligand by quaternions
@@ -410,24 +409,17 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
 
       # assign ace score for LDS
         for iatom = 1:ligand_rotated.natom
-
           # create atom coordinates of ligand
             x_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+1]
             y_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+2]
             z_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+3]
-            
-          # invert atoms coordinates into grid coordinates
-            x = argmin(abs.(x_atom .- x_grid))
-            y = argmin(abs.(y_atom .- y_grid))
-            z = argmin(abs.(z_atom .- z_grid))
-      
-          # determin Real part of LDS
-            ix_min = findfirst(abs.(x_atom .- x_grid) .< 6.0)
-            iy_min = findfirst(abs.(y_atom .- y_grid) .< 6.0)
-            iz_min = findfirst(abs.(z_atom .- z_grid) .< 6.0)
-            ix_max = findlast(abs.(x_atom .- x_grid) .< 6.0)
-            iy_max = findlast(abs.(y_atom .- y_grid) .< 6.0)
-            iz_max = findlast(abs.(z_atom .- z_grid) .< 6.0)
+          # assign a ACE score of the atom to the grid point within 6å of Imag portion of LDS
+            ix_min = argmin(abs.(x_atom .- x_grid) .< 6.0)
+            iy_min = argmin(abs.(y_atom .- y_grid) .< 6.0)
+            iz_min = argmin(abs.(z_atom .- z_grid) .< 6.0)
+            ix_max = argmax(abs.(x_atom .- x_grid) .< 6.0)
+            iy_max = argmax(abs.(y_atom .- y_grid) .< 6.0)
+            iz_max = argmax(abs.(z_atom .- z_grid) .< 6.0)
 
             for ix = ix_min:ix_max
                 for iy = iy_min:iy_max
@@ -439,8 +431,11 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
                     end
                 end
             end
-
-            # determine Imag part of LDS
+          # detect a nearest grid point
+            x = argmin(abs.(x_atom .- x_grid))
+            y = argmin(abs.(y_atom .- y_grid))
+            z = argmin(abs.(z_atom .- z_grid))
+          # assign 1 to the nearset grid point of Imag portion of LDS
             grid_LDS[x, y, z] += 1.0im
         end
 
@@ -459,6 +454,9 @@ function docking_by_desolvation_energy(receptor::TrjArray{T, U}, ligand::TrjArra
             score[id] = Inf
         end
     end
+
+    @show score_DS_min
+    @show score_DS_max
 
     sort!(ret, rev=false)
     resize!(ret, tops)
