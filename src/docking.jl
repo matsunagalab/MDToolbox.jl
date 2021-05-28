@@ -1067,7 +1067,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
         t_d = similar(grid_RSC_d)
         score_d = real(t_d)
         quaternions_d = cu(quaternions)
-        for iq = 1:size(quaternions, 1)
+        @showprogress for iq = 1:size(quaternions, 1)
             x_d .= x_org
             y_d .= y_org
             z_d .= z_org
