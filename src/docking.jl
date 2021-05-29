@@ -1022,7 +1022,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
     grid_RDS = zeros(Complex{T}, (nx, ny, nz))
     rcut_ds = fill(T(6.0), receptor.natom)
     spread_nearest!(grid_RDS, x, y, z, x_grid, y_grid, z_grid)
-    spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, - receptor.mass)
+    spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
 
     # ligand grid: shape complementarity
     grid_LSC = zeros(Complex{T}, (nx, ny, nz))
@@ -1050,7 +1050,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
     grid_LDS = zeros(Complex{T}, (nx, ny, nz))
     rcut_ds = fill(T(6.0), ligand.natom)
     spread_nearest!(grid_LDS, x, y, z, x_grid, y_grid, z_grid)
-    spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, - ligand.mass)
+    spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, ligand.mass)
 
     println("step7: docking")
     score_tops = fill(typemax(eltype(Float32)), 2*tops)
@@ -1109,7 +1109,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
             CUDA.@time @cuda threads=256 blocks=nblocks spread_nearest_gpu!(grid_LDS_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d)
             CUDA.@time @cuda threads=256 blocks=nblocks spread_neighbors_add_gpu!(grid_LDS_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_ds_d, ligand_mass_d)
             t_d .= 0.5 .* ifftshift(ifft(ifft(grid_RDS_d) .* fft(grid_LDS_d))) .* nxyz
-            score_ds_d .= imag(t_d)
+            score_ds_d .= - imag(t_d)
         
             # filter top scores
             #score_d .= score_sc_d
@@ -1152,7 +1152,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
             spread_nearest!(grid_LDS, x, y, z, x_grid, y_grid, z_grid)
             spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, ligand.mass)
             t .= 0.5 .* ifftshift(ifft(ifft(grid_RDS) .* fft(grid_LDS))) .* nxyz
-            score_ds .= imag(t)
+            score_ds .= - imag(t)
 
             # filter top scores
             #score .= score_sc
