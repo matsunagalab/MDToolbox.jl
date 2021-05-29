@@ -558,7 +558,7 @@ function vcat(ta_collection::TrjArray...)
 
     T = Float64
     if isempty(ta_collection[1].boxsize)
-        isbox_empty = true
+        isbox_empty_first = true
     else
         T = eltype(ta_collection[1].boxsize)
     end
@@ -584,7 +584,9 @@ function vcat(ta_collection::TrjArray...)
                 boxsize = [boxsize; ta_collection[i].boxsize]
             end
         else
-            @printf "Warning: boxsize information discarded in some trajectories\n"
+            if !isbox_empty_first
+                @printf "Warning: boxsize information discarded in some trajectories\n"
+            end
             isbox_empty = true
             boxsize = Matrix{T}(undef, 0, 0)
         end
