@@ -741,7 +741,7 @@ function spread_neighbors_add_gpu!(grid, x, y, z, grid_x, grid_y, grid_z, rcut, 
                     d = (atom_x - xx)^2 + (atom_y - yy)^2 + (atom_z - zz)^2
                     if d < r2
                         #@cuprintln("called")
-                        @atomic grid[ix,iy,iz] += c
+                        @atomic grid[ix,iy,iz] += T(c)
                     end
                 end
             end
@@ -1092,25 +1092,25 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
             y_d .= y_org
             z_d .= z_org
             #@time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_with_matrix_gpu!(x_d, y_d, z_d, R_d)
-            @cuda threads=256 blocks=nblocks rotate_gpu!(x_d, y_d, z_d, quaternions_d[iq, :])
+            CUDA.@time @cuda threads=256 blocks=nblocks rotate_gpu!(x_d, y_d, z_d, quaternions_d[iq, :])
 
             # shape complementarity
             grid_LSC_d .= zero(eltype(grid_LSC_d))
-            @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
-            @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
+            CUDA.@time @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
+            CUDA.@time @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
             t_d .= ifft(fft(grid_RSC_d) .* conj.(fft(conj.(grid_LSC_d))))
             score_sc_d .= real(t_d)
 
             # desolvation free energy
             grid_LDS_d .= zero(eltype(grid_LDS_d))
-            spread_nearest!(grid_LDS_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d)
-            spread_neighbors_add!(grid_LDS_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_ds_d, - ligand_mass_d)
+            CUDA.@time @cuda threads=256 blocks=nblocks spread_nearest_gpu!(grid_LDS_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d)
+            CUDA.@time @cuda threads=256 blocks=nblocks spread_neighbors_add_gpu!(grid_LDS_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_ds_d, - ligand_mass_d)
             t_d .= 0.5 .* ifft(ifft(grid_RDS_d) .* fft(grid_LDS_d))
             score_ds_d .= imag(t_d)
         
             # filter top scores
-            score .= 0.01 .* score_sc_d .+ score_ds_d
-            filter_tops!(score_tops, cartesian_tops, iq_tops, score_d, iq, tops)
+            score_d .= 0.01 .* score_sc_d .+ score_ds_d
+            @time filter_tops!(score_tops, cartesian_tops, iq_tops, score_d, iq, tops)
         end
         grid_RSC .= Array(grid_RSC_d)
         grid_LSC .= Array(grid_LSC_d)
