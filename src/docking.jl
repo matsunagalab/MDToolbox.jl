@@ -957,6 +957,8 @@ end
 function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Matrix{T}; deg=15.0, grid_space=1.2, iframe=1, tops=10) where {T, U}
     decenter!(receptor)
     decenter!(ligand)
+    orient!(receptor)
+    orient!(ligand)
 
     # Assign atom radius
     println("step1: assigning atom radius")
@@ -975,11 +977,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
 
     # Determine grid size and coordinates
     println("step5: computing grid size and coordinates")
-    x_min, x_max = minimum(ligand.xyz[iframe, 1:3:end]), maximum(ligand.xyz[iframe, 1:3:end])
-    y_min, y_max = minimum(ligand.xyz[iframe, 2:3:end]), maximum(ligand.xyz[iframe, 2:3:end])
-    z_min, z_max = minimum(ligand.xyz[iframe, 3:3:end]), maximum(ligand.xyz[iframe, 3:3:end])
-    size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
-    size_ligand = size_ligand*2
+    size_ligand = maximum(ligand.xyz[iframe, 1:3:end]) - minimum(ligand.xyz[iframe, 1:3:end])
     
     x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
     y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
@@ -1114,7 +1112,10 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
             score .= 0.01 .* score_sc_d .+ score_ds_d
             filter_tops!(score_tops, cartesian_tops, iq_tops, score_d, iq, tops)
         end
-        #score = Array(score_d)
+        grid_RSC .= Array(grid_RSC_d)
+        grid_LSC .= Array(grid_LSC_d)
+        grid_RDS .= Array(grid_RDS_d)
+        grid_LDS .= Array(grid_LDS_d)
     else
         x_org = deepcopy(x)
         y_org = deepcopy(y)
@@ -1174,7 +1175,9 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
         ligand_return = [ligand_return; ligand_tmp]
     end
 
-    return (receptor=receptor, ligand=ligand_return, score=score_tops, iq=iq_tops, cartesian=cartesian_tops, grid_RSC=grid_RSC, grid_LSC=grid_LSC)
+    return (receptor=receptor, ligand=ligand_return, score=score_tops, iq=iq_tops, cartesian=cartesian_tops, 
+            grid_RSC=grid_RSC, grid_LSC=grid_LSC, 
+            grid_RDS=grid_RDS, grid_LDS=grid_LDS)
 end
 
 function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
