@@ -1042,14 +1042,14 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
     rcut[id_core] .= ligand.radius[id_core] .* sqrt(1.5)
     rcut[id_surface] .= ligand.radius[id_surface] .* sqrt(0.8)
     value_core = fill(Complex{T}(9im), ligand.natom)
-    rcut_surface = ligand.radius[id_surface] .+ 3.4
+    rcut_surface = ligand.radius[id_surface]
     value_surface = fill(Complex{T}(1.0), length(rcut_surface))
 
     x_surface = x[id_surface]
     y_surface = y[id_surface]
     z_surface = z[id_surface]
-    spread_neighbors_substitute!(grid_LSC, x_surface, y_surface, z_surface, x_grid, y_grid, z_grid, rcut_surface, value_surface)
     spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
+    spread_neighbors_substitute!(grid_LSC, x_surface, y_surface, z_surface, x_grid, y_grid, z_grid, rcut_surface, value_surface)
 
     # ligand grid: desolvation free energy
     grid_LDS = zeros(Complex{T}, (nx, ny, nz))
@@ -1106,8 +1106,8 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
 
             # shape complementarity
             grid_LSC_d .= zero(eltype(grid_LSC_d))
-            @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
             @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
+            @cuda threads=256 blocks=nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
             #t_d .= ifftshift(ifft(ifft(grid_RSC_d) .* fft(grid_LSC_d))) .* nxyz
             #score_sc_d .= - real(t_d) .+ imag(t_d)
             t_d .= ifftshift(ifft(ifft(grid_RSC_d) .* fft(grid_LSC_d))) .* nxyz
@@ -1152,8 +1152,8 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
 
             # shape complementarity
             grid_LSC .= zero(eltype(grid_LSC))
-            spread_neighbors_substitute!(grid_LSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
             spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
+            spread_neighbors_substitute!(grid_LSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
             #t .= ifft(fft(grid_RSC) .* conj.(fft(conj.(grid_LSC))))
             #score_sc .= real(t)
             t .= ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC))) .* nxyz
