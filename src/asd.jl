@@ -270,7 +270,8 @@ function binaryToPhysicalQuantity(data, header, chanelType)
     end
 end
 
-function readFrameHeader(io::IOStream)
+function readFrameHeader(io::IOStream, header::Header)
+    io_pos = position(io)
     number       = Int64(read(io, Int32))
     maxData      = Int64(read(io, Int16))
     minData      = Int64(read(io, Int16))
@@ -283,6 +284,7 @@ function readFrameHeader(io::IOStream)
     booked2      = Int64(read(io, Int16))
     booked3      = Int64(read(io, Int32))
     booked4      = Int64(read(io, Int32))
+    seek(io, io_pos + header.frameHeaderSize)
 
     return FrameHeader(number, maxData, minData, offsetX, offsetY, tiltX, tiltY, isStimulated, booked1, booked2, booked3, booked4)
 end
@@ -297,22 +299,9 @@ function readImage(io::IOStream, header, chanelType)
     return data
 end
 
-function readFrame(io::IOStream, header)
-    frameHeader = readFrameHeader(io)
-
-    data = readImage(io, header, header.dataType1ch)
-
-    if header.dataType2ch == "none"
-        return Frame(frameHeader, data, nothing)
-    end
-
-    subData = readImage(io, header, header.dataType2ch)
-
-    return Frame(frameHeader, data, subData)
-end
-
 function readasd(filePath)
     open(filePath, "r") do io
+        io_pos = position(io)
         headerVersion = Int64(read(io, Int32))
         header = Header()
         if headerVersion == 0
@@ -322,10 +311,29 @@ function readasd(filePath)
         else
             @assert false "can't read v2 file"
         end
+        seek(io, io_pos + header.fileHeaderSize)
+
+        frameHeaders = []
+        subFrameHeaders = []
+        datas = []
+        subDatas = []
+        for i in 1:header.numFrames
+            push!(frameHeaders, readFrameHeader(io, header))
+            push!(datas, readImage(io, header, header.dataType1ch))
+        end
+
+        for i in 1:header.numFrames
+            if header.dataType2ch == "none"
+                push!(subDatas, datas[i])
+                continue
+            end
+            push!(subFrameHeaders, readFrameHeader(io, header))
+            push!(subDatas, readImage(io, header, header.dataType1ch))
+        end
 
         frames = []
         for i in 1:header.numFrames
-            push!(frames, readFrame(io, header))
+            push!(frames, Frame(frameHeaders[i], datas[i], subDatas[i]))
         end
 
         return Asd(header, frames)
