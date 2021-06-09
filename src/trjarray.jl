@@ -594,6 +594,84 @@ function vcat(ta_collection::TrjArray...)
     TrjArray(ta_collection[1], xyz=xyz, boxsize=boxsize)
 end
 
+function hcat(ta_collection::TrjArray...)
+    natom = 0
+    isbox_empty_any = false
+
+    nframe = ta_collection[1].nframe
+    natom = ta_collection[1].natom
+    xyz = ta_collection[1].xyz
+    boxsize = []
+    chainname = ta_collection[1].chainname
+    chainid = ta_collection[1].chainid
+    resname = ta_collection[1].resname
+    resid = ta_collection[1].resid
+    atomname = ta_collection[1].atomname
+    atomid = ta_collection[1].atomid
+    mass = ta_collection[1].mass
+    radius = ta_collection[1].radius
+    charge = ta_collection[1].charge
+    sasa = ta_collection[1].sasa
+    list_bond = ta_collection[1].list_bond
+    list_angle = ta_collection[1].list_angle
+    list_dihedral = ta_collection[1].list_dihedral
+    list_improper = ta_collection[1].list_improper
+    list_cmap = ta_collection[1].list_cmap
+
+    for i = 2:length(ta_collection)
+        @assert nframe == ta_collection[i].nframe
+
+        if !isempty(ta_collection[i].xyz)
+            xyz = [xyz ta_collection[i].xyz]
+        else
+            xyz = []
+        end
+
+        if !isempty(ta_collection[i].chainname)
+            chainname = [chainname; ta_collection[i].chainname]
+        else
+            chainname = []
+        end
+
+        if !isempty(ta_collection[i].chainid)
+            chainid = [chainid; ta_collection[i].chainid]
+        else
+            chainid = []
+        end
+
+        if !isempty(ta_collection[i].resname)
+            resname = [resname; ta_collection[i].resname]
+        else
+            resname = []
+        end
+
+        if !isempty(ta_collection[i].resid)
+            resid = [resid; ta_collection[i].resid]
+        else
+            resid = []
+        end
+
+        if !isempty(ta_collection[i].atomname)
+            atomname = [atomname; ta_collection[i].atomname]
+        else
+            atomname = []
+        end
+
+        if !isempty(ta_collection[i].atomid)
+            atomid = [atomid; ta_collection[i].atomid .+ natom]
+        else
+            atomid = []
+        end
+
+        natom += ta_collection[i].natom
+    end
+    #@show size(xyz)
+    TrjArray(xyz=xyz, boxsize=boxsize, 
+             chainname=chainname, chainid=chainid,
+             resname=resname, resid=resid,
+             atomname=atomname, atomid=atomid)
+end
+
 ###### end keyword #################
 # endof(ta::TrjArray) = isempty(ta.x) ? nothing : size(ta.x, 1)
 # eachindex(ta::TrjArray) = Base.OneTo(size(ta.x, 1))
