@@ -1,15 +1,15 @@
 """
     mdload(filename::AbstractString; index=nothing, top::TrjArray=nothing) -> ta::TrjArray
 
-Function for reading bimolecular structure files or molecular dynamics trajectories. 
-This function automatically detects files types from the filename extension of input `filename`. 
-Currently, PDB, PSF, DCD, and NetCDF formats are available. 
+Function for reading bimolecular structure files or molecular dynamics trajectories.
+This function automatically detects files types from the filename extension of input `filename`.
+Currently, PDB, PSF, DCD, and NetCDF formats are available.
 For reading subset atoms from the trajectory files, the user can specify atom indices as `index::AbstractVector{Int}`.
-Returns a TrjArray variable `ta`. 
+Returns a TrjArray variable `ta`.
 
-If the user wants to attach a topology information read from PSF, PDB, or other files to MD trajectory, 
-the user can give an addtional option `top=ta:TrjArray`. If the option is given the topology information is applied. 
-    
+If the user wants to attach a topology information read from PSF, PDB, or other files to MD trajectory,
+the user can give an addtional option `top=ta:TrjArray`. If the option is given the topology information is applied.
+
 #  Example
 ```julia-repl
 julia> ta = mdload("1ake.psf")
@@ -25,7 +25,7 @@ function mdload(filename::AbstractString; index=nothing, top=nothing)
         ta = readpdb(filename)
     elseif endswith(filename, ".psf") |  endswith(filename, ".PSF")
         ta = readpsf(filename)
-    else        
+    else
         ta = read(filename)
     end
 
@@ -43,10 +43,10 @@ end
 """
     mdsave(filename::AbstractString, ta::TrjArray)
 
-Function for writing bimolecular structure files or molecular dynamics trajectories. 
-This function automatically detects files types from the filename extension of input `filename`. 
-Currently, PDB, PSF, and NetCDF formats are available. 
-    
+Function for writing bimolecular structure files or molecular dynamics trajectories.
+This function automatically detects files types from the filename extension of input `filename`.
+Currently, PDB, PSF, and NetCDF formats are available.
+
 #  Example
 ```julia-repl
 julia> ta = TrjArray(xyz=randn(100, 9))
@@ -63,11 +63,81 @@ function mdsave(filename::AbstractString, ta::TrjArray)
         r = writepdb(filename, ta)
     elseif endswith(filename, ".psf")
         r = writepsf(filename, ta)
-    else        
+    else
         #r = write(filename)
     end
 
     return r
+end
+
+function writedcd_header(io::IOStream, trj::TrjArray{T, U}, info::Dict{Any, Any}) where {T, U}
+    write(io, Int32(84))                # block size
+    write(io, b"CORD")
+    write(io, Int32(trj.nframe))
+    write(io, Int32(0))                 # istart (t0)
+    write(io, Int32(1))                 # time steps between frames
+    write(io, zeros(Int32, 5))          # unused
+    write(io, Int32(0))                 # number of fixed atom
+    write(io, info["delta_time"])       # time step
+    write(io, zeros(Int32, 9))          # unused
+    write(io, Int32(0))                 # version
+    write(io, Int32(84))                # block size
+end
+
+function writedcd_title(io::IOStream, trj::TrjArray{T, U}) where {T, U}
+    write(io, Int32(84))                # block size
+    write(io, Int32(1))                 # ntitle
+    str = "created by MDToolbox.jl"
+    str *= Dates.format(now(), "yyyy-mm-dd HH:MM:SS")
+    write(io, resize!(Array{UInt8}(str), 80))
+    write(io, Int32(84))                # block size
+end
+
+function writedcd_natoms(io::IOStream, trj::TrjArray{T, U}) where {T, U}
+    write(io, Int32(4))                 # block size
+    write(io, Int32(trj.natom))
+    write(io, Int32(4))                 # block size
+end
+
+function writedcd_fixedIdx(io::IOStream, trj::TrjArray{T, U}) where {T, U}
+
+end
+
+function writedcd_frame(io::IOStream, trj::TrjArray{T, U}) where {T, U}
+    for iframe in 1:(trj.nframe)
+        write(io, Int32(trj.natom * 4))
+        write(io, convert(Array{Float32}, trj.xyz[iframe, 1:3:end]))
+        write(io, Int32(trj.natom * 4))
+
+        write(io, Int32(trj.natom * 4))
+        write(io, convert(Array{Float32}, trj.xyz[iframe, 2:3:end]))
+        write(io, Int32(trj.natom * 4))
+
+        write(io, Int32(trj.natom * 4))
+        write(io, convert(Array{Float32}, trj.xyz[iframe, 3:3:end]))
+        write(io, Int32(trj.natom * 4))
+    end
+end
+
+"""
+write xplor or charmm (namd) format dcd file
+"""
+function writedcd(filename::String, trj::TrjArray{T, U}; delta_time = 1.0) where {T, U}
+    dcdfilename = filename
+    if !endswith(dcdfilename, ".dcd")
+        dcdfilename *= ".dcd"
+    end
+
+    info = Dict()
+    info["delta_time"] = Float32(delta_time)
+
+    open(dcdfilename, "w") do io
+        writedcd_header(io, trj, info)
+        writedcd_title(io, trj)
+        writedcd_natoms(io, trj)
+        writedcd_fixedIdx(io, trj)
+        writedcd_frame(io, trj)
+    end
 end
 
 """
