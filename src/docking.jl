@@ -908,6 +908,28 @@ function rotate!(x, y, z, q::AbstractVector{T}) where {T, U}
     return nothing
 end
 
+function rotate_with_matrix!(x, y, z, R::AbstractMatrix{T}) where {T, U}
+    natom = length(x)
+    r1 = R[1, 1]
+    r2 = R[1, 2]
+    r3 = R[1, 3]
+    r4 = R[2, 1]
+    r5 = R[2, 2]
+    r6 = R[2, 3]
+    r7 = R[3, 1]
+    r8 = R[3, 2]
+    r9 = R[3, 3]
+    for iatom = 1:natom
+        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
+        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
+        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    return nothing
+end
+
 function rotate_gpu!(x, y, z, q)
     natom = length(x)
     ngid = gridDim().x*blockDim().x
@@ -922,6 +944,37 @@ function rotate_gpu!(x, y, z, q)
     r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
     r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
     r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
+
+    ntile = ceil(Int, natom/ngid)
+    for itile = 1:ntile
+        iatom = ngid*(itile-1) + gid + 1
+        if iatom > natom
+            return
+        end
+        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
+        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
+        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    return nothing
+end
+
+function rotate_with_matrix_gpu!(x, y, z, q)
+    natom = length(x)
+    ngid = gridDim().x*blockDim().x
+    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+
+    r1 = R[1, 1]
+    r2 = R[1, 2]
+    r3 = R[1, 3]
+    r4 = R[2, 1]
+    r5 = R[2, 2]
+    r6 = R[2, 3]
+    r7 = R[3, 1]
+    r8 = R[3, 2]
+    r9 = R[3, 3]
 
     ntile = ceil(Int, natom/ngid)
     for itile = 1:ntile
@@ -955,6 +1008,28 @@ function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
         score_tops .= score_tops[id]
         cartesian_tops .= cartesian_tops[id]
         iq_tops .= iq_tops[id]
+    end
+    return
+end
+
+function filter_tops!(score_tops, cartesian_tops, rotz_tops, rotx_tops, score, rotz, rotx, tops)
+    if any(score .< score_tops[tops+1])
+        c = findall(score .< score_tops[tops+1])
+        s = score[c]
+        if isempty(s)
+            return
+        end
+        nrows = length(s)
+        nrows = min(nrows, tops)
+        score_tops[(tops+1):(tops+nrows)] .= Array(s[1:nrows])
+        cartesian_tops[(tops+1):(tops+nrows)] .= Array(c[1:nrows])
+        rotz_tops[(tops+1):(tops+nrows)] .= rotz
+        rotx_tops[(tops+1):(tops+nrows)] .= rotx
+        id = sortperm(score_tops)
+        score_tops .= score_tops[id]
+        cartesian_tops .= cartesian_tops[id]
+        rotz_tops .= rotz_tops[id]
+        rotx_tops .= rotx_tops[id]
     end
     return
 end
@@ -1096,7 +1171,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
 
         quaternions_d = cu(quaternions)
         nblocks = ceil(Int, length(x)/256)
-        @showprogress for iq = 1:size(quaternions, 1)
+        @time @showprogress for iq = 1:size(quaternions, 1)
             # rotate ligand
             x_d .= x_org
             y_d .= y_org
@@ -1143,7 +1218,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
         t = similar(grid_LSC)
         score = real(t)
 
-        @showprogress for iq = 1:size(quaternions, 1)
+        @time @showprogress for iq = 1:size(quaternions, 1)
             # rotate ligand
             x .= x_org
             y .= y_org
@@ -1196,125 +1271,197 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
             score_sc, score_ds)
 end
 
-function dock_fft(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T, U}
-    # generate grid coordinates for receptor
-    receptor2, _dummy = decenter(receptor)
-    ligand2, _dummy = decenter(ligand)
+function dock_multimer!(receptor::TrjArray{T, U}; deg=15.0, grid_space=1.2, iframe=1, tops=100, alpha=0.01, beta=0.06, nfold=3, rot_space=10.0) where {T, U}
+    decenter!(receptor)
+    orient!(receptor)
+
+    # Assign atom radius
+    println("step1: assigning atom radius")
+    receptor = set_radius(receptor)
+
+    # Solvent accessible surface
+    println("step2: computing SASA")
+    receptor = compute_sasa(receptor, 1.4)
+
+    # ACE scores
+    println("step3: assigning ACE scores")
+    receptor = set_acescore(receptor)
+
+    # Determine grid size and coordinates
+    println("step5: computing grid size and coordinates")
+    size_ligand = maximum(receptor.xyz[iframe, 1:3:end]) - minimum(receptor.xyz[iframe, 1:3:end])
     
-    x_min, x_max = minimum(ligand2.xyz[iframe, 1:3:end]), maximum(ligand2.xyz[iframe, 1:3:end])
-    y_min, y_max = minimum(ligand2.xyz[iframe, 2:3:end]), maximum(ligand2.xyz[iframe, 2:3:end])
-    z_min, z_max = minimum(ligand2.xyz[iframe, 3:3:end]), maximum(ligand2.xyz[iframe, 3:3:end])
-    size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
-    size_ligand = size_ligand*2
+    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
+    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
+    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
     
-    x_min = minimum(receptor2.xyz[iframe, 1:3:end]) - size_ligand - grid_space
-    y_min = minimum(receptor2.xyz[iframe, 2:3:end]) - size_ligand - grid_space
-    z_min = minimum(receptor2.xyz[iframe, 3:3:end]) - size_ligand - grid_space
-    
-    x_max = maximum(receptor2.xyz[iframe, 1:3:end]) + size_ligand + grid_space
-    y_max = maximum(receptor2.xyz[iframe, 2:3:end]) + size_ligand + grid_space
-    z_max = maximum(receptor2.xyz[iframe, 3:3:end]) + size_ligand + grid_space
+    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
+    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
+    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
     
     x_grid = collect(x_min:grid_space:x_max)
     y_grid = collect(y_min:grid_space:y_max)
     z_grid = collect(z_min:grid_space:z_max)
     
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
+    nxyz = nx*ny*nz
+
+    println("step6: assigning values to grid points")
+    # receptor grid: shape complementarity
+    id_surface = receptor.sasa .> 1.0
+    id_core = .!id_surface
+
+    x = receptor.xyz[iframe, 1:3:end]
+    y = receptor.xyz[iframe, 2:3:end]
+    z = receptor.xyz[iframe, 3:3:end]
+    rcut = zeros(T, receptor.natom)
+    rcut[id_core] .= receptor.radius[id_core] .* sqrt(1.5)
+    rcut[id_surface] .= receptor.radius[id_surface] .* sqrt(0.8)
+    value_core = fill(Complex{T}(9im), receptor.natom)
+
+    x_surface = x[id_surface]
+    y_surface = y[id_surface]
+    z_surface = z[id_surface]
+    rcut_surface = receptor.radius[id_surface] .+ 3.4
+    value_surface = fill(Complex{T}(1.0), length(rcut_surface))
     
-    # shape complementarity of receptor
-    iatom_surface = receptor2.sasa .> 1.0
-    iatom_core = .!iatom_surface
-    rcut1 = zeros(T, receptor2.natom)
-    rcut2 = zeros(T, receptor2.natom)
+    # receptor grid: desolvation free energy
+    grid_RSC = zeros(Complex{T}, (nx, ny, nz))
+    grid_LSC = zeros(Complex{T}, (nx, ny, nz))
+    grid_RDS = zeros(Complex{T}, (nx, ny, nz))
+    grid_LDS = zeros(Complex{T}, (nx, ny, nz))
+    rcut_ds = fill(T(6.0), receptor.natom)
+    #spread_nearest!(grid_RDS, x, y, z, x_grid, y_grid, z_grid)
+    #spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
+
+    println("step7: docking")
+    score_sc = similar(grid_RSC, T)
+    score_ds = similar(grid_RSC, T)
+    score_tops = fill(typemax(eltype(Float32)), 2*tops)
+    cartesian_tops = Vector{CartesianIndex{3}}(undef, 2*tops)
+    rotz_tops = fill(-1.0, 2*tops);
+    rotx_tops = fill(-1.0, 2*tops);
+    rot_z_pi = collect((0.0:rot_space:360.0)./ 360.0 .* (2.0*pi))
+    rot_x_pi = collect((0.0:rot_space:360.0)./ 360.0 .* (2.0*pi))
+    #if CUDA.functional()
+    if 1 == 0
+    else
+        x_org = deepcopy(x)
+        y_org = deepcopy(y)
+        z_org = deepcopy(z)
+        t = similar(grid_LSC)
+        score = real(t)
+        @showprogress for rotz in rot_z_pi
+            R = [cos(rotz) -sin(rotz) 0.0; sin(rotz) cos(rotz) 0.0; 0.0 0.0 1.0]
+            receptor_rot = rotate_with_matrix(receptor, R)
+            for rotx in rot_x_pi
+                R = [1.0 0.0 0.0; 0.0 cos(rotx) -sin(rotx); 0.0 sin(rotx) cos(rotx)]
+                receptor_rot = rotate_with_matrix(receptor_rot, R)
+                R = [cos(2.0*pi/nfold) -sin(2.0*pi/nfold) 0.0; sin(2.0*pi/nfold) cos(2.0*pi/nfold) 0.0; 0.0 0.0 1.0]
+                ligand_rot = rotate_with_matrix(receptor_rot, R)
+
+                x = receptor_rot.xyz[iframe, 1:3:end]
+                y = receptor_rot.xyz[iframe, 2:3:end]
+                z = receptor_rot.xyz[iframe, 3:3:end]            
+                grid_RSC .= zero(eltype(grid_RSC))
+                spread_neighbors_substitute!(grid_RSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
+                spread_neighbors_substitute!(grid_RSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
     
-    rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
-    rcut2[iatom_core] .= -1.0
-    rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
-    rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
-    
-    grid_RSC = zeros(complex(T), nx, ny, nz)
-    assign_shape_complementarity!(grid_RSC, receptor2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-    
-    # shape complementarity of ligand
-    iatom_surface = ligand2.sasa .> 1.0
-    iatom_core = .!iatom_surface
-    rcut1 = zeros(T, ligand2.natom)
-    rcut2 = zeros(T, ligand2.natom)
-    rcut1[iatom_core] .= ligand2.radius[iatom_core] * sqrt(1.5)
-    rcut2[iatom_core] .= -1.0
-    rcut1[iatom_surface] .= -1.0
-    rcut2[iatom_surface] .= ligand2.radius[iatom_surface]
-    
-    grid_LSC = zeros(complex(T), nx, ny, nz)
-    
-    # compute score with FFT
-    nq = size(quaternions, 1)
-    s = @showprogress pmap(q -> compute_docking_score_with_fft(quaternions[q, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, q), 1:nq)
-    
-    result_tops = []
-    for iq = 1:nq
-        result_tops = [result_tops; s[iq]]
-    end
-    sort!(result_tops, rev=true)
-    resize!(result_tops, tops)
-    
-    score_tops = zeros(T, tops)
-    trans_tops = zeros(Int64, tops, 3)
-    quate_tops = zeros(Float64, tops, 4)
-    
-    for t in 1:tops
-        score_tops[t] = result_tops[t][1]
-        trans_tops[t, 1] = result_tops[t][2]
-        trans_tops[t, 2] = result_tops[t][3]
-        trans_tops[t, 3] = result_tops[t][4]
-        quate_tops[t, :] .= quaternions[result_tops[t][5], :]
-    end
-    
-    itop = 1
-    ligand_return = rotate(ligand2, quate_tops[itop, :])
-    dx = (trans_tops[itop, 1]-1) * grid_space
-    if dx > (nx*grid_space / 2.0)
-        dx = dx - (nx*grid_space)
-    end
-    dy = (trans_tops[itop, 2]-1) * grid_space
-    if dy > (ny*grid_space / 2.0)
-        dy = dy - (ny*grid_space)
-    end
-    dz = (trans_tops[itop, 3]-1) * grid_space
-    if dz > (nz*grid_space / 2.0)
-        dz = dz - (nz*grid_space)
-    end
-    ligand_return.xyz[iframe, 1:3:end] .+= dx
-    ligand_return.xyz[iframe, 2:3:end] .+= dy
-    ligand_return.xyz[iframe, 3:3:end] .+= dz
-    
-    for itop = 2:tops
-        ligand_tmp = rotate(ligand2, quate_tops[itop, :])
-        dx = (trans_tops[itop, 1]-1) * grid_space
-        if dx > (nx*grid_space / 2.0)
-            dx = dx - (nx*grid_space)
+                x = ligand_rot.xyz[iframe, 1:3:end]
+                y = ligand_rot.xyz[iframe, 2:3:end]
+                z = ligand_rot.xyz[iframe, 3:3:end]            
+                grid_LSC .= zero(eltype(grid_LSC))
+                spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
+                spread_neighbors_substitute!(grid_LSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
+
+                t .= ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC))) .* nxyz
+                score_sc .= - real(t) .+ imag(t)
+
+                x = receptor_rot.xyz[iframe, 1:3:end]
+                y = receptor_rot.xyz[iframe, 2:3:end]
+                z = receptor_rot.xyz[iframe, 3:3:end]            
+                grid_RDS .= zero(eltype(grid_RDS))
+                spread_nearest!(grid_RDS, x, y, z, x_grid, y_grid, z_grid)
+                spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
+                    
+                x = ligand_rot.xyz[iframe, 1:3:end]
+                y = ligand_rot.xyz[iframe, 2:3:end]
+                z = ligand_rot.xyz[iframe, 3:3:end]            
+                grid_LDS .= zero(eltype(grid_LDS))
+                spread_nearest!(grid_LDS, x, y, z, x_grid, y_grid, z_grid)
+                spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
+
+                t .= 0.5 .* ifftshift(ifft(ifft(grid_RDS) .* fft(grid_LDS))) .* nxyz
+                score_ds .= - imag(t)
+
+                score .= alpha .* score_sc .+ score_ds
+                filter_tops!(score_tops, cartesian_tops, rotz_tops, rotx_tops, score, rotz, rotx, tops)
+            end
         end
-        dy = (trans_tops[itop, 2]-1) * grid_space
-        if dy > (ny*grid_space / 2.0)
-            dy = dy - (ny*grid_space)
-        end
-        dz = (trans_tops[itop, 3]-1) * grid_space
-        if dz > (nz*grid_space / 2.0)
-            dz = dz - (nz*grid_space)
-        end
-        ligand_tmp.xyz[iframe, 1:3:end] .+= dx
-        ligand_tmp.xyz[iframe, 2:3:end] .+= dy
-        ligand_tmp.xyz[iframe, 3:3:end] .+= dz
-        ligand_return = [ligand_return; ligand_tmp]
     end
-    
-    return (receptor=receptor2, ligand=ligand_return, score=score_tops, grid_RSC=grid_RSC, grid_LSC=grid_LSC)
+
+    receptor_init = deepcopy(receptor[iframe, :])
+    receptor_return = deepcopy(receptor[0, :])
+    ligand_return = deepcopy(receptor[0, :])
+    ix_center = ceil(Int, (nx/2.0)+1.0)
+    iy_center = ceil(Int, (ny/2.0)+1.0)
+    iz_center = ceil(Int, (nz/2.0)+1.0)
+    for itop = 1:tops
+        rotz = rotz_tops[itop]
+        R = [cos(rotz) -sin(rotz) 0.0; sin(rotz) cos(rotz) 0.0; 0.0 0.0 1.0]
+        receptor_rot = rotate_with_matrix(receptor_init, R)
+        rotx = rotx_tops[itop]
+        R = [1.0 0.0 0.0; 0.0 cos(rotx) -sin(rotx); 0.0 sin(rotx) cos(rotx)]
+        receptor_rot = rotate_with_matrix(receptor_rot, R)
+        receptor_return = [receptor_return; receptor_rot]
+        R = [cos(2.0*pi/nfold) -sin(2.0*pi/nfold) 0.0; sin(2.0*pi/nfold) cos(2.0*pi/nfold) 0.0; 0.0 0.0 1.0]
+        ligand_rot = rotate_with_matrix(receptor_rot, R)
+        dx = (cartesian_tops[itop][1]-ix_center) * grid_space
+        dy = (cartesian_tops[itop][2]-iy_center) * grid_space
+        dz = (cartesian_tops[itop][3]-iz_center) * grid_space
+        ligand_rot.xyz[1, 1:3:end] .-= dx
+        ligand_rot.xyz[1, 2:3:end] .-= dy
+        ligand_rot.xyz[1, 3:3:end] .-= dz
+        ligand_return = [ligand_return; ligand_rot]
+    end
+
+    natom = receptor_return.natom
+    cc = TrjArray(receptor_return[1, :], chainname=fill(string(1), natom), chainid=fill(1, natom))
+    for ifold = 2:nfold
+        cc = [cc TrjArray(receptor_return[1, :], chainname=fill(string(ifold), natom), chainid=fill(ifold, natom))]
+    end
+    @show cc
+    complex_return = deepcopy(cc[0, :])
+    for itop = 1:tops
+        com1 = centerofmass(receptor_return[itop, :])
+        com2 = centerofmass(ligand_return[itop, :])
+        L = [com2.xyz[1, 1] - com1.xyz[1, 1], com2.xyz[1, 2] - com1.xyz[1, 2]]
+        L_norm = sqrt(L[1]^2 + L[2]^2)
+        alpha = (180.0 - (360.0/nfold))/2.0
+        alpha = (alpha / 360.0) * 2.0 * pi
+        d_norm = L_norm / (2.0*cos(alpha))
+
+        #chainname = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R"]
+        cc = TrjArray(receptor_return[itop, :], chainname=fill(string(1), natom), chainid=fill(1, natom))
+        cc.xyz[:, 1:3:end] .= cc.xyz[:, 1:3:end] .+ d_norm
+        for ifold = 2:nfold
+            beta = (2.0 * pi / nfold) * (ifold-1)
+            R = [cos(beta) -sin(beta) 0.0; sin(beta) cos(beta) 0.0; 0.0 0.0 1.0]    
+            r = rotate_with_matrix(receptor_return[itop, :], R)
+            cc = [cc TrjArray(r, chainname=fill(chainname[ifold], natom), chainid=fill(ifold, natom))]
+        end
+        complex_return = [complex_return; cc]
+    end
+
+    return (receptor=receptor, ligand=ligand_return, complex=complex, score=score_tops, rotz=rotz_tops, rotx=rotx_tops, cartesian=cartesian_tops, 
+            grid_RSC=grid_RSC, grid_LSC=grid_LSC, 
+            grid_RDS=grid_RDS, grid_LDS=grid_LDS,
+            score_sc, score_ds)
 end
 
-
-function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, radius=3.0:1.2:20.0, grid_space=1.2, iframe=1, tops=10, nfold=3) where {T, U}
+function dock_multimer(receptor::TrjArray{T, U}; rot_space=10.0, grid_space=1.2, iframe=1, tops=10, nfold=3) where {T, U}
     # generate grid coordinates for receptor
-    receptor2, _dummy = decenter(receptor)
+    receptor2, dummy = decenter(receptor)
     
     @show "step 1"
     x_min, x_max = minimum(receptor2.xyz[iframe, 1:3:end]), maximum(receptor2.xyz[iframe, 1:3:end])
