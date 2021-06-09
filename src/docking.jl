@@ -1013,9 +1013,12 @@ function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
 end
 
 function filter_tops!(score_tops, cartesian_tops, rotz_tops, rotx_tops, score, rotz, rotx, tops)
-    if any(score .< score_tops[tops+1])
-        c = findall(score .< score_tops[tops+1])
-        s = score[c]
+    nz = size(score, 3)
+    iz_center = ceil(Int, (nz/2.0)+1.0)
+    score_xy = score[:, :, iz_center]
+    if any(score_xy .< score_tops[tops+1])
+        c = findall(score_xy .< score_tops[tops+1])
+        s = score_xy[c]
         if isempty(s)
             return
         end
@@ -1338,11 +1341,11 @@ function dock_multimer!(receptor::TrjArray{T, U}; deg=15.0, grid_space=1.2, ifra
     score_sc = similar(grid_RSC, T)
     score_ds = similar(grid_RSC, T)
     score_tops = fill(typemax(eltype(Float32)), 2*tops)
-    cartesian_tops = Vector{CartesianIndex{3}}(undef, 2*tops)
+    cartesian_tops = Vector{CartesianIndex{2}}(undef, 2*tops)
     rotz_tops = fill(-1.0, 2*tops);
     rotx_tops = fill(-1.0, 2*tops);
     rot_z_pi = collect((0.0:rot_space:360.0)./ 360.0 .* (2.0*pi))
-    rot_x_pi = collect((0.0:rot_space:360.0)./ 360.0 .* (2.0*pi))
+    rot_x_pi = collect((0.0:rot_space:90.0)./ 360.0 .* (2.0*pi))
     #if CUDA.functional()
     if 1 == 0
     else
@@ -1364,8 +1367,8 @@ function dock_multimer!(receptor::TrjArray{T, U}; deg=15.0, grid_space=1.2, ifra
                 y = receptor_rot.xyz[iframe, 2:3:end]
                 z = receptor_rot.xyz[iframe, 3:3:end]            
                 grid_RSC .= zero(eltype(grid_RSC))
-                spread_neighbors_substitute!(grid_RSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
                 spread_neighbors_substitute!(grid_RSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
+                spread_neighbors_substitute!(grid_RSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
     
                 x = ligand_rot.xyz[iframe, 1:3:end]
                 y = ligand_rot.xyz[iframe, 2:3:end]
@@ -1418,10 +1421,10 @@ function dock_multimer!(receptor::TrjArray{T, U}; deg=15.0, grid_space=1.2, ifra
         ligand_rot = rotate_with_matrix(receptor_rot, R)
         dx = (cartesian_tops[itop][1]-ix_center) * grid_space
         dy = (cartesian_tops[itop][2]-iy_center) * grid_space
-        dz = (cartesian_tops[itop][3]-iz_center) * grid_space
+        #dz = (cartesian_tops[itop][3]-iz_center) * grid_space
         ligand_rot.xyz[1, 1:3:end] .-= dx
         ligand_rot.xyz[1, 2:3:end] .-= dy
-        ligand_rot.xyz[1, 3:3:end] .-= dz
+        #ligand_rot.xyz[1, 3:3:end] .-= dz
         ligand_return = [ligand_return; ligand_rot]
     end
 
@@ -1441,19 +1444,19 @@ function dock_multimer!(receptor::TrjArray{T, U}; deg=15.0, grid_space=1.2, ifra
         alpha = (alpha / 360.0) * 2.0 * pi
         d_norm = L_norm / (2.0*cos(alpha))
 
-        #chainname = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R"]
         cc = TrjArray(receptor_return[itop, :], chainname=fill(string(1), natom), chainid=fill(1, natom))
         cc.xyz[:, 1:3:end] .= cc.xyz[:, 1:3:end] .+ d_norm
+        tmp = deepcopy(cc)
         for ifold = 2:nfold
             beta = (2.0 * pi / nfold) * (ifold-1)
             R = [cos(beta) -sin(beta) 0.0; sin(beta) cos(beta) 0.0; 0.0 0.0 1.0]    
-            r = rotate_with_matrix(receptor_return[itop, :], R)
-            cc = [cc TrjArray(r, chainname=fill(chainname[ifold], natom), chainid=fill(ifold, natom))]
+            r = rotate_with_matrix(tmp, R)
+            cc = [cc TrjArray(r, chainname=fill(string(ifold), natom), chainid=fill(ifold, natom))]
         end
         complex_return = [complex_return; cc]
     end
 
-    return (receptor=receptor, ligand=ligand_return, complex=complex, score=score_tops, rotz=rotz_tops, rotx=rotx_tops, cartesian=cartesian_tops, 
+    return (receptor=receptor, ligand=ligand_return, multimer=complex_return, score=score_tops, rotz=rotz_tops, rotx=rotx_tops, cartesian=cartesian_tops, 
             grid_RSC=grid_RSC, grid_LSC=grid_LSC, 
             grid_RDS=grid_RDS, grid_LDS=grid_LDS,
             score_sc, score_ds)
