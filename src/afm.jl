@@ -74,10 +74,13 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
     if interior
         for ix = 0:(tip_xsiz-1)
             for jx = 0:(tip_ysiz-1)
+                if (ix+1) == xc & (jx+1) == yc
+                    continue
+                end
                 dil = - eltype(image)(Inf)
                 for id = 0:(tip_xsiz-1)
                     for jd = 0:(tip_ysiz-1)
-                        if ((image[ixp+1, jxp+1] - image[ixp+xc-id+1, jxp+yc-jd+1]) > 0.0) | (xc == (id+1) & yc == (jd+1))
+                        if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0) | (xc == (id+1) & yc == (jd+1))
                             continue
                         end
                         temp = image[ixp+ix-id+1, jxp+jx-jd+1] - image[ixp+1, jxp+1] + thresh
@@ -286,8 +289,8 @@ end
 function afmize!(tip::Matrix, config::AfmizeConfig)
     tip_xsiz, tip_ysiz = size(tip)
     xc, yc = compute_xc_yc(tip)
-    xc += 1
-    yc += 1
+    #xc += 1
+    #yc += 1
     @show xc, yc
     for ix = 1:tip_xsiz
         for iy = 1:tip_ysiz
