@@ -201,11 +201,12 @@ function ierosion_pdiff(image, tip)
 end
 
 function itip_least_squares!(tip0, image::Matrix{T}; thresh=0.1) where {T <: Number}
-    @show typeof([image])
-    itip_least_squares!(tip0, [image], thresh=0.1)
+    images = []
+    push!(images, image)
+    itip_least_squares!(tip0, images, thresh=0.1)
 end
 
-function itip_least_squares!(tip0, images::Vector{F}; thresh=0.1) where {F <: AbstractMatrix}
+function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1)
     nframe = length(images)
     for i = 1:1000
         xc, yc = MDToolbox.compute_xc_yc(tip0)
