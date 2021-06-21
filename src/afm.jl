@@ -207,14 +207,14 @@ function itip_least_squares!(tip0, image::Matrix{T}; thresh=0.1) where {T <: Num
 end
 
 function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1)
+    #@show sum((idilation(surf, tip0) .- image).^2)
     nframe = length(images)
+    d = zeros(eltype(tip0), size(tip0))
     for i = 1:1000
-        xc, yc = MDToolbox.compute_xc_yc(tip0)
-        learning_rate = 0.01
-        #lambda = 0.1
-        #ss = tip0
-        d = zeros(size(tip0))
+        d .= eltype(tip0)(0.0)
         for iframe = 1:nframe
+            xc, yc = MDToolbox.compute_xc_yc(tip0)
+            rate = 0.01
             s, e_index = ierosion_pdiff(images[iframe], tip0)
             r, d_index = idilation_pdiff(s, tip0)
             for ix = 1:size(tip0, 1)
@@ -224,23 +224,69 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1)
                     end
                     id_e = e_index .== ((iy-1)*size(tip0, 1) + ix)
                     id_d = d_index .== ((iy-1)*size(tip0, 1) + ix)
-                    d[ix, iy] -= sum((r .- images[iframe]) .* (id_d .- id_e)) .* learning_rate
+                    d[ix, iy] += - sum((r .- images[iframe]) .* (id_d .- id_e)) .* rate
+                end
+            end
+        end
+        d .= min.(d, 0.0)
+        tip0 .+= d
+        tip0 .= min.(tip0, 0.0)
+        if mod(i, 100) == 0
+            loss = 0.0
+            for iframe = 1:nframe
+                s, e_index = ierosion_pdiff(images[iframe], tip0)
+                r, d_index = idilation_pdiff(s, tip0)
+                loss += sum((r .- images[iframe]).^2)
+            end
+            println("step $(i): loss = $(loss)")
+        end
+    end
+    return
+end
+
+function itip_least_squares_adam!(tip0, images::Vector{Any}; thresh=0.1)
+    nframe = length(images)
+    learning_rate = 0.01
+    BETA1 = 0.9
+    BETA2 = 0.999
+    EPS = 1e-08
+    mt = similar(tip0)
+    mt .= 0.0
+    vt = similar(tip0)
+    vt .= 0.0
+    delta = similar(tip0)
+    delta .= 0.0
+    xc, yc = MDToolbox.compute_xc_yc(tip0)
+    for i = 1:1000
+        #lambda = 0.1
+        #ss = tip0
+        delta .= 0.0
+        for iframe = 1:nframe
+        #for iframe in randperm(MersenneTwister(1234), nframe)
+            s, e_index = ierosion_pdiff(images[iframe], tip0)
+            r, d_index = idilation_pdiff(s, tip0)
+            for ix = 1:size(tip0, 1)
+                for iy = 1:size(tip0, 2)
+                    if (ix == xc) & (iy == yc)
+                        continue
+                    end
+                    id_e = e_index .== ((iy-1)*size(tip0, 1) + ix)
+                    id_d = d_index .== ((iy-1)*size(tip0, 1) + ix)
+                    delta[ix, iy] += sum((r .- images[iframe]) .* (id_d .- id_e)) .* learning_rate
                     #if (ix >= 2) & (ix <= (size(tip0, 1)-1))
                     #    if (iy >= 2) & (iy <= (size(tip0, 2)-1))
-                    #        d[ix, iy] -= lambda*((ss[ix, iy] - ss[ix, iy+1]) + (ss[ix, iy] - ss[ix, iy-1]) + (ss[ix, iy] - ss[ix+1, iy]) + (ss[ix, iy] - ss[ix-1, iy]))
+                    #        delta[ix, iy] -= lambda*((ss[ix, iy] - ss[ix, iy+1]) + (ss[ix, iy] - ss[ix, iy-1]) + (ss[ix, iy] - ss[ix+1, iy]) + (ss[ix, iy] - ss[ix-1, iy]))
                     #    end
                     #end
                 end
             end
         end
-        for ix = 1:size(tip0, 1)
-            for iy = 1:size(tip0, 2)
-                #d[ix, iy] = min(d[ix, iy], 0.0)
-                #d[ix, iy] = max(d[ix, iy], -0.1)
-                tip0[ix, iy] += d[ix, iy]
-                tip0[ix, iy] = min(tip0[ix, iy], 0.0)
-            end
-        end
+        delta .= max.(delta, 0.0)
+        @. mt = BETA1 * mt + (1 - BETA1) * delta
+        @. vt = BETA2 * vt + (1 - BETA2) * delta^2
+        @. delta = mt / (1.0 - BETA1^i) / (sqrt(vt / (1.0 - BETA2^i)) + EPS) * learning_rate
+        tip0 .= tip0 .- delta
+        tip0 .= min.(tip0, 0.0)
         if mod(i, 100) == 0
             loss = 0.0
             for iframe = 1:nframe
