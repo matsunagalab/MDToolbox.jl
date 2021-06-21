@@ -100,7 +100,7 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
     return count
 end
 
-function itip_estimate_iter!(tip0, image; thresh=0.0)
+function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
     xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
@@ -119,7 +119,17 @@ function itip_estimate_iter!(tip0, image; thresh=0.0)
     return count
 end
 
-function itip_estimate!(tip0, image; thresh=0.0)
+function itip_estimate!(tip0, images::Vector{Any}; thresh=0.0)
+    nframe = length(images)
+    for iframe = 1:nframe
+        @printf "Processing %d-th image\n" iframe
+        itip_estimate!(tip0, images[iframe], thresh=0.0)
+        @printf "\n"
+    end
+    return
+end
+
+function itip_estimate!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
     iter = 0
     count = 1
     while count > 0
@@ -132,6 +142,115 @@ function itip_estimate!(tip0, image; thresh=0.0)
 end
 
 function icmap(image, tip, rsurf, xc, yc)
+end
+
+function idilation_pdiff(surface, tip)
+    xc, yc = MDToolbox.compute_xc_yc(tip)
+    surf_xsiz, surf_ysiz = size(surface)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = similar(surface)
+    r_index = zeros(Int, size(r))
+    for i = 0:(surf_xsiz-1)
+        pxmin = max(i-surf_xsiz+1, -xc)
+        pxmax = min(i, tip_xsiz-xc-1)
+        for j = 0:(surf_ysiz-1)
+            pymin = max(j-surf_ysiz+1, -yc)
+            pymax = min(j, tip_ysiz-yc-1)
+            dil_max = surface[i-pxmin+1, j-pymin+1] + tip[pxmin+xc+1, pymin+yc+1]
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = surface[i-px+1, j-py+1] + tip[px+xc+1, py+yc+1]
+                    if temp > dil_max
+                        dil_max = temp
+                        r_index[i+1, j+1] = (py+yc+1-1)*size(tip, 1) + (px+xc+1)
+                    end
+                end
+            end
+            r[i+1, j+1] = dil_max
+        end
+    end
+    return r, r_index
+end
+
+function ierosion_pdiff(image, tip)
+    xc, yc = MDToolbox.compute_xc_yc(tip)
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = similar(image)
+    r_index = zeros(Int, size(r))
+    for i = 0:(im_xsiz-1)
+        pxmin = max(-i, -xc)
+        pxmax = min(im_xsiz-i, tip_xsiz-xc) - 1
+        for j = 0:(im_ysiz-1)
+            pymin = max(-j, -yc)
+            pymax = min(im_ysiz-j, tip_ysiz-yc) - 1
+            eros_min = image[i+pxmin+1, j+pymin+1] - tip[pxmin+xc+1, pymin+yc+1]
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = image[i+px+1, j+py+1] - tip[px+xc+1, py+yc+1]
+                    if temp < eros_min
+                        eros_min = temp
+                        r_index[i+1, j+1] = (py+yc+1-1)*size(tip, 1) + (px+xc+1)
+                    end
+                end
+            end
+            r[i+1, j+1] = eros_min
+        end
+    end
+    return r, r_index
+end
+
+function itip_least_squares!(tip0, image::Matrix{T}; thresh=0.1) where {T <: Number}
+    @show typeof([image])
+    itip_least_squares!(tip0, [image], thresh=0.1)
+end
+
+function itip_least_squares!(tip0, images::Vector{F}; thresh=0.1) where {F <: AbstractMatrix}
+    nframe = length(images)
+    for i = 1:1000
+        xc, yc = MDToolbox.compute_xc_yc(tip0)
+        learning_rate = 0.01
+        #lambda = 0.1
+        #ss = tip0
+        d = zeros(size(tip0))
+        for iframe = 1:nframe
+            s, e_index = ierosion_pdiff(images[iframe], tip0)
+            r, d_index = idilation_pdiff(s, tip0)
+            for ix = 1:size(tip0, 1)
+                for iy = 1:size(tip0, 2)
+                    if (ix == xc) & (iy == yc)
+                        continue
+                    end
+                    id_e = e_index .== ((iy-1)*size(tip0, 1) + ix)
+                    id_d = d_index .== ((iy-1)*size(tip0, 1) + ix)
+                    d[ix, iy] -= sum((r .- images[iframe]) .* (id_d .- id_e)) .* learning_rate
+                    #if (ix >= 2) & (ix <= (size(tip0, 1)-1))
+                    #    if (iy >= 2) & (iy <= (size(tip0, 2)-1))
+                    #        d[ix, iy] -= lambda*((ss[ix, iy] - ss[ix, iy+1]) + (ss[ix, iy] - ss[ix, iy-1]) + (ss[ix, iy] - ss[ix+1, iy]) + (ss[ix, iy] - ss[ix-1, iy]))
+                    #    end
+                    #end
+                end
+            end
+        end
+        for ix = 1:size(tip0, 1)
+            for iy = 1:size(tip0, 2)
+                #d[ix, iy] = min(d[ix, iy], 0.0)
+                #d[ix, iy] = max(d[ix, iy], -0.1)
+                tip0[ix, iy] += d[ix, iy]
+                tip0[ix, iy] = min(tip0[ix, iy], 0.0)
+            end
+        end
+        if mod(i, 100) == 0
+            loss = 0.0
+            for iframe = 1:nframe
+                s, e_index = ierosion_pdiff(images[iframe], tip0)
+                r, d_index = idilation_pdiff(s, tip0)
+                loss += sum((r .- images[iframe]).^2)
+            end
+            println("step $(i): loss = $(loss)")
+        end
+    end
+    return
 end
 
 """
