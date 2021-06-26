@@ -15,21 +15,20 @@ function idilation(surface, tip)
     surf_xsiz, surf_ysiz = size(surface)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(surface)
-    for i = 0:(surf_xsiz-1)
-        pxmin = max(i-surf_xsiz+1, -xc)
-        pxmax = min(i, tip_xsiz-xc-1)
-        for j = 0:(surf_ysiz-1)
-            pymin = max(j-surf_ysiz+1, -yc)
-            pymax = min(j, tip_ysiz-yc-1)
-
-            dil_max = surface[i-pxmin+1, j-pymin+1] + tip[pxmin+xc+1, pymin+yc+1]
+    for i = 1:surf_xsiz
+        for j = 1:surf_ysiz
+            pxmin = max(i-surf_xsiz, -xc+1)
+            pymin = max(j-surf_ysiz, -yc+1)
+            pxmax = min(i-1, -xc+tip_xsiz)
+            pymax = min(j-1, -yc+tip_ysiz)
+            dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
             for px = pxmin:pxmax
                 for py = pymin:pymax
-                    temp = surface[i-px+1, j-py+1] + tip[px+xc+1, py+yc+1]
+                    temp = surface[i-px, j-py] + tip[xc+px, yc+py]
                     dil_max = max(temp, dil_max)
                 end
             end
-            r[i+1, j+1] = dil_max
+            r[i, j] = dil_max
         end
     end
     return r
@@ -40,20 +39,20 @@ function ierosion(image, tip)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(image)
-    for i = 0:(im_xsiz-1)
-        pxmin = max(-i, -xc)
-        pxmax = min(im_xsiz-i, tip_xsiz-xc) - 1
-        for j = 0:(im_ysiz-1)
-            pymin = max(-j, -yc)
-            pymax = min(im_ysiz-j, tip_ysiz-yc) - 1
-            eros_min = image[i+pxmin+1, j+pymin+1] - tip[pxmin+xc+1, pymin+yc+1]
+    for i = 1:im_xsiz
+        for j = 1:im_ysiz
+            pxmin = max(-i+1, -xc+1)
+            pymin = max(-j+1, -yc+1)
+            pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
+            pymax = min(-j+im_ysiz, -yc+tip_ysiz)
+            eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
             for px = pxmin:pxmax
                 for py = pymin:pymax
-                    temp = image[i+px+1, j+py+1] - tip[px+xc+1, py+yc+1]
+                    temp = image[i+px, j+py] - tip[xc+px, yc+py]
                     eros_min = min(temp, eros_min)
                 end
             end
-            r[i+1, j+1] = eros_min
+            r[i, j] = eros_min
         end
     end
     return r
@@ -145,56 +144,56 @@ function icmap(image, tip, rsurf, xc, yc)
 end
 
 function idilation_pdiff(surface, tip)
-    xc, yc = MDToolbox.compute_xc_yc(tip)
+    xc, yc = compute_xc_yc(tip)
     surf_xsiz, surf_ysiz = size(surface)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(surface)
     r_index = zeros(Int, size(r))
-    for i = 0:(surf_xsiz-1)
-        pxmin = max(i-surf_xsiz+1, -xc)
-        pxmax = min(i, tip_xsiz-xc-1)
-        for j = 0:(surf_ysiz-1)
-            pymin = max(j-surf_ysiz+1, -yc)
-            pymax = min(j, tip_ysiz-yc-1)
-            dil_max = surface[i-pxmin+1, j-pymin+1] + tip[pxmin+xc+1, pymin+yc+1]
+    for i = 1:surf_xsiz
+        for j = 1:surf_ysiz
+            pxmin = max(i-surf_xsiz, -xc+1)
+            pymin = max(j-surf_ysiz, -yc+1)
+            pxmax = min(i-1, -xc+tip_xsiz)
+            pymax = min(j-1, -yc+tip_ysiz)
+            dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
             for px = pxmin:pxmax
                 for py = pymin:pymax
-                    temp = surface[i-px+1, j-py+1] + tip[px+xc+1, py+yc+1]
+                    temp = surface[i-px, j-py] + tip[xc+px, yc+py]
                     if temp > dil_max
                         dil_max = temp
-                        r_index[i+1, j+1] = (py+yc+1-1)*size(tip, 1) + (px+xc+1)
+                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
                     end
                 end
             end
-            r[i+1, j+1] = dil_max
+            r[i, j] = dil_max
         end
     end
     return r, r_index
 end
 
 function ierosion_pdiff(image, tip)
-    xc, yc = MDToolbox.compute_xc_yc(tip)
+    xc, yc = compute_xc_yc(tip)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(image)
     r_index = zeros(Int, size(r))
-    for i = 0:(im_xsiz-1)
-        pxmin = max(-i, -xc)
-        pxmax = min(im_xsiz-i, tip_xsiz-xc) - 1
-        for j = 0:(im_ysiz-1)
-            pymin = max(-j, -yc)
-            pymax = min(im_ysiz-j, tip_ysiz-yc) - 1
-            eros_min = image[i+pxmin+1, j+pymin+1] - tip[pxmin+xc+1, pymin+yc+1]
+    for i = 1:im_xsiz
+        for j = 1:im_ysiz
+            pxmin = max(-i+1, -xc+1)
+            pymin = max(-j+1, -yc+1)
+            pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
+            pymax = min(-j+im_ysiz, -yc+tip_ysiz)
+            eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
             for px = pxmin:pxmax
                 for py = pymin:pymax
-                    temp = image[i+px+1, j+py+1] - tip[px+xc+1, py+yc+1]
+                    temp = image[i+px, j+py] - tip[xc+px, yc+py]
                     if temp < eros_min
                         eros_min = temp
-                        r_index[i+1, j+1] = (py+yc+1-1)*size(tip, 1) + (px+xc+1)
+                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
                     end
                 end
             end
-            r[i+1, j+1] = eros_min
+            r[i, j] = eros_min
         end
     end
     return r, r_index
@@ -213,7 +212,8 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1)
     tip0[xc, yc] = 0.0
     nframe = length(images)
     d = zeros(eltype(tip0), size(tip0))
-    for i = 1:1000
+    loss_array = []
+    for i = 1:500
         d .= eltype(tip0)(0.0)
         for iframe = 1:nframe
             s, e_index = ierosion_pdiff(images[iframe], tip0)
@@ -225,6 +225,11 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1)
                     end
                     id_e = e_index .== ((iy-1)*size(tip0, 1) + ix)
                     id_d = d_index .== ((iy-1)*size(tip0, 1) + ix)
+                    #if mod(i, 2) == 0
+                    #    d[ix, iy] += - sum((r .- images[iframe]) .* id_d) .* rate
+                    #else
+                    #    d[ix, iy] += - sum((r .- images[iframe]) .* (- id_e)) .* rate
+                    #end
                     d[ix, iy] += - sum((r .- images[iframe]) .* (id_d .- id_e)) .* rate
                 end
             end
@@ -239,7 +244,17 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1)
         #d .= min.(d, 0.0)
         tip0 .+= d
         tip0 .= min.(tip0, 0.0)
-        if mod(i, 100) == 0
+        #tip0 .= tip0 .- tip0[xc, yc]
+
+        #tip0_old = tip0
+        #for ix = 2:(size(tip0, 1)-1)
+        #    for iy = 2:(size(tip0, 2)-1)
+        #        tip0[ix, iy] = 0.25 * (tip0_old[ix, iy-1] + tip0_old[ix-1, iy] + tip0_old[ix+1, iy] + tip0_old[ix, iy+1])
+        #    end
+        #end
+        #tip0 .= tip0 .- tip0[xc, yc]
+
+        if mod(i, 50) == 0
             loss = 0.0
             for iframe = 1:nframe
                 s, e_index = ierosion_pdiff(images[iframe], tip0)
@@ -247,9 +262,10 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1)
                 loss += sum((r .- images[iframe]).^2)
             end
             println("step $(i): loss = $(loss)")
+            push!(loss_array, loss)
         end
     end
-    return
+    return loss_array
 end
 
 function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.01)
@@ -379,7 +395,7 @@ function itip_least_squares_adam!(tip0, images::Vector{Any}; thresh=0.1, learnin
     vt .= 0.0
     delta = similar(tip0)
     delta .= 0.0
-    for i = 1:1000
+    for i = 1:300
         #lambda = 0.1
         #ss = tip0
         delta .= 0.0
@@ -408,7 +424,9 @@ function itip_least_squares_adam!(tip0, images::Vector{Any}; thresh=0.1, learnin
         @. delta = mt / (1.0 - BETA1^i) / (sqrt(vt / (1.0 - BETA2^i)) + EPS) * learning_rate
         #delta .= max.(delta, 0.0)
         tip0 .= tip0 .- delta
+        #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
         tip0 .= min.(tip0, 0.0)
+        #tip0 .= tip0 .- tip0[xc, yc]
         if mod(i, 100) == 0
             loss = 0.0
             for iframe = 1:nframe
