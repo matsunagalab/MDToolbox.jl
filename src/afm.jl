@@ -156,6 +156,7 @@ function idilation_pdiff(surface, tip)
             pxmax = min(i-1, -xc+tip_xsiz)
             pymax = min(j-1, -yc+tip_ysiz)
             dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
+            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
             for px = pxmin:pxmax
                 for py = pymin:pymax
                     temp = surface[i-px, j-py] + tip[xc+px, yc+py]
@@ -184,6 +185,7 @@ function ierosion_pdiff(image, tip)
             pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
             pymax = min(-j+im_ysiz, -yc+tip_ysiz)
             eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
+            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
             for px = pxmin:pxmax
                 for py = pymin:pymax
                     temp = image[i+px, j+py] - tip[xc+px, yc+py]
@@ -213,7 +215,7 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1)
     nframe = length(images)
     d = zeros(eltype(tip0), size(tip0))
     loss_array = []
-    for i = 1:500
+    for i = 1:100
         d .= eltype(tip0)(0.0)
         for iframe = 1:nframe
             s, e_index = ierosion_pdiff(images[iframe], tip0)
@@ -254,7 +256,7 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1)
         #end
         #tip0 .= tip0 .- tip0[xc, yc]
 
-        if mod(i, 50) == 0
+        if mod(i, 10) == 0
             loss = 0.0
             for iframe = 1:nframe
                 s, e_index = ierosion_pdiff(images[iframe], tip0)
@@ -395,6 +397,7 @@ function itip_least_squares_adam!(tip0, images::Vector{Any}; thresh=0.1, learnin
     vt .= 0.0
     delta = similar(tip0)
     delta .= 0.0
+    loss_array = []
     for i = 1:300
         #lambda = 0.1
         #ss = tip0
@@ -427,7 +430,7 @@ function itip_least_squares_adam!(tip0, images::Vector{Any}; thresh=0.1, learnin
         #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
         tip0 .= min.(tip0, 0.0)
         #tip0 .= tip0 .- tip0[xc, yc]
-        if mod(i, 100) == 0
+        if mod(i, 50) == 0
             loss = 0.0
             for iframe = 1:nframe
                 s, e_index = ierosion_pdiff(images[iframe], tip0)
@@ -435,9 +438,10 @@ function itip_least_squares_adam!(tip0, images::Vector{Any}; thresh=0.1, learnin
                 loss += sum((r .- images[iframe]).^2)
             end
             println("step $(i): loss = $(loss)")
+            push!(loss_array, loss)
         end
     end
-    return
+    return loss_array
 end
 
 """
