@@ -862,29 +862,29 @@ function rotate_with_matrix!(x, y, z, R)
     return
 end
 
-function rotate_with_matrix_gpu!(x, y, z, R)
-    natom = length(x)
-    ngid = gridDim().x*blockDim().x
-    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
-
-    ntile = ceil(Int, natom/ngid)
-    for itile = 1:ntile
-        iatom = ngid*(itile-1) + gid + 1
-        if iatom > natom
-            return
-        end
-        x_curr = x[iatom]
-        y_curr = y[iatom]
-        z_curr = z[iatom]
-        x_new = R[1, 1]*x_curr + R[1, 2]*y_curr + R[1, 3]*z_curr
-        y_new = R[2, 1]*x_curr + R[2, 2]*y_curr + R[2, 3]*z_curr
-        z_new = R[3, 1]*x_curr + R[3, 2]*y_curr + R[3, 3]*z_curr
-        x[iatom] = x_new
-        y[iatom] = y_new
-        z[iatom] = z_new
-    end
-    return
-end
+#function rotate_with_matrix_gpu!(x, y, z, R)
+#    natom = length(x)
+#    ngid = gridDim().x*blockDim().x
+#    gid = (blockIdx().x - 1)*blockDim().x + threadIdx().x - 1
+#
+#    ntile = ceil(Int, natom/ngid)
+#    for itile = 1:ntile
+#        iatom = ngid*(itile-1) + gid + 1
+#        if iatom > natom
+#            return
+#        end
+#        x_curr = x[iatom]
+#        y_curr = y[iatom]
+#        z_curr = z[iatom]
+#        x_new = R[1, 1]*x_curr + R[1, 2]*y_curr + R[1, 3]*z_curr
+#        y_new = R[2, 1]*x_curr + R[2, 2]*y_curr + R[2, 3]*z_curr
+#        z_new = R[3, 1]*x_curr + R[3, 2]*y_curr + R[3, 3]*z_curr
+#        x[iatom] = x_new
+#        y[iatom] = y_new
+#        z[iatom] = z_new
+#    end
+#    return
+#end
 
 function rotate!(x, y, z, q::AbstractVector{T}) where {T, U}
     natom = length(x)
