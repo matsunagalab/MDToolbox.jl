@@ -1,7 +1,7 @@
 module MDToolbox
 
 using FileIO
-using NetCDF
+#using NetCDF
 using NLsolve
 using FFTW
 #using Bio3DView
