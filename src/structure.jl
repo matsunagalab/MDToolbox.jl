@@ -50,6 +50,7 @@ julia> com = centersofmass(ta)
 """
 function centerofmass(ta::TrjArray{T, U};
     isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0))::TrjArray{T, U} where {T, U}
+    #start = time()
     nframe = ta.nframe
     natom = ta.natom
     index2 = preprocess_index(natom, index)
@@ -59,15 +60,24 @@ function centerofmass(ta::TrjArray{T, U};
     weight = weight[index2]
     wsum_inv = one(T) / sum(weight)
     weight = reshape(weight, 1, natom_sub)
+    #elapsed = time() - start; println("elapsed1 = $(elapsed)")
 
-    xyz = similar(ta.xyz, nframe, 3)
+    #start = time()
+    xyz = zeros(T, nframe, 3)
     if natom_sub == 1
         return ta[:, index2]
     else
         xyz[:, 1:1] .= sum(weight .* view(ta.xyz, :, index3[1:3:end]), dims=2) .* wsum_inv
         xyz[:, 2:2] .= sum(weight .* view(ta.xyz, :, index3[2:3:end]), dims=2) .* wsum_inv
         xyz[:, 3:3] .= sum(weight .* view(ta.xyz, :, index3[3:3:end]), dims=2) .* wsum_inv
+        #x = view(ta.xyz, :, index3[1:3:end])
+        #y = view(ta.xyz, :, index3[2:3:end])
+        #z = view(ta.xyz, :, index3[3:3:end])
+        #@time xyz[:, 1:1] .= sum(weight .* x, dims=2) .* wsum_inv
+        #@time xyz[:, 2:2] .= sum(weight .* y, dims=2) .* wsum_inv
+        #@time xyz[:, 3:3] .= sum(weight .* z, dims=2) .* wsum_inv
     end
+    #elapsed = time() - start; println("elapsed2 = $(elapsed)")
 
     TrjArray{T, U}(xyz=xyz)
 end
@@ -99,12 +109,14 @@ function decenter(ta::TrjArray{T, U}; isweight::Bool=true,
 end
 
 """
-    decenter!(ta::TrjArray; isweight=true, index=[])
+    decenter!(ta::TrjArray; isweight=true, index::Union{UnitRange,Vector,BitArray}) -> com::TrjArray
 
 Translates the coordinates of the given trajectory, a TrjArray `ta`, 
 so that the COM of it become identical to the origin (x=y=z=0). 
 If `isweight` is `true` (default), coordinates are weighted by `ta.mass` (as long as `ta.mass` is not empty).
 Uses can also specify column indices for the COM calculation by giving `index` which should be an Array of integers. 
+
+Returns the center of mass coordinates of the given trajectory. 
 
 # Example
 ```julia-repl
@@ -114,11 +126,12 @@ julia> decenter!(ta)
 """
 function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, 
     index::AbstractVector=Vector{Int64}(undef, 0)) where {T, U}
+    #println("decenter!")
     com = centerofmass(ta, isweight=isweight, index=index)
     ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
     ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
     ta.xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
-    nothing
+    return com
 end
 
 """
@@ -391,11 +404,35 @@ function fastCalcRMSDAndRotation(A::Vector{T}, E0::T, wsum_inv::T) where {T}
     return r1, rot
 end
 
-function applyrotation!(iframe::U, x::Matrix{T}, y::Matrix{T}, z::Matrix{T}, ta2::TrjArray{T, U}, rot::Vector{T}) where {T, U}
-    x[iframe, :] .= rot[1] .* ta2.xyz[iframe, 1:3:end] .+ rot[2] .* ta2.xyz[iframe, 2:3:end] .+ rot[3] .* ta2.xyz[iframe, 3:3:end]
-    y[iframe, :] .= rot[4] .* ta2.xyz[iframe, 1:3:end] .+ rot[5] .* ta2.xyz[iframe, 2:3:end] .+ rot[6] .* ta2.xyz[iframe, 3:3:end]
-    z[iframe, :] .= rot[7] .* ta2.xyz[iframe, 1:3:end] .+ rot[8] .* ta2.xyz[iframe, 2:3:end] .+ rot[9] .* ta2.xyz[iframe, 3:3:end]
+#function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2}, z::AbstractArray{T, 2}, xyz::Matrix{T}, rot::Vector{T}) where {T, U}
+#    natom = size(x, 2)
+#    for iatom = 1:natom
+#        x[iframe, iatom] = rot[1] * xyz[iframe, 3*(iatom-1)+1] + rot[2] * xyz[iframe, 3*(iatom-1)+2] + rot[3] * xyz[iframe, 3*(iatom-1)+3]
+#        y[iframe, iatom] = rot[4] * xyz[iframe, 3*(iatom-1)+1] + rot[5] * xyz[iframe, 3*(iatom-1)+2] + rot[6] * xyz[iframe, 3*(iatom-1)+3]
+#        z[iframe, iatom] = rot[7] * xyz[iframe, 3*(iatom-1)+1] + rot[8] * xyz[iframe, 3*(iatom-1)+2] + rot[9] * xyz[iframe, 3*(iatom-1)+3]
+#    end
+#end
+
+function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2}, z::AbstractArray{T, 2}, xyz::Matrix{T}, rot::Vector{T}) where {T, U}
+    natom = size(x, 2)
+    @simd for iatom = 1:natom
+        x[iframe, iatom] = rot[1] * xyz[iframe, 3*(iatom-1)+1] + rot[2] * xyz[iframe, 3*(iatom-1)+2] + rot[3] * xyz[iframe, 3*(iatom-1)+3]
+        y[iframe, iatom] = rot[4] * xyz[iframe, 3*(iatom-1)+1] + rot[5] * xyz[iframe, 3*(iatom-1)+2] + rot[6] * xyz[iframe, 3*(iatom-1)+3]
+        z[iframe, iatom] = rot[7] * xyz[iframe, 3*(iatom-1)+1] + rot[8] * xyz[iframe, 3*(iatom-1)+2] + rot[9] * xyz[iframe, 3*(iatom-1)+3]
+    end
 end
+
+#function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2}, z::AbstractArray{T, 2}, xyz::Matrix{T}, rot::Vector{T}) where {T, U}
+#    @inbounds x[iframe, :] .= rot[1] .* xyz[iframe, 1:3:end] .+ rot[2] .* xyz[iframe, 2:3:end] .+ rot[3] .* xyz[iframe, 3:3:end]
+#    @inbounds y[iframe, :] .= rot[4] .* xyz[iframe, 1:3:end] .+ rot[5] .* xyz[iframe, 2:3:end] .+ rot[6] .* xyz[iframe, 3:3:end]
+#    @inbounds z[iframe, :] .= rot[7] .* xyz[iframe, 1:3:end] .+ rot[8] .* xyz[iframe, 2:3:end] .+ rot[9] .* xyz[iframe, 3:3:end]
+#end
+
+#function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2}, z::AbstractArray{T, 2}, x_ta::AbstractArray{T, 2}, y_ta::AbstractArray{T, 2}, z_ta::AbstractArray{T, 2}, rot::Vector{T}) where {T, U}
+#    x[iframe, :] .= rot[1] .* x_ta[iframe, :] .+ rot[2] .* y_ta[iframe, :] .+ rot[3] .* z_ta[iframe, :]
+#    y[iframe, :] .= rot[4] .* x_ta[iframe, :] .+ rot[5] .* y_ta[iframe, :] .+ rot[6] .* z_ta[iframe, :]
+#    z[iframe, :] .= rot[7] .* x_ta[iframe, :] .+ rot[8] .* y_ta[iframe, :] .+ rot[9] .* z_ta[iframe, :]
+#end
 
 """
     rotate(ta::TrjArray, quaternion::Vector) -> ta_rotated::TrjArray
@@ -561,51 +598,63 @@ J. Comput. Chem. 31, 1561-1563 (2010).
 """
 function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
-    if ref.natom != ta.natom
-        @printf "Warning: # of atoms in ref and ta are different: ref.natom = %d, ta.natom = %d\n" ref.natom ta.natom
-    end
-
     nframe = ta.nframe
     natom = max(ref.natom, ta.natom)
+    natom3_ref = ref.natom*3
+    natom3_ta = ta.natom*3
 
+    #println("step1")
     index2 = preprocess_index(natom, index)
     if min(ref.natom, ta.natom) < maximum(index2)
-        @printf "Warning: some index are over # of atoms, truncated.\n"
+        @printf "Warning: some atom indices are larger than # of atoms, truncated.\n"
         id = index2 .<= min(ref.natom, ta.natom)
         index2 = index2[id]
     end
 
+    #println("step2")
     weight = preprocess_weight(min(ref.natom, ta.natom), isweight, ta.mass)
     wsum_inv = one(T) / sum(weight)
 
-    if isdecenter
-        ta2 = copy(ta)
-        ref2 = ref[1, :]
-    else
-        ta2, = decenter(ta, isweight=isweight, index=index2)
-        ref2, com = decenter(ref[1, :], isweight=isweight, index=index2)
+    #println("step3")
+    ref2 = deepcopy(ref[1, :])
+    ta2 = deepcopy(ta)
+
+    #println("step4")
+    if !isdecenter
+        com = decenter!(ref2, isweight=isweight, index=index2)
+        decenter!(ta2, isweight=isweight, index=index2)
     end
 
-    x = Matrix{T}(undef, nframe, natom)
-    y = Matrix{T}(undef, nframe, natom)
-    z = Matrix{T}(undef, nframe, natom)
+    x_ta = view(ta2.xyz, :, 1:3:natom3_ta)
+    y_ta = view(ta2.xyz, :, 2:3:natom3_ta)
+    z_ta = view(ta2.xyz, :, 2:3:natom3_ta)
 
+    xyz = Matrix{T}(undef, nframe, natom3_ta)
+    x = view(xyz, :, 1:3:natom3_ta)
+    y = view(xyz, :, 2:3:natom3_ta)
+    z = view(xyz, :, 3:3:natom3_ta)
+
+    #println("step5")
     Threads.@threads for iframe in 1:nframe
         A, E0 = innerproduct(iframe, ref2.xyz, ta2.xyz, index2, isweight, weight)
         rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
-        applyrotation!(iframe, x, y, z, ta2, rot)
+        applyrotation!(iframe, x, y, z, ta2.xyz, rot)
+        #applyrotation!(iframe, x, y, z, x_ta, y_ta, z_ta, rot)
     end
+
+    #println("step6")
 
     if !isdecenter
-        x = x .+ com.xyz[:, 1]
-        y = y .+ com.xyz[:, 2]
-        z = z .+ com.xyz[:, 3]
+        x .= x .+ com.xyz[:, 1]
+        y .= y .+ com.xyz[:, 2]
+        z .= z .+ com.xyz[:, 3]
+        #@time xyz .+= com.xyz
     end
 
-    xyz = Matrix{T}(undef, nframe, natom*3)
-    xyz[:, 1:3:end] .= x
-    xyz[:, 2:3:end] .= y
-    xyz[:, 3:3:end] .= z
+    #@time xyz = Matrix{T}(undef, nframe, natom*3)
+    #@time xyz[:, 1:3:end] .= x
+    #@time xyz[:, 2:3:end] .= y
+    #@time xyz[:, 3:3:end] .= z
 
     return TrjArray(ta, xyz=xyz)
 end
@@ -649,7 +698,7 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     for iframe in 1:nframe
         A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
         rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
-        applyrotation!(iframe, x, y, z, ta2, rot)
+        applyrotation!(iframe, x, y, z, ta2.xyz, rot)
     end
 
     if !isdecenter
