@@ -332,7 +332,7 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
     end
 end
 
-function readnetcdf(filename::String; index=nothing)
+function readnetcdf2(filename::String; index=nothing)
     ds = NCDataset(filename, "r")
 
     natom = ds.dim["atom"]
@@ -366,7 +366,7 @@ function readnetcdf(filename::String; index=nothing)
     return TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
 end
 
-function readnetcdf_old(filename::String; index=nothing)
+function readnetcdf(filename::String; index=nothing)
     #finfo = ncinfo(filename)
     #attributes = finfo.gatts
     #dimensions = finfo.dims
