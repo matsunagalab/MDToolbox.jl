@@ -31,9 +31,9 @@ function mdload(filename::AbstractString; index=nothing, top=nothing)
 
     if !isnothing(top)
         if isnothing(index)
-            ta = [top; ta]
+            ta = [top[0, :]; ta]
         else
-            ta = [top[:, index]; ta]
+            ta = [top[0, index]; ta]
         end
     end
 
@@ -333,6 +333,40 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
 end
 
 function readnetcdf(filename::String; index=nothing)
+    ds = NCDataset(filename, "r")
+
+    natom = ds.dim["atom"]
+    nframe = ds.dim["frame"]
+    is_trj = false
+    is_box = false
+    is_vel = false
+    is_temp = false
+
+    if haskey(ds, "coordinates")
+        is_trj = true
+    end
+    if haskey(ds, "cell_lengths")
+        is_box = true
+    end
+
+    boxsize = Matrix{Float64}(undef, 0, 0)
+    if is_trj
+        xyz = zeros(Float64, nframe, 3*natom)
+        xyz[:, 1:3:end] .= ds["coordinates"][1, :, :]'
+        xyz[:, 2:3:end] .= ds["coordinates"][2, :, :]'
+        xyz[:, 3:3:end] .= ds["coordinates"][3, :, :]'
+    end
+
+    boxsize = Matrix{Float64}(undef, 0, 0)
+    if is_box
+        boxsize = zeros(Float64, nframe, 3)
+        boxsize .= ds["cell_lengths"][:, :]'
+    end
+
+    return TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
+end
+
+function readnetcdf_old(filename::String; index=nothing)
     #finfo = ncinfo(filename)
     #attributes = finfo.gatts
     #dimensions = finfo.dims
@@ -405,7 +439,7 @@ function readnetcdf(filename::String; index=nothing)
         temp = Vector{Float64}(undef, 0)
     end
 
-    TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
+    return TrjArray{Float64, Int64}(xyz=xyz, boxsize=boxsize)
 end
 
 function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force = nothing)

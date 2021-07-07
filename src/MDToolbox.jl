@@ -2,6 +2,7 @@ module MDToolbox
 
 using FileIO
 #using NetCDF
+using NCDatasets
 using NLsolve
 using FFTW
 #using Bio3DView
