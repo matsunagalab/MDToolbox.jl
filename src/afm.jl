@@ -10,6 +10,39 @@ function ireflect(surface)
     return surface2
 end
 
+function icmap(image, surface, tip; thresh=0.1)
+    xc, yc = compute_xc_yc(tip)
+    surf_xsiz, surf_ysiz = size(surface)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = zeros(Int64, size(surface))
+    x = y = 0
+    num_contact = 0
+    for i = 1:surf_xsiz
+        for j = 1:surf_ysiz
+            num_contact = 0
+            pxmin = max(xc-tip_xsiz, 1-i)
+            pymin = max(yc-tip_ysiz, 1-j)
+            pxmax = min(xc-1, surf_xsiz-i)
+            pymax = min(yc-1, surf_ysiz-j)
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp1 = image[i, j] - tip[xc-px, yc-py]
+                    temp2 = surface[i+px, j+py]
+                    if abs(temp1 - temp2) < thresh
+                        num_contact += 1
+                        x = i+px
+                        y = j+py
+                    end
+                end
+            end
+            if num_contact == 1
+                r[x, y] = 1
+            end
+        end
+    end
+    return r
+end
+
 function idilation(surface, tip)
     xc, yc = compute_xc_yc(tip)
     surf_xsiz, surf_ysiz = size(surface)
@@ -140,9 +173,6 @@ function itip_estimate!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
     return count
 end
 
-function icmap(image, tip, rsurf, xc, yc)
-end
-
 function idilation_pdiff(surface, tip)
     xc, yc = compute_xc_yc(tip)
     surf_xsiz, surf_ysiz = size(surface)
@@ -201,6 +231,102 @@ function ierosion_pdiff(image, tip)
     return r, r_index
 end
 
+function itip_least_squares!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{T}; rate=0.01, max_convergence=0.1) where {T <: Number}
+    tip_xsiz, tip_ysiz = size(tip0)
+    icount = 0
+    check_convergence = T(Inf) 
+    tip0_old = deepcopy(tip0)
+    while check_convergence > max_convergence
+        xc, yc = MDToolbox.compute_xc_yc(tip0)
+        r, r_index = MDToolbox.idilation_pdiff(surface, tip0)
+        for ix = 1:tip_xsiz
+            for iy = 1:tip_ysiz
+                if (ix == xc) & (iy == yc)
+                    continue
+                end
+                id = r_index .== ((iy-1)*size(tip0, 1) + ix)
+                if any(id)
+                    tip0[ix, iy] -= sum(r[id] .- image[id]) * rate
+                end
+            end
+        end
+        icount += 1
+        check_convergence = maximum(abs.(tip0_old .- tip0))
+        tip0_old .= tip0
+        if mod(icount, 10) == 0
+            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
+            @printf "iteration %d : %f\n" icount check_convergence
+        end
+    end
+end
+
+#function itip_em!(tip0::Matrix{T}, images::Array{Matrix{Float64}, 1}; rate=0.01, max_convergence=0.1, nsample=1000, max_iteration=1000) where {T <: Number}
+function itip_em!(tip0::Matrix{T}, images::Vector{Any}; rate=0.01, max_convergence=0.1, nsample=1000, max_iteration=1000) where {T <: Number}
+    xc, yc = compute_xc_yc(tip0)
+    tip_xsiz, tip_ysiz = size(tip0)
+    nframe = length(images)
+    icount = 0
+    check_convergence = T(Inf) 
+    tip0_old = deepcopy(tip0)
+    delta = similar(tip0)
+    surfaces = deepcopy(images)
+    surfaces_sample = deepcopy(images)
+
+    while (check_convergence > max_convergence) & (icount < max_iteration)
+        for iframe = 1:nframe
+            surfaces[iframe] .= ierosion(images[iframe], tip0)
+        end
+
+        # E-step
+        ids = []
+        vecs = []
+        for iframe = 1:nframe
+            cmap = icmap(images[iframe], surfaces[iframe], tip0)
+            id = cmap .< 0.5
+            vec_uncertain = surfaces_sample[iframe][id]
+            vec = []
+            for isample = 1:nsample
+                push!(vec, vec_uncertain .* rand(eltype(vec_uncertain), length(vec_uncertain)))
+            end
+            push!(ids, deepcopy(id))
+            push!(vecs, deepcopy(vec))
+        end
+
+        # M-step
+        tip0_old .= tip0
+        for istep = 1:100
+            delta .= 0.0
+            for iframe = 1:nframe
+                for isample = 1:nsample
+                    surface = surfaces[iframe]
+                    surface[ids[iframe]] .= vecs[iframe][isample]
+                    r, r_index = MDToolbox.idilation_pdiff(surface, tip0)
+                    for ix = 1:tip_xsiz
+                        for iy = 1:tip_ysiz
+                            if (ix == xc) & (iy == yc)
+                                continue
+                            end
+                            id = r_index .== ((iy-1)*size(tip0, 1) + ix)
+                            if any(id)
+                                delta[ix, iy] -= sum(r[id] .- images[iframe][id]) * rate / nsample
+                            end
+                        end
+                    end
+                end
+            end
+            tip0 .+= delta
+            tip0 .= min.(tip0, 0.0)    
+        end
+        icount += 1
+        check_convergence = maximum(abs.(tip0_old .- tip0))
+        if mod(icount, 1) == 0
+            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
+            @printf "iteration %d : %f\n" icount check_convergence
+        end
+    end
+    return delta
+end
+
 function itip_least_squares!(tip0, image::Matrix{T}; thresh=0.1, rate=0.1) where {T <: Number}
     images = []
     push!(images, image)
@@ -219,6 +345,7 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
     loss_val_array = []
     for i = 1:nstep
         d .= eltype(tip0)(0.0)
+        #Threads.@threads for iframe = 1:nframe
         for iframe = 1:nframe
             s, e_index = ierosion_pdiff(images[iframe], tip0)
             r, d_index = idilation_pdiff(s, tip0)
@@ -235,7 +362,8 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
                     #    d[ix, iy] += - sum((r .- images[iframe]) .* (- id_e)) .* rate
                     #end
                     d[ix, iy] += - sum((r .- images[iframe]) .* (id_d .- id_e)) .* rate
-                    d[ix, iy] += lambda * rate
+                    #d[ix, iy] += - sum((r .- images[iframe]) .* (+id_d) .* (-id_e)) .* rate
+                    #d[ix, iy] += lambda * rate
                 end
             end
         end
@@ -249,6 +377,7 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
         #d .= min.(d, 0.0)
         tip0 .+= d
         tip0 .= min.(tip0, 0.0)
+        #tip0 .= max.(tip0, -100.0)
         #tip0 .= tip0 .- tip0[xc, yc]
 
         #tip0_old = tip0
