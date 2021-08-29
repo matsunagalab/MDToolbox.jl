@@ -244,7 +244,7 @@ ADのバイナリ－物理量の変換公式は
 高さ最値小 = バイナリ最大値から計算した高さ
 高さ最大値 = バイナリ最小値から計算した高さ
 """
-function binaryToPhysicalQuantity(data, header, chanelType)
+function binaryToPhysicalQuantity!(data, header, chanelType)
     # 電圧データに変換
     cc = header.adRange / header.AdResolution
     adUiniRange = header.adRange / 2
@@ -284,7 +284,7 @@ function readFrameHeader(io::IOStream, header::Header)
     booked2      = Int64(read(io, Int16))
     booked3      = Int64(read(io, Int32))
     booked4      = Int64(read(io, Int32))
-    seek(io, io_pos + header.frameHeaderSize)
+    # seek(io, io_pos + header.frameHeaderSize)
 
     return FrameHeader(number, maxData, minData, offsetX, offsetY, tiltX, tiltY, isStimulated, booked1, booked2, booked3, booked4)
 end
@@ -295,13 +295,63 @@ function readImage(io::IOStream, header, chanelType)
     for y in 1:header.pixelY, x in 1:header.pixelX
         data[y, x] = Int64(read(io, Int16))
     end
-    binaryToPhysicalQuantity(data, header, chanelType)
+    binaryToPhysicalQuantity!(data, header, chanelType)
     return data
 end
 
-function readasd(filePath)
+function readFrameRangeChack(readFrameRange, header)
+    if readFrameRange == nothing
+        readFrameRange = (1, header.numFrames)
+    end
+    if readFrameRange[1] < 1 || readFrameRange[2] > header.numFrames
+        @printf "readFrameRange is out of Frame size"
+    end
+    if readFrameRange[1] > readFrameRange[2]
+        @printf "readFrameRange is invalid"
+    end
+    readFrameRange = (max(min(readFrameRange[1], header.numFrames), 1), min(max(readFrameRange[2], 1), header.numFrames))
+    return readFrameRange
+end
+
+function makeExpandedAsd(header, readFrameRange, frameHeaders, datas, subDatas, maxFrameSize)
+    frames = []
+    offsetY_min = Int64(2^63 - 1)
+    offsetY_max = Int64(-2^63)
+    offsetX_min = Int64(2^63 - 1)
+    offsetX_max = Int64(-2^63)
+    for i in 1:(readFrameRange[2] - readFrameRange[1] + 1)
+        offsetY_min = min(offsetY_min, frameHeaders[i].offsetY)
+        offsetY_max = max(offsetY_max, frameHeaders[i].offsetY)
+        offsetX_min = min(offsetX_min, frameHeaders[i].offsetX)
+        offsetX_max = max(offsetX_max, frameHeaders[i].offsetX)
+    end
+            
+    expandedY = offsetY_max - offsetY_min
+    expandedX = offsetX_max - offsetX_min
+    
+    if ((header.pixelY + expandedY) * (header.pixelX + expandedX)) > maxFrameSize
+        @printf "ERROR: frame size will be %d, it's too big" (header.pixelY + expandedY) * (header.pixelX + expandedX)
+        return Asd(header, [])
+    end
+            
+    for i in 1:(readFrameRange[2] - readFrameRange[1] + 1)
+        y_min = frameHeaders[i].offsetY - offsetY_min + 1
+        y_max = y_min + header.pixelY - 1
+        x_min = frameHeaders[i].offsetX - offsetX_min + 1
+        x_max = x_min + header.pixelX - 1
+        data = fill(minimum(datas[i]), header.pixelY + expandedY, header.pixelX + expandedX)
+        data[y_min:y_max, x_min:x_max] = datas[i]
+        subData = fill(minimum(subDatas[i]), header.pixelY + expandedY, header.pixelX + expandedX)
+        subData[y_min:y_max, x_min:x_max] = subDatas[i]
+        push!(frames, Frame(frameHeaders[i], data, subData))
+    end
+            
+    return Asd(Header(), frames)
+end
+
+function readasd(filePath; readFrameRange = nothing, translationSetting = nothing, maxFrameSize = 1000000)
     open(filePath, "r") do io
-        io_pos = position(io)
+        # io_pos = position(io)
         headerVersion = Int64(read(io, Int32))
         header = Header()
         if headerVersion == 0
@@ -311,28 +361,42 @@ function readasd(filePath)
         else
             @assert false "can't read v2 file"
         end
-        seek(io, io_pos + header.fileHeaderSize)
+        
+        header.fileHeaderSize = position(io)
+        readFrameHeader(io, header)
+        readImage(io, header, header.dataType1ch)
+        oneFrameSize = position(io) - header.fileHeaderSize
+        seek(io, header.fileHeaderSize)
 
         frameHeaders = []
         subFrameHeaders = []
         datas = []
         subDatas = []
-        for i in 1:header.numFrames
+        
+        readFrameRange = readFrameRangeChack(readFrameRange, header)
+        
+        for i in readFrameRange[1]:readFrameRange[2]
+            seek(io, header.fileHeaderSize + oneFrameSize * (i - 1))
             push!(frameHeaders, readFrameHeader(io, header))
             push!(datas, readImage(io, header, header.dataType1ch))
         end
 
-        for i in 1:header.numFrames
+        for i in readFrameRange[1]:readFrameRange[2]
             if header.dataType2ch == "none"
-                push!(subDatas, datas[i])
+                push!(subDatas, datas[i - readFrameRange[1] + 1])
                 continue
             end
+            seek(io, header.fileHeaderSize + oneFrameSize * (header.numFrames + i - 1))
             push!(subFrameHeaders, readFrameHeader(io, header))
             push!(subDatas, readImage(io, header, header.dataType1ch))
         end
 
+        if translationSetting == "expansion"
+            return makeExpandedAsd(header, readFrameRange, frameHeaders, datas, subDatas, maxFrameSize)
+        end
+        
         frames = []
-        for i in 1:header.numFrames
+        for i in 1:(readFrameRange[2] - readFrameRange[1] + 1)
             push!(frames, Frame(frameHeaders[i], datas[i], subDatas[i]))
         end
 
