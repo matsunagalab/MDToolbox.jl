@@ -85,6 +85,60 @@ function clusterkcenters(ta::TrjArray, kcluster::Int; nReplicates::Int=10)
     return (indexOfCluster=F.indexOfCluster, center=center_ta, distanceFromCenter=F.distanceFromCenter, indexOfCenter=F.indexOfCenter)
 end
 
+"""
+    clustercutoff(X::AbstractMatrix, rcut=10.0) -> F
+
+Perform clustering using the given cutoff radius.
+
+#  Example
+```julia-repl
+julia> using MDToolbox, Plots
+julia> X = rand(1000, 2)
+julia> F = clustercutoff(X, 0.5)
+julia> scatter(X[:, 1], X[:, 2], c=F.indexOfCluster)
+```
+# References
+```
+This function uses the method described in
+[1] X. Daura, K. Gademann, B. Jaun, D. Seebach, W. F. van Gunsteren, and A. E. Mark, Angewandte 38, 236–240 (1999).
+```
+"""
+function clustercutoff(t::AbstractMatrix, rcut=10.0)
+    nframe = size(t, 1)
+    rcut2 = rcut^2
+
+    indexOfCluster = zeros(Int64, nframe)
+    id = indexOfCluster .== 0
+
+    center = similar(t)
+    k = 1
+
+    while any(id)
+        x = view(t, id, :)
+        index = view(indexOfCluster, id)
+
+        n_max = 0
+        iframe_max = 0
+        for iframe = 1:size(x, 1)
+            dist = sum((x[iframe:iframe, :] .- x).^2, dims=2)
+            n = sum(dist .< rcut2)
+            if n_max < n
+                n_max = n
+                iframe_max = iframe
+            end
+        end
+
+        center[k:k, :] .= x[iframe_max:iframe_max, :]
+        dist = sum((center[k:k, :] .- x).^2, dims=2)
+        index[dist[:] .< rcut2] .= k
+        k += 1
+
+        id = indexOfCluster .== 0
+    end
+
+    return (indexOfCluster=indexOfCluster, center=center[1:(k-1), :])
+end
+
 
 """
     compute_cov(ta::AbstractMatrix, lagtime::Int=0) -> cov
