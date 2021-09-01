@@ -339,9 +339,9 @@ function makeExpandedAsd(header, readFrameRange, frameHeaders, datas, subDatas, 
         y_max = y_min + header.pixelY - 1
         x_min = frameHeaders[i].offsetX - offsetX_min + 1
         x_max = x_min + header.pixelX - 1
-        data = fill(minimum(datas[i]), header.pixelY + expandedY, header.pixelX + expandedX)
+        data = zeros(header.pixelY + expandedY, header.pixelX + expandedX)
         data[y_min:y_max, x_min:x_max] = datas[i]
-        subData = fill(minimum(subDatas[i]), header.pixelY + expandedY, header.pixelX + expandedX)
+        subData = zeros(header.pixelY + expandedY, header.pixelX + expandedX)
         subData[y_min:y_max, x_min:x_max] = subDatas[i]
         push!(frames, Frame(frameHeaders[i], data, subData))
     end

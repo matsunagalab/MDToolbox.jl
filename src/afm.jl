@@ -1162,6 +1162,19 @@ function direct_convolution(observed, calculated)
     return ret
 end
 
+function direct_convolution_non_periodic(observed, calculated)
+    H, W = size(observed)
+    ret = zeros(H, W)
+    for y in 1:H, x in 1:W
+        for dy in 1:(H-y+1), dx in 1:(W-x+1)
+            ny = y + dy - 1
+            nx = x + dx - 1
+            ret[y, x] += observed[dy, dx] * calculated[ny, nx]
+        end
+    end
+    return ret
+end
+
 function fft_convolution(observed, calculated)
     #return real.(ifft(fft(observed).*conj.(fft(calculated))))
     return real.(ifftshift(ifft(fft(observed).*conj.(fft(calculated)))))
