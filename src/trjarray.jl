@@ -564,22 +564,26 @@ copy(ta::TrjArray)::TrjArray =
 
 ###### vcat, hcat, merge #################
 function vcat(ta_collection::TrjArray...)
+    T = eltype(ta_collection[1].xyz)
+
+    # check the number of atoms
     natom = ta_collection[1].natom
-    isbox_empty = false
-
-    T = Float64
-    if isempty(ta_collection[1].boxsize)
-        isbox_empty_first = true
-    else
-        T = eltype(ta_collection[1].boxsize)
-    end
-
     for i = 2:length(ta_collection)
         if natom != ta_collection[i].natom
             throw(ArgumentError("number of atoms doesn't match"))
         end
     end
-    xyz, boxsize = ta_collection[1].xyz, ta_collection[1].boxsize
+    xyz = ta_collection[1].xyz
+
+    # check boxsize
+    if isempty(ta_collection[1].boxsize)
+        is_box = false
+        boxsize = Matrix{T}(undef, 0, 0)
+    else
+        is_box = true
+        boxsize = ta_collection[1].boxsize
+    end
+
     for i = 2:length(ta_collection)
         if !isempty(ta_collection[i].xyz)
             if isempty(xyz)
@@ -588,18 +592,18 @@ function vcat(ta_collection::TrjArray...)
                 xyz = [xyz; ta_collection[i].xyz]
             end
         end
-        if !isempty(ta_collection[i].boxsize) & !isbox_empty
-            if isempty(boxsize)
-                boxsize = ta_collection[i].boxsize
-            else
+        if is_box
+            if !isempty(ta_collection[i].boxsize)
                 boxsize = [boxsize; ta_collection[i].boxsize]
+            else
+                @printf "Warning: boxsize information discarded in some trajectories\n"
+                is_box = false
+                boxsize = Matrix{T}(undef, 0, 0)
             end
         else
-            if !isbox_empty_first
+            if !isempty(ta_collection[i].boxsize)
                 @printf "Warning: boxsize information discarded in some trajectories\n"
             end
-            isbox_empty = true
-            boxsize = Matrix{T}(undef, 0, 0)
         end
     end
     TrjArray(ta_collection[1], xyz=xyz, boxsize=boxsize)
