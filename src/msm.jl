@@ -291,6 +291,40 @@ function msmforward(data_list, T, pi_i, emission)
     logL, alpha_list, factor_list
 end
 
+function msmforward_missing(data_list, T, pi_i, emission)
+  ndata = length(data_list)
+  nstate = length(T[1, :])
+  logL = zeros(Float64, ndata)
+  alpha_list = []
+  factor_list = []
+  for idata = 1:ndata
+      data = data_list[idata]
+      nframe = length(data)
+      alpha  = zeros(Float64, (nframe, nstate))
+      factor = zeros(Float64, nframe)
+      if data[1] === missing
+        alpha[1, :] = pi_i
+      else
+        alpha[1, :] = pi_i.*emission[:, data[1]]
+      end
+      factor[1] = sum(alpha[1, :])
+      alpha[1, :] = alpha[1, :]./factor[1]
+      for iframe = 2:nframe
+          if data[iframe] === missing
+            alpha[iframe, :] = sum(alpha[iframe-1, :] .* T, dims=1)'
+          else
+            alpha[iframe, :] = sum(alpha[iframe-1, :] .* T, dims=1)' .* emission[:, data[iframe]]
+          end
+          factor[iframe] = sum(alpha[iframe, :])
+          alpha[iframe, :] = alpha[iframe, :]./factor[iframe]
+      end
+      logL[idata] = sum(log.(factor))
+      push!(alpha_list, alpha)
+      push!(factor_list, factor)
+  end
+  logL, alpha_list, factor_list
+end
+
 function msmbackward(data_list, factor_list, T, pi_i, emission)
     ndata = length(data_list)
     nstate = length(T[1, :])
@@ -304,6 +338,30 @@ function msmbackward(data_list, factor_list, T, pi_i, emission)
         beta[nframe, :] .= 1.0
         for iframe = (nframe-1):-1:1
             beta[iframe, :] = sum((T .* (emission[:, data[iframe+1]] .* beta[iframe+1, :])'), dims=2) ./ factor[iframe+1]
+        end
+        logL[idata] = sum(log.(factor))
+        push!(beta_list, beta)
+    end
+    logL, beta_list
+end
+
+function msmbackward_missing(data_list, factor_list, T, pi_i, emission)
+    ndata = length(data_list)
+    nstate = length(T[1, :])
+    logL = zeros(Float64, ndata)
+    beta_list = []
+    for idata = 1:ndata
+        data   = data_list[idata]
+        factor = factor_list[idata]
+        nframe = length(data)
+        beta   = zeros(Float64, (nframe, nstate))
+        beta[nframe, :] .= 1.0
+        for iframe = (nframe-1):-1:1
+            if data[iframe+1] === missing
+                beta[iframe, :] = sum((T .* beta[iframe+1, :]'), dims=2) ./ factor[iframe+1]
+            else
+                beta[iframe, :] = sum((T .* (emission[:, data[iframe+1]] .* beta[iframe+1, :])'), dims=2) ./ factor[iframe+1]
+            end
         end
         logL[idata] = sum(log.(factor))
         push!(beta_list, beta)
@@ -420,6 +478,92 @@ function msmbaumwelch(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-4), MAXI
         T0 = T
     end
     T, pi_i, emission
+end
+
+function msmbaumwelch_missing(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-4), MAXITERATION=Inf64)
+  ## setup
+  check_convergence = Inf64
+  count_iteration = 0
+  logL_old = 1.0
+  #if not isinstance(data_list, list):
+  #    data_list = [data_list]
+  ndata = length(data_list)
+  nobs = length(emission0[1, :])
+  nstate = length(T0[1, :])
+  T = similar(T0)
+  emission = similar(emission0)
+  pi_i = similar(pi_i0)
+  while (check_convergence > TOLERANCE) & (count_iteration <= MAXITERATION)
+      ## E-step
+      logL, alpha_list, factor_list = msmforward_missing(data_list, T0, pi_i0, emission0)
+      #print("1"); println(logL)
+      logL2, beta_list = msmbackward_missing(data_list, factor_list, T0, pi_i0, emission0)
+      #print("2"); println(logL2)
+      log_alpha_list = []
+      for a in alpha_list
+          push!(log_alpha_list, log.(a))
+      end
+      log_beta_list = []
+      for b in beta_list
+          push!(log_beta_list, log.(b))
+      end
+      log_T0 = log.(T0)
+      log_emission0 = log.(emission0)
+
+      ## M-step
+      # pi
+      # pi = np.zeros(nstate, dtype=np.float64)
+      # log_gamma_list = []
+      # for idata in range(ndata):
+      #     log_gamma_list.append(log_alpha_list[idata] + log_beta_list[idata])
+      #     pi = pi + np.exp(log_gamma_list[idata][0, :])
+      # pi = pi/np.sum(pi)
+      # pi_i = pi_i0
+      # emission
+      # emission = np.zeros((nstate, nobs), dtype=np.float64)
+      # for idata in range(ndata):
+      #     data = data_list[idata]
+      #     for istate in range(nstate):
+      #         for iobs in range(nobs):
+      #             id = (data == iobs)
+      #             if np.any(id):
+      #                 emission[istate, iobs] = emission[istate, iobs] + np.sum(np.exp(log_gamma_list[idata][id, istate]))
+      # emission[np.isnan(emission)] = 0.0
+      # emission = emission / np.sum(emission, axis=1)[:, None]
+      emission = emission0
+      # T
+      T = zeros(Float64, (nstate, nstate))
+      for idata = 1:ndata
+        data = data_list[idata]
+        nframe = length(data)
+        for iframe = 2:nframe
+          log_xi = log_alpha_list[idata][iframe-1, :] .+ log_beta_list[idata][iframe, :]'
+          if data[iframe] === missing
+            T = T .+ exp.(log_xi .+ log_T0) ./ factor_list[idata][iframe]
+          else
+            T = T .+ exp.((log_xi .+ log_emission0[:, data[iframe]]') .+ log_T0) ./ factor_list[idata][iframe]
+          end
+        end
+      end
+      #T[np.isnan(T)] = 0.0
+      T = T ./ sum(T, dims=2)
+
+      ## reversible T
+      T, pi_i = msmtransitionmatrix(T, TOLERANCE=10^(-8), verbose=false)
+
+      ## Check convergence
+      count_iteration += 1
+      logL = sum(logL)
+      check_convergence = abs(logL_old - logL)
+      if mod(count_iteration, 100) == 0
+          Printf.@printf("%d iteration LogLikelihood = %e  delta = %e  tolerance = %e\n" , count_iteration, logL, check_convergence, TOLERANCE)
+      end
+      logL_old = logL
+      pi_i0 = pi_i
+      emission0 = emission
+      T0 = T
+  end
+  T, pi_i, emission
 end
 
 """

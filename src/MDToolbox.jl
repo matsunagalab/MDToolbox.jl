@@ -1,5 +1,6 @@
 module MDToolbox
 
+using Base.Threads: AtomicTypes
 using FileIO
 using NetCDF
 #using NCDatasets
@@ -27,13 +28,13 @@ export mdload, mdsave, readdcd, readnetcdf, writenetcdf, readpsf, writepsf, read
 export centerofmass, decenter, decenter!, orient!
 export rotate, rotate!, rotate_with_matrix, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
 export compute_distance, compute_distancemap, compute_contactmap, compute_angle, compute_dihedral
-export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce
-export clusterkcenters, compute_cov, rsvd, pca, tica
+export compute_qscore, compute_drms, compute_pairlist, compute_pairlist_bruteforce, compute_skrew
+export clusterkcenters, clustercutoff, compute_cov, rsvd, pca, tica
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
 export mbar
-export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmbackward, msmbaumwelch, msmviterbi, msmimpliedtime
+export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmforward_missing, msmbackward, msmbackward_missing, msmbaumwelch, msmbaumwelch_missing, msmviterbi, msmimpliedtime
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export idilation, ierosion, itip_estimate!, itip_least_squares!, surfing, afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
 export Asd, readasd
