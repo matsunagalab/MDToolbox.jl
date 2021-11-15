@@ -160,15 +160,13 @@ julia> c = msmcountmatrix(F.indexOfCluster, tau=10)
 ```
 """
 function msmcountmatrix(indexOfCluster; tau=1)
-  nstate = maximum(indexOfCluster)
-  nframe = size(indexOfCluster, 1)
-
-  if typeof(indexOfCluster) <: AbstractArray
+  if eltype(indexOfCluster) <: Number
     indexOfCluster2 = [indexOfCluster]
   else
     indexOfCluster2 = indexOfCluster
   end
 
+  nstate = maximum(maximum(indexOfCluster2))
   ntraj = length(indexOfCluster2)
   U = typeof(indexOfCluster2[1][1])
   c = spzeros(U, nstate, nstate)
