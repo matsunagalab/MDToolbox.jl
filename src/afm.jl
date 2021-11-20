@@ -47,7 +47,7 @@ function idilation(surface, tip)
     xc, yc = compute_xc_yc(tip)
     surf_xsiz, surf_ysiz = size(surface)
     tip_xsiz, tip_ysiz = size(tip)
-    r = similar(surface)
+    r = zeros(eltype(surface), size(surface))
     for i = 1:surf_xsiz
         for j = 1:surf_ysiz
             pxmin = max(i-surf_xsiz, -xc+1)
@@ -253,7 +253,118 @@ function itip_least_squares!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{
         icount += 1
         check_convergence = maximum(abs.(tip0_old .- tip0))
         tip0_old .= tip0
-        if mod(icount, 10) == 0
+        if mod(icount, 1000) == 0
+            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
+            @printf "iteration %d : %f\n" icount check_convergence
+        end
+    end
+end
+
+function _logsumexp(x; tau=1)
+    if tau > 0.0
+        c = maximum(x)
+    else
+        c = minimum(x)
+    end
+    return c + tau * log(sum(exp.((x .- c) ./ tau)))
+end
+
+function _softmax(x; tau=1)
+    m = _logsumexp(x; tau=tau)
+    if tau > 0.0
+        return exp.((x .- m) ./ tau)
+    else
+        return exp.((x .+ m) ./ tau)
+    end
+end
+
+function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{T}; rate=0.01, max_convergence=0.1) where {T <: Number}
+    tip_xsiz, tip_ysiz = size(tip0)
+    surf_xsiz, surf_ysiz = size(surface)
+    xc, yc = MDToolbox.compute_xc_yc(tip0)
+    icount = 0
+    check_convergence = T(Inf) 
+    tip0_old = deepcopy(tip0)
+    tau = 1.0
+    d = zeros(eltype(tip0), size(tip0))
+    while (check_convergence > max_convergence) & (icount < 5000)
+        r, r_index = MDToolbox.idilation_pdiff(surface, tip0)
+        #tip0[ix, iy] -= sum(r[id] .- image[id]) * rate
+        d .= 0.0
+        for i = 1:surf_xsiz
+            for j = 1:surf_ysiz
+                pxmin = max(i-surf_xsiz, -xc+1)
+                pymin = max(j-surf_ysiz, -yc+1)
+                pxmax = min(i-1, -xc+tip_xsiz)
+                pymax = min(j-1, -yc+tip_ysiz)
+                temp = surface[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]
+                d[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .+= (r[i, j] - image[i,j]) .* _softmax(temp; tau=tau)
+            end
+        end
+        d[xc, yc] = 0.0
+        tip0 .-= (d .* rate)
+        icount += 1
+        check_convergence = maximum(abs.(tip0_old .- tip0))
+        tip0_old .= tip0
+        if mod(icount, 1000) == 0
+            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
+            @printf "iteration %d : %f\n" icount check_convergence
+        end
+    end
+end
+
+function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}; tau=1.0, rate=0.01, max_convergence=0.1) where {T <: Number}
+    tip_xsiz, tip_ysiz = size(tip0)
+    surf_xsiz, surf_ysiz = size(image)
+    xc, yc = MDToolbox.compute_xc_yc(tip0)
+    #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
+    #tip0 .= -10.0
+    #tip0 .= tip0 .- maximum(tip0)
+    #tip0[xc, yc] = 0.0
+    icount = 0
+    check_convergence = T(Inf) 
+    tip0_old = deepcopy(tip0)
+    d = zeros(eltype(tip0), size(tip0))
+    while (check_convergence > max_convergence) & (icount < 5000)
+        s, e_index = ierosion_pdiff(image, tip0)
+        r, r_index = MDToolbox.idilation_pdiff(s, tip0)
+        #r .= r .- minimum(r)
+        d .= 0.0
+        for i = 1:surf_xsiz
+            for j = 1:surf_ysiz
+                pxmin = max(i-surf_xsiz, -xc+1)
+                pymin = max(j-surf_ysiz, -yc+1)
+                pxmax = min(i-1, -xc+tip_xsiz)
+                pymax = min(j-1, -yc+tip_ysiz)
+                temp1 = zeros(eltype(tip0), size(tip0))
+                temp1[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= _softmax(s[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]; tau=tau)
+                temp2 = zeros(eltype(tip0), size(tip0))
+                t = zeros(eltype(tip0), size(tip0))
+                #temp2[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= - _softmax( - image[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]; tau=tau) .+ 1.0
+                for px = pxmin:pxmax
+                    for py = pymin:pymax
+                        t .= 0.0
+                        xmin = max(i-px+pxmin, -xc+1, 1)
+                        xmax = min(i-px+pxmax, -xc+tip_xsiz)
+                        ymin = max(j-py+pymin, -yc+1, 1)
+                        ymax = min(j-py+pymax, -yc+tip_ysiz)
+                        if (xmin < xmax) & (ymin < ymax) & ((i-px+xmin) < (i-px+xmax)) & ((j-py+ymin) < (j-py+ymax))
+                            t[(xc+xmin):(xc+xmax), (yc+ymin):(yc+ymax)] = _softmax( image[(i-px+xmin):(i-px+xmax), (j-py+ymin):(j-py+ymax)] .- tip0[xc+px, yc+py]; tau=-tau) .+ 1.0
+                            temp2[xc+px, yc+py] = t[xc+px, yc+py]
+                        end
+                    end
+                end
+                d .+= (r[i, j] - image[i, j]) .* temp1 .* temp2
+            end
+        end
+        #d .= max.(d, 0.0)
+        d[xc, yc] = 0.0
+        #d .-= d[xc, yc]
+        tip0 .-= (d .* rate)
+        icount += 1
+        check_convergence = maximum(abs.(tip0_old .- tip0))
+        tip0_old .= tip0
+        if mod(icount, 1000) == 0
             #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
             @printf "iteration %d : %f\n" icount check_convergence
         end
@@ -262,6 +373,7 @@ end
 
 #function itip_em!(tip0::Matrix{T}, images::Array{Matrix{Float64}, 1}; rate=0.01, max_convergence=0.1, nsample=1000, max_iteration=1000) where {T <: Number}
 function itip_em!(tip0::Matrix{T}, images::Vector{Any}; rate=0.01, max_convergence=0.1, nsample=1000, max_iteration=1000) where {T <: Number}
+    tip0 .-= 10^(-8).*rand(Float64, size(tip0))
     xc, yc = compute_xc_yc(tip0)
     tip_xsiz, tip_ysiz = size(tip0)
     nframe = length(images)
@@ -363,7 +475,7 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
                     #end
                     d[ix, iy] += - sum((r .- images[iframe]) .* (id_d .- id_e)) .* rate
                     #d[ix, iy] += - sum((r .- images[iframe]) .* (+id_d) .* (-id_e)) .* rate
-                    #d[ix, iy] += lambda * rate
+                    d[ix, iy] += lambda * rate
                 end
             end
         end
@@ -388,14 +500,14 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
         #end
         #tip0 .= tip0 .- tip0[xc, yc]
 
-        if mod(i, 10) == 0
+        if mod(i, 100) == 0
             loss_train = 0.0
             for iframe = 1:nframe
                 s, e_index = ierosion_pdiff(images[iframe], tip0)
                 r, d_index = idilation_pdiff(s, tip0)
                 loss_train += sum((r .- images[iframe]).^2)
             end
-            loss_train += lambda * sum(tip0.^2)
+            loss_train += lambda * sum(abs.(tip0))
             #loss_train /= nframe
 
             loss_val = 0.0
@@ -416,7 +528,80 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
     return loss_train_array, loss_val_array
 end
 
-function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100)
+function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100, lambda=0.0)
+    #@show sum((idilation(surf, tip0) .- image).^2)
+    xc, yc = MDToolbox.compute_xc_yc(tip0)
+    tip0 .-= 10^(-8).*rand(Float64, size(tip0))
+    tip0[xc, yc] = 0.0
+    nframe = ceil(Int, length(images)*0.8)
+    mframe = length(images)
+    d = zeros(eltype(tip0), size(tip0))
+    loss_train_array = []
+    loss_val_array = []
+    for istep = 1:nstep
+        d .= eltype(tip0)(0.0)
+        for iframe = 1:nframe
+            s, e_index = ierosion_pdiff(images[iframe], tip0)
+            r, d_index = idilation_pdiff(s, tip0)
+            for ix = 1:size(tip0, 1)
+                for iy = 1:size(tip0, 2)
+                    if (ix == xc) & (iy == yc)
+                        continue
+                    end
+                    id_d = d_index .== ((iy-1)*size(tip0, 1) + ix)
+                    id_e = e_index .== ((iy-1)*size(tip0, 1) + ix)
+                    for i = 1:size(images[iframe], 1)
+                        for j = 1:size(images[iframe], 2)
+                            if id_d[i, j] > 0.5
+                                ii = i - (ix - xc)
+                                jj = j - (iy - yc)
+                                if 1 <= ii <= size(images[iframe], 1)
+                                    if 1 <= jj <= size(images[iframe], 2)
+                                        if id_e[ii, jj] > 0.5
+                                            id_d[i, j] = 0
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    d[ix, iy] += - sum((r[id_d] .- images[iframe][id_d]))
+                end
+            end
+        end
+
+        tip0 .+= d .* rate
+        tip0 .= min.(tip0, 0.0)
+
+        if mod(istep, 100) == 0
+            loss_train = 0.0
+            for iframe = 1:nframe
+                s, e_index = ierosion_pdiff(images[iframe], tip0)
+                r, d_index = idilation_pdiff(s, tip0)
+                loss_train += sum((r .- images[iframe]).^2)
+            end
+            loss_train += lambda * sum(abs.(tip0))
+            #loss_train /= nframe
+
+            loss_val = 0.0
+            for iframe = (nframe+1):mframe
+                s, e_index = ierosion_pdiff(images[iframe], tip0)
+                r, d_index = idilation_pdiff(s, tip0)
+                loss_val += sum((r .- images[iframe]).^2)
+            end
+            if nframe != mframe
+                loss_val /= (mframe - nframe)
+            end
+
+            println("step $(istep): loss_train = $(loss_train)   loss_validation = $(loss_val)")
+            push!(loss_train_array, loss_train)
+            push!(loss_val_array, loss_val)
+        end
+    end
+    return loss_train_array, loss_val_array
+end
+
+function itip_least_squares2_old!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100)
     #@show sum((idilation(surf, tip0) .- image).^2)
     xc, yc = MDToolbox.compute_xc_yc(tip0)
     tip0 .-= 10^(-8).*rand(Float64, size(tip0))
