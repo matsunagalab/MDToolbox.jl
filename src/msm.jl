@@ -623,7 +623,7 @@ function msmviterbi(observation, T, pi_i, emission)
     # termination
     P_star = maximum(P[:, nframe])
     state_estimated[nframe] = argmax(P[:, nframe])
-    @show P[:, nframe]
+    #@show P[:, nframe]
 
     # decoding
     for t = (nframe-1):-1:1
