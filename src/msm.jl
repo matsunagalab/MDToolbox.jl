@@ -600,7 +600,11 @@ function msmviterbi(observation, T, pi_i, emission)
     state_estimated = zeros(eltype(observation), nframe)
 
     # initialization
-    P[:, 1] .= log.(pi_i2) .+ log.(emission2[:, observation[1]])
+    if observation[1] === missing
+      P[:, 1] .= log.(pi_i2)
+    else
+      P[:, 1] .= log.(pi_i2) .+ log.(emission2[:, observation[1]])
+    end
     I[:, 1] .= zeros(eltype(T2), nstate)
 
     # argmax forward
