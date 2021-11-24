@@ -586,28 +586,40 @@ The algorithm of this routines is based on the descriptions in PRML book by C. B
 ```
 """
 function msmviterbi(observation, T, pi_i, emission)
+    T2 = T .+ 10^(-100)
+    T2 .= T2 ./ sum(T2, dims=2)
+    pi_i2 = pi_i .+ 10^(-100)
+    pi_i2 = pi_i2 ./sum(pi_i2)
+    emission2 = emission .+ 10^(-100)
+    emission2 .= emission2 ./ sum(emission2, dims=1)
+
     nframe = size(observation, 1)
-    nstate = size(T, 1)
+    nstate = size(T2, 1)
     P = zeros(eltype(T), nstate, nframe)
     I = zeros(eltype(T), nstate, nframe)
     state_estimated = zeros(eltype(observation), nframe)
 
     # initialization
-    P[:, 1] .= log.(pi_i) .+ log.(emission[:, observation[1]])
-    I[:, 1] .= zeros(eltype(T), nstate)
+    P[:, 1] .= log.(pi_i2) .+ log.(emission2[:, observation[1]])
+    I[:, 1] .= zeros(eltype(T2), nstate)
 
     # argmax forward
-    Z = zeros(eltype(T), nstate, nstate)
+    Z = zeros(eltype(T2), nstate, nstate)
     for t = 2:nframe
-        Z .= P[:, t-1] .+ log.(T)
+        if observation[t] === missing
+          Z .= P[:, (t-1):(t-1)] .+ log.(T2)
+        else
+          Z .= P[:, (t-1):(t-1)] .+ log.(T2) .+ log.(emission2[:, observation[t]:observation[t]]')
+        end
         I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
-        P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
+        #P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
+        P[:, t] .= maximum(Z, dims=1)[:]
     end
 
     # termination
     P_star = maximum(P[:, nframe])
     state_estimated[nframe] = argmax(P[:, nframe])
-    #@show P
+    @show P[:, nframe]
 
     # decoding
     for t = (nframe-1):-1:1
