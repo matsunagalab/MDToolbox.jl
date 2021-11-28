@@ -3,7 +3,7 @@
 
 Function for reading bimolecular structure files or molecular dynamics trajectories.
 This function automatically detects files types from the filename extension of input `filename`.
-Currently, PDB, PSF, DCD, and NetCDF formats are available.
+Currently, PDB, PSF, DCD, NetCDF, and namdbin(namd restart file) formats are available.
 For reading subset atoms from the trajectory files, the user can specify atom indices as `index::AbstractVector{Int}`.
 Returns a TrjArray variable `ta`.
 
@@ -25,8 +25,10 @@ function mdload(filename::AbstractString; index=nothing, top=nothing)
         ta = readpdb(filename)
     elseif endswith(filename, ".psf") |  endswith(filename, ".PSF")
         ta = readpsf(filename)
+    elseif endswith(filename, ".restart.coor") |  endswith(filename, ".restart.vel")
+        ta = readnamdbin(filename)
     else
-        ta = read(filename)
+        error("file type cannnot be identified from filename")
     end
 
     if !isnothing(top)
@@ -45,7 +47,7 @@ end
 
 Function for writing bimolecular structure files or molecular dynamics trajectories.
 This function automatically detects files types from the filename extension of input `filename`.
-Currently, PDB, PSF, and NetCDF formats are available.
+Currently, PDB, PSF, NetCDF, and namdbin(namd restart file) formats are available.
 
 #  Example
 ```julia-repl
@@ -55,16 +57,18 @@ julia> ta = mdsave("1ake.nc", ta)
 """
 function mdsave(filename::AbstractString, ta::TrjArray)
     r = 0
-    if endswith(filename, ".dcd") | endswith(filename, ".veldcd")
-        #r = writedcd(filename, ta)
-    elseif endswith(filename, ".nc") | endswith(filename, ".netcdf")
+    if endswith(filename, ".dcd") | endswith(filename, ".DCD") | endswith(filename, ".veldcd") | endswith(filename, ".VELDCD")
+        r = writedcd(filename, ta)
+    elseif endswith(filename, ".nc") | endswith(filename, ".NC") | endswith(filename, ".netcdf") | endswith(filename, ".NETCDF")
         r = writenetcdf(filename, ta)
-    elseif endswith(filename, ".pdb")
+    elseif endswith(filename, ".pdb") | endswith(filename, ".PDB")
         r = writepdb(filename, ta)
-    elseif endswith(filename, ".psf")
+    elseif endswith(filename, ".psf") |  endswith(filename, ".PSF")
         r = writepsf(filename, ta)
+    elseif endswith(filename, ".restart.coor") |  endswith(filename, ".restart.vel")
+        r = writenamdbin(filename, ta)
     else
-        #r = write(filename)
+        error("file type cannnot be identified from filename")
     end
 
     return r
@@ -960,6 +964,31 @@ end
 function writepdb(filename::String, ta::TrjArray; format_type="vmd")
     open(filename, "w") do io
         writepdb(io, ta, format_type=format_type)
+    end
+end
+
+"""
+read namd restart (namdbin) file
+"""
+function readnamdbin(filename::String)
+    xyz = []
+
+    open(filename, "r") do io
+        natom = read(io, Int32)
+        xyz = Vector{Float64}(undef, 3*natom)
+        read!(io, xyz)
+        xyz = reshape(xyz, (1, 3*natom))
+    end
+    return TrjArray{Float64, Int64}(xyz=xyz)
+end
+
+"""
+write namd restart (namdbin) file
+"""
+function writenamdbin(filename::String, ta::TrjArray{T, U}) where {T, U}
+    open(filename, "w") do io
+        write(io, Int32(ta.natom))
+        write(io, ta.xyz[1, :])
     end
 end
 
