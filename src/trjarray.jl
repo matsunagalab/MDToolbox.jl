@@ -198,7 +198,27 @@ function getindex(ta::TrjArray{T, U}, a::AbstractVector{Bool}) where {T, U}
 end
 getindex(ta::TrjArray{T, U}, a::AbstractVector{Bool}, ::Colon) where {T, U} = getindex(ta, a)
 
-# define function for updating list_bond, list_angle, list_dihedral, list_improper, list_cmap
+# function for slicing list_bond, list_angle, list_dihedral, list_improper, list_cmap, etc.
+function slice_list(list_some, atomid)
+    if isempty(atomid)
+        return Matrix{eltype(list_some)}(undef, 0, 0)
+    end
+    list_some_new = similar(list_some)
+    icount = 0
+    for i = 1:size(list_some, 1)
+        if all( in(atomid).(list_some[i, :]) )
+            icount += 1
+            list_some_new[icount, :] .= list_some[i, :]
+        end
+    end
+    if icount == 0
+        return Matrix{eltype(list_some)}(undef, 0, 0)
+    else
+        return list_some_new[1:icount, :]
+    end
+end
+
+# function for updating list_bond, list_angle, list_dihedral, list_improper, list_cmap
 function reindex_list(natom, list_some, index)
   if isempty(list_some) || isempty(index)
     return Matrix{eltype(list_some)}(undef, 0, 0)
@@ -241,17 +261,17 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::Int) where {T, U} = TrjArray{T, U}(
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r:r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r:r],
-             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
-             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:1),
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:1),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r],
              radius = isempty(ta.radius) ? ta.radius : ta.radius[r:r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r:r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r:r],
-             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r:r),
-             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r:r),
-             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r:r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r:r),
-             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r:r))
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : slice_list(ta.list_bond, isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r]),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : slice_list(ta.list_angle, isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r]),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : slice_list(ta.list_dihedral, isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r]),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : slice_list(ta.list_improper, isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r]),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : slice_list(ta.list_cmap, isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r]))
 
 # range of columns
 function to3(r::UnitRange{Int})
@@ -272,17 +292,17 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::UnitRange{Int}) where {T, U} = TrjArray
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r],
-             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
-             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              radius = isempty(ta.radius) ? ta.radius : ta.radius[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r],
-             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
-             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
-             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r),
-             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : slice_list(ta.list_bond, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : slice_list(ta.list_angle, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : slice_list(ta.list_dihedral, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : slice_list(ta.list_improper, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : slice_list(ta.list_cmap, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]))
 
 # array of columns (integer)
 # range of columns
@@ -304,17 +324,17 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{S}) where {T, U, S <: In
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r],
-             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
-             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              radius = isempty(ta.radius) ? ta.radius : ta.radius[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r],
-             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
-             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
-             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r),
-             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : slice_list(ta.list_bond, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : slice_list(ta.list_angle, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : slice_list(ta.list_dihedral, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : slice_list(ta.list_improper, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : slice_list(ta.list_cmap, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]))
 
 # array of rows (bool)
 function to3(r::AbstractVector{Bool})
@@ -335,17 +355,17 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r],
-             #atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
-             atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:sum(r)),
+             atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
+             #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:sum(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
              radius = isempty(ta.radius) ? ta.radius : ta.radius[r],
              charge = isempty(ta.charge) ? ta.charge : ta.charge[r],
              sasa = isempty(ta.sasa) ? ta.sasa : ta.sasa[r],
-             list_bond = isempty(ta.list_bond) ? ta.list_bond : reindex_list(ta.natom, ta.list_bond, r),
-             list_angle = isempty(ta.list_angle) ? ta.list_angle : reindex_list(ta.natom, ta.list_angle, r),
-             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : reindex_list(ta.natom, ta.list_dihedral, r),
-             list_improper = isempty(ta.list_improper) ? ta.list_improper : reindex_list(ta.natom, ta.list_improper, r),
-             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : reindex_list(ta.natom, ta.list_cmap, r))
+             list_bond = isempty(ta.list_bond) ? ta.list_bond : slice_list(ta.list_bond, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_angle = isempty(ta.list_angle) ? ta.list_angle : slice_list(ta.list_angle, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_dihedral = isempty(ta.list_dihedral) ? ta.list_dihedral : slice_list(ta.list_dihedral, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_improper = isempty(ta.list_improper) ? ta.list_improper : slice_list(ta.list_improper, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]),
+             list_cmap = isempty(ta.list_cmap) ? ta.list_cmap : slice_list(ta.list_cmap, isempty(ta.atomid) ? ta.atomid : ta.atomid[r]))
 
 # combinations
 getindex(ta::TrjArray{T, U}, rows, cols) where {T, U} = ta[rows, :][:, cols]
@@ -637,61 +657,110 @@ function hcat(ta_collection::TrjArray...)
     for i = 2:length(ta_collection)
         @assert nframe == ta_collection[i].nframe
 
-        if !isempty(ta_collection[i].xyz)
-            xyz = [xyz ta_collection[i].xyz]
-        else
+        if isempty(xyz) | isempty(ta_collection[i].xyz)
             xyz = []
+        else
+            xyz = [xyz ta_collection[i].xyz]
         end
 
-        if !isempty(ta_collection[i].chainname)
-            chainname = [chainname; ta_collection[i].chainname]
-        else
+        if isempty(chainname) | isempty(ta_collection[i].chainname)
             chainname = []
+        else
+            chainname = [chainname; ta_collection[i].chainname]
         end
 
-        if !isempty(ta_collection[i].chainid)
-            chainid = [chainid; ta_collection[i].chainid]
-        else
+        if isempty(chainid) | isempty(ta_collection[i].chainid)
             chainid = []
+        else
+            chainid = [chainid; ta_collection[i].chainid]
         end
 
-        if !isempty(ta_collection[i].resname)
-            resname = [resname; ta_collection[i].resname]
-        else
+        if isempty(resname) | isempty(ta_collection[i].resname)
             resname = []
+        else
+            resname = [resname; ta_collection[i].resname]
         end
 
-        if !isempty(ta_collection[i].resid)
-            resid = [resid; ta_collection[i].resid]
-        else
+        if isempty(resid) | isempty(ta_collection[i].resid)
             resid = []
+        else
+            resid = [resid; ta_collection[i].resid]
         end
 
-        if !isempty(ta_collection[i].atomname)
-            atomname = [atomname; ta_collection[i].atomname]
-        else
+        if isempty(atomname) | isempty(ta_collection[i].atomname)
             atomname = []
+        else
+            atomname = [atomname; ta_collection[i].atomname]
         end
 
-        if !isempty(ta_collection[i].atomtype)
-            atomtype = [atomtype; ta_collection[i].atomtype]
-        else
+        if isempty(atomtype) | isempty(ta_collection[i].atomtype)
             atomtype = []
+        else
+            atomtype = [atomtype; ta_collection[i].atomtype]
         end
 
-        if !isempty(ta_collection[i].atomid)
-            atomid = [atomid; ta_collection[i].atomid .+ natom]
-        else
+        if isempty(atomid) | isempty(ta_collection[i].atomid)
             atomid = []
+        else
+            #atomid = [atomid; ta_collection[i].atomid .+ natom]
+            atomid = [atomid; ta_collection[i].atomid]
+        end
+
+        if isempty(mass) | isempty(ta_collection[i].mass)
+            mass = []
+        else
+            mass = [mass; ta_collection[i].mass]
+        end
+
+        if isempty(radius) | isempty(ta_collection[i].radius)
+            radius = []
+        else
+            radius = [radius; ta_collection[i].radius]
+        end
+
+        if isempty(charge) | isempty(ta_collection[i].charge)
+            charge = []
+        else
+            charge = [charge; ta_collection[i].charge]
+        end
+
+        if isempty(sasa) | isempty(ta_collection[i].sasa)
+            sasa = []
+        else
+            sasa = [sasa; ta_collection[i].sasa]
+        end
+
+        if !isempty(ta_collection[i].list_bond)
+            list_bond = vcat(list_bond, ta_collection[i].list_bond)
+        end
+
+        if !isempty(ta_collection[i].list_angle)
+            list_angle = vcat(list_angle, ta_collection[i].list_angle)
+        end
+
+        if !isempty(ta_collection[i].list_dihedral)
+            list_dihedral = vcat(list_dihedral, ta_collection[i].list_dihedral)
+        end
+
+        if !isempty(ta_collection[i].list_improper)
+            list_improper = vcat(list_improper, ta_collection[i].list_improper)
+        end
+
+        if !isempty(ta_collection[i].list_cmap)
+            list_cmap = vcat(list_cmap, ta_collection[i].list_cmap)
         end
 
         natom += ta_collection[i].natom
     end
-    #@show size(xyz)
-    TrjArray(xyz=xyz, boxsize=boxsize, 
+
+    return TrjArray(xyz=xyz, boxsize=boxsize, 
              chainname=chainname, chainid=chainid,
              resname=resname, resid=resid,
-             atomname=atomname, atomtype=atomtype, atomid=atomid)
+             atomname=atomname, atomtype=atomtype, atomid=atomid,
+             mass=mass, radius=radius, charge=charge, sasa=sasa,
+             list_bond=list_bond, list_angle=list_angle,
+             list_dihedral=list_dihedral, list_improper=list_improper,
+             list_cmap=list_cmap)
 end
 
 ###### end keyword #################
