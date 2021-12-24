@@ -909,7 +909,7 @@ function writepdb(io::IO, ta::TrjArray; format_type="vmd")
             if isempty(ta.chainname)
                 Printf.@printf(io, "%1s", " ")
             else
-                Printf.@printf(io, "%1s", ta.chainname[iatom])
+                Printf.@printf(io, "%1s", ta.chainname[iatom][1:1])
             end
             if isempty(ta.chainname)
                 Printf.@printf(io, "%4d", mod(iatom, 10000))
@@ -990,6 +990,38 @@ function writenamdbin(filename::String, ta::TrjArray{T, U}) where {T, U}
         write(io, Int32(ta.natom))
         write(io, ta.xyz[1, :])
     end
+end
+
+"""
+read GENESIS log file
+"""
+function readgenesislog(filename::String)
+    lines = readlines(filename)
+    is_first = true
+    ks = []
+    vs = []
+    nlines = length(lines)
+    count = 0
+    for line in lines
+        r = findfirst("INFO:", line)
+        if r != nothing
+            if is_first
+                is_first = false
+                ks = String.(split(line)[2:end])
+                for i = 1:length(ks)
+                    ks[i] = replace(ks[i], "-" => "_")
+                    ks[i] = lowercase(ks[i])
+                end
+                vs = Matrix{Float64}(undef, (nlines, length(ks)))
+            else
+                v = parse.(Float64, split(line)[2:end])
+                count += 1
+                vs[count, :] .= v
+            end
+        end
+    end
+    vs = vs[1:count, :]
+    return NamedTuple{tuple((Symbol.(ks))...)}(tuple([vs[:, i] for i = 1:length(ks)]...))
 end
 
 function readcrd(filename::String)
