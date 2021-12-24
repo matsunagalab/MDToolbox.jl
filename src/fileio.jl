@@ -722,7 +722,7 @@ function writepsf(filename::String, ta::TrjArray)
 
         Printf.@printf(io, "%8d !NATOM\n", natom)
         for iatom = 1:natom
-            Printf.@printf(io, "%8d", iatom)
+            Printf.@printf(io, "%8d", ta.atomid[iatom])
             Printf.@printf(io, " %4s", isempty(ta.chainname) ? rpad("NONE", 4) : rpad(ta.chainname[iatom], 4))
             Printf.@printf(io, " %-4d", isempty(ta.resid) ? 0 : ta.resid[iatom])
             Printf.@printf(io, " %4s", isempty(ta.resname) ? rpad("NONE", 4) : rpad(ta.resname[iatom], 4))
@@ -733,6 +733,7 @@ function writepsf(filename::String, ta::TrjArray)
             Printf.@printf(io, "%9d", 0)
             Printf.@printf(io, "\n")
         end
+        Printf.@printf(io, "\n")
 
         if !isempty(ta.list_bond)
             Printf.@printf(io, "%8d !NBOND\n", size(ta.list_bond, 1))
@@ -744,7 +745,9 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n")
+            Printf.@printf(io, "\n\n")
+        else
+            Printf.@printf(io, "%8d !NTHETA\n\n", 0)
         end
 
         if !isempty(ta.list_angle)
@@ -757,7 +760,9 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n")
+            Printf.@printf(io, "\n\n")
+        else
+            Printf.@printf(io, "%8d !NTHETA\n\n", 0)
         end
 
         if !isempty(ta.list_dihedral)
@@ -770,7 +775,9 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n")
+            Printf.@printf(io, "\n\n")
+        else
+            Printf.@printf(io, "%8d !NPHI\n\n", 0)
         end
 
         if !isempty(ta.list_improper)
@@ -783,7 +790,9 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n")
+            Printf.@printf(io, "\n\n")
+        else
+            Printf.@printf(io, "%8d !NIMPHI\n\n", 0)
         end
 
         if !isempty(ta.list_cmap)
@@ -794,7 +803,9 @@ function writepsf(filename::String, ta::TrjArray)
                 end
                 Printf.@printf(io, "\n")
             end
-            Printf.@printf(io, "\n")
+            Printf.@printf(io, "\n\n")
+        else
+            Printf.@printf(io, "%8d !NCRTERM\n\n", 0)
         end
     end
 end
