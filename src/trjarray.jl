@@ -699,13 +699,6 @@ function hcat(ta_collection::TrjArray...)
             atomtype = [atomtype; ta_collection[i].atomtype]
         end
 
-        if isempty(atomid) | isempty(ta_collection[i].atomid)
-            atomid = []
-        else
-            #atomid = [atomid; ta_collection[i].atomid .+ natom]
-            atomid = [atomid; ta_collection[i].atomid]
-        end
-
         if isempty(mass) | isempty(ta_collection[i].mass)
             mass = []
         else
@@ -731,23 +724,36 @@ function hcat(ta_collection::TrjArray...)
         end
 
         if !isempty(ta_collection[i].list_bond)
-            list_bond = vcat(list_bond, ta_collection[i].list_bond)
+            #list_bond = vcat(list_bond, ta_collection[i].list_bond)
+            list_bond = vcat(list_bond, ta_collection[i].list_bond .- minimum(ta_collection[i].atomid) .+ maximum(atomid) .+ 1)
         end
 
         if !isempty(ta_collection[i].list_angle)
-            list_angle = vcat(list_angle, ta_collection[i].list_angle)
+            #list_angle = vcat(list_angle, ta_collection[i].list_angle)
+            list_angle = vcat(list_angle, ta_collection[i].list_angle .- minimum(ta_collection[i].atomid) .+ maximum(atomid) .+ 1)
         end
 
         if !isempty(ta_collection[i].list_dihedral)
-            list_dihedral = vcat(list_dihedral, ta_collection[i].list_dihedral)
+            #list_dihedral = vcat(list_dihedral, ta_collection[i].list_dihedral)
+            list_dihedral = vcat(list_dihedral, ta_collection[i].list_dihedral .- minimum(ta_collection[i].atomid) .+ maximum(atomid) .+ 1)
         end
 
         if !isempty(ta_collection[i].list_improper)
-            list_improper = vcat(list_improper, ta_collection[i].list_improper)
+            #list_improper = vcat(list_improper, ta_collection[i].list_improper)
+            list_improper = vcat(list_improper, ta_collection[i].list_improper .- minimum(ta_collection[i].atomid) .+ maximum(atomid) .+ 1)
         end
 
         if !isempty(ta_collection[i].list_cmap)
-            list_cmap = vcat(list_cmap, ta_collection[i].list_cmap)
+            #list_cmap = vcat(list_cmap, ta_collection[i].list_cmap)
+            list_cmap = vcat(list_cmap, ta_collection[i].list_cmap .- minimum(ta_collection[i].atomid) .+ maximum(atomid) .+ 1)
+        end
+
+        if isempty(atomid) | isempty(ta_collection[i].atomid)
+            atomid = []
+        else
+            #atomid = [atomid; ta_collection[i].atomid .+ natom]
+            #atomid = [atomid; ta_collection[i].atomid]
+            atomid = [atomid; ta_collection[i].atomid .- minimum(ta_collection[i].atomid) .+ maximum(atomid) .+ 1]
         end
 
         natom += ta_collection[i].natom

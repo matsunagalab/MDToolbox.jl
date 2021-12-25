@@ -727,7 +727,7 @@ function writepsf(filename::String, ta::TrjArray)
             Printf.@printf(io, " %-4d", isempty(ta.resid) ? 0 : ta.resid[iatom])
             Printf.@printf(io, " %4s", isempty(ta.resname) ? rpad("NONE", 4) : rpad(ta.resname[iatom], 4))
             Printf.@printf(io, " %4s", isempty(ta.atomname) ? rpad("NONE", 4) : rpad(ta.atomname[iatom], 4))
-            Printf.@printf(io, " %4s", isempty(ta.atomname) ? rpad("NONE", 4) : rpad(ta.atomname[iatom], 4))
+            Printf.@printf(io, " %4s", isempty(ta.atomtype) ? rpad("NONE", 4) : rpad(ta.atomtype[iatom], 4))
             Printf.@printf(io, "%14.9f", isempty(ta.charge) ? 0.0 : ta.charge[iatom])
             Printf.@printf(io, "%14.7f", isempty(ta.mass) ? 0.0 : ta.mass[iatom])
             Printf.@printf(io, "%9d", 0)
@@ -745,7 +745,7 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n\n")
+            Printf.@printf(io, "\n")
         else
             Printf.@printf(io, "%8d !NTHETA\n\n", 0)
         end
@@ -760,7 +760,7 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n\n")
+            Printf.@printf(io, "\n")
         else
             Printf.@printf(io, "%8d !NTHETA\n\n", 0)
         end
@@ -775,7 +775,7 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n\n")
+            Printf.@printf(io, "\n")
         else
             Printf.@printf(io, "%8d !NPHI\n\n", 0)
         end
@@ -790,7 +790,7 @@ function writepsf(filename::String, ta::TrjArray)
                     Printf.@printf(io, "\n")
                 end
             end
-            Printf.@printf(io, "\n\n")
+            Printf.@printf(io, "\n")
         else
             Printf.@printf(io, "%8d !NIMPHI\n\n", 0)
         end
@@ -803,7 +803,7 @@ function writepsf(filename::String, ta::TrjArray)
                 end
                 Printf.@printf(io, "\n")
             end
-            Printf.@printf(io, "\n\n")
+            Printf.@printf(io, "\n")
         else
             Printf.@printf(io, "%8d !NCRTERM\n\n", 0)
         end
