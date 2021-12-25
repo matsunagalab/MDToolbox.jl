@@ -620,17 +620,21 @@ function readpsf(filename::String)
     psf_atom_id = Vector{Int64}(undef, 0)
     psf_charge = Vector{Float64}(undef, 0)
     psf_mass = Vector{Float64}(undef, 0)
+    psf_nnb = Vector{Float64}(undef, 0)
     list_bond = Array{Int64}(undef, 0, 0)
     list_angle = Array{Int64}(undef, 0, 0)
     list_dihedral = Array{Int64}(undef, 0, 0)
     list_improper = Array{Int64}(undef, 0, 0)
     list_cmap = Array{Int64}(undef, 0, 0)
+    list_donor = Array{Int64}(undef, 0, 0)
+    list_acceptor = Array{Int64}(undef, 0, 0)
 
+    natom = 0
     iline = 2
     while iline <= length(lines)
         line = lines[iline]; iline += 1
 
-        if occursin(r".*\d.*!\w.*", line) && !occursin("NGRP", line)
+        if occursin(r".*\d.*!\w.*", line) #&& !occursin("NGRP", line)
             line_splitted = split(line, "!")
             #num = parse(Int64, line_splitted[1])
             num = parse_line(String(line_splitted[1]), 1:length(line_splitted[1]), Int64, 0)
@@ -651,6 +655,7 @@ function readpsf(filename::String)
                     push!(psf_charge, parse_line(line, fmt_atom[7], Float64, 0.0))
                     push!(psf_mass, parse_line(line, fmt_atom[8], Float64, 0.0))
                 end
+                natom = num
                 iline += num
 
             elseif occursin(r"^NBOND", key)
@@ -693,6 +698,28 @@ function readpsf(filename::String)
                 end
                 list_cmap = collect(reshape(a, 8, :)')
 
+            elseif occursin(r"^NDON", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*2)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_donor = collect(reshape(a, 2, :)')
+
+            elseif occursin(r"^NACC", key)
+                a = Vector{Int64}(undef, 0)
+                while length(a) < (num*2)
+                    line = lines[iline]; iline += 1
+                    append!(a, [parse(Int64, y) for y in split(line)])
+                end
+                list_acceptor = collect(reshape(a, 2, :)')
+
+            elseif occursin(r"^NNB", key)
+                while length(psf_nnb) < natom
+                    line = lines[iline]; iline += 1
+                    append!(psf_nnb, [parse(Int64, y) for y in split(line)])
+                end
+
             end
         end
     end
@@ -700,10 +727,10 @@ function readpsf(filename::String)
     TrjArray{Float64, Int64}(chainname=psf_segment_name,
              resname=psf_residue_name, resid=psf_residue_id,
              atomname=psf_atom_name, atomtype=psf_atom_type_letter, atomid=psf_atom_id,
-             mass=psf_mass, charge=psf_charge,
+             mass=psf_mass, charge=psf_charge, nnb=psf_nnb, 
              list_bond=list_bond, list_angle=list_angle,
              list_dihedral=list_dihedral, list_improper=list_improper,
-             list_cmap=list_cmap)
+             list_cmap=list_cmap, list_donor=list_donor, list_acceptor=list_acceptor)
 end
 
 function writepsf(filename::String, ta::TrjArray)
@@ -741,13 +768,13 @@ function writepsf(filename::String, ta::TrjArray)
                 for j = 1:size(ta.list_bond, 2)
                     Printf.@printf(io, "%8d", ta.list_bond[i, j])
                 end
-                if (i % 4) == 0
+                if ((i % 4) == 0) | (i == size(ta.list_bond, 1))
                     Printf.@printf(io, "\n")
                 end
             end
             Printf.@printf(io, "\n")
         else
-            Printf.@printf(io, "%8d !NTHETA\n\n", 0)
+            Printf.@printf(io, "%8d !NBOND\n\n", 0)
         end
 
         if !isempty(ta.list_angle)
@@ -756,7 +783,7 @@ function writepsf(filename::String, ta::TrjArray)
                 for j = 1:size(ta.list_angle, 2)
                     Printf.@printf(io, "%8d", ta.list_angle[i, j])
                 end
-                if (i % 3) == 0
+                if ((i % 3) == 0) | (i == size(ta.list_angle, 1))
                     Printf.@printf(io, "\n")
                 end
             end
@@ -771,7 +798,7 @@ function writepsf(filename::String, ta::TrjArray)
                 for j = 1:size(ta.list_dihedral, 2)
                     Printf.@printf(io, "%8d", ta.list_dihedral[i, j])
                 end
-                if (i % 2) == 0
+                if ((i % 2) == 0) | (i == size(ta.list_dihedral, 1))
                     Printf.@printf(io, "\n")
                 end
             end
@@ -786,13 +813,56 @@ function writepsf(filename::String, ta::TrjArray)
                 for j = 1:size(ta.list_improper, 2)
                     Printf.@printf(io, "%8d", ta.list_improper[i, j])
                 end
-                if (i % 2) == 0
+                if ((i % 2) == 0) | (i == size(ta.list_improper, 1))
                     Printf.@printf(io, "\n")
                 end
             end
             Printf.@printf(io, "\n")
         else
             Printf.@printf(io, "%8d !NIMPHI\n\n", 0)
+        end
+
+        if !isempty(ta.list_donor)
+            Printf.@printf(io, "%8d !NDON: donors\n", size(ta.list_donor, 1))
+            for i = 1:size(ta.list_donor, 1)
+                for j = 1:size(ta.list_donor, 2)
+                    Printf.@printf(io, "%8d", ta.list_donor[i, j])
+                end
+                if ((i % 4) == 0) | (i == size(ta.list_donor, 1))
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        else
+            Printf.@printf(io, "%8d !NDON: donors\n\n", 0)
+        end
+
+        if !isempty(ta.list_acceptor)
+            Printf.@printf(io, "%8d !NACC\n", size(ta.list_acceptor, 1))
+            for i = 1:size(ta.list_acceptor, 1)
+                for j = 1:size(ta.list_acceptor, 2)
+                    Printf.@printf(io, "%8d", ta.list_acceptor[i, j])
+                end
+                if ((i % 4) == 0) | (i == size(ta.list_acceptor, 1))
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        else
+            Printf.@printf(io, "%8d !NACC\n\n", 0)
+        end
+
+        if !isempty(ta.nnb)
+            Printf.@printf(io, "%8d !NNB\n\n", 0)
+            for i = 1:ta.natom
+                Printf.@printf(io, "%8d", ta.nnb[i])
+                if ((i % 8) == 0) | (i == natom)
+                    Printf.@printf(io, "\n")
+                end
+            end
+            Printf.@printf(io, "\n")
+        else
+            Printf.@printf(io, "%8d !NNB\n\n\n", 0)
         end
 
         if !isempty(ta.list_cmap)
@@ -807,6 +877,7 @@ function writepsf(filename::String, ta::TrjArray)
         else
             Printf.@printf(io, "%8d !NCRTERM\n\n", 0)
         end
+
     end
 end
 
