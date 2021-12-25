@@ -448,11 +448,15 @@ function compute_sasa(ta::TrjArray{T, U}, probe_radius=1.4::T; npoint=960::Int, 
             point[3] += ta.xyz[iframe, 3*(iatom-1)+3]
             for j in 1:length(neighbor_list_iatom)
                 jatom = neighbor_list_iatom[j]
-                d = 0.0
-                d += (point[1] - ta.xyz[iframe, 3*(jatom-1)+1])^2
-                d += (point[2] - ta.xyz[iframe, 3*(jatom-1)+2])^2
-                d += (point[3] - ta.xyz[iframe, 3*(jatom-1)+3])^2
-                d = sqrt(d)
+                dx = point[1] - ta.xyz[iframe, 3*(jatom-1)+1]
+                dy = point[2] - ta.xyz[iframe, 3*(jatom-1)+2]
+                dz = point[3] - ta.xyz[iframe, 3*(jatom-1)+3]
+                if !isempty(ta.boxsize)
+                    dx = dx - round(dx/ta.boxsize[iframe, 1])*ta.boxsize[iframe, 1]
+                    dy = dy - round(dy/ta.boxsize[iframe, 2])*ta.boxsize[iframe, 2]
+                    dz = dz - round(dz/ta.boxsize[iframe, 3])*ta.boxsize[iframe, 3]
+                end
+                d = sqrt(dx^2 + dy^2 + dz^2)
                 if d < (ta.radius[jatom] + probe_radius)
                     is_accessible = false
                     break
@@ -1059,8 +1063,9 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
     ligand = set_acescore(ligand)
 
     # Determine grid size and coordinates
-    println("step5: computing grid size and coordinates")
+    println("step4: computing grid size and coordinates")
     size_ligand = maximum(ligand.xyz[iframe, 1:3:end]) - minimum(ligand.xyz[iframe, 1:3:end])
+    #size_ligand = size_ligand*2
     
     x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
     y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
@@ -1077,7 +1082,7 @@ function dock!(receptor::TrjArray{T, U}, ligand::TrjArray{T, U}, quaternions::Ma
     nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
     nxyz = nx*ny*nz
 
-    println("step6: assigning values to grid points")
+    println("step5: assigning values to grid points")
     # receptor grid: shape complementarity
     grid_RSC = zeros(Complex{T}, (nx, ny, nz))
 
