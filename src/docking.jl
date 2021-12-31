@@ -748,7 +748,7 @@ function spread_neighbors_add_gpu!(grid, x, y, z, grid_x, grid_y, grid_z, rcut, 
                         #@cuprintln("c = $(c)")
                         #@cuprintln("called2")
                         #@cuprintln("grid[ix,iy,iz] = $(grid[ix,iy,iz])")
-                        @atomic grid[ix,iy,iz] += c
+                        CUDA.@atomic grid[ix,iy,iz] += c
                     end
                 end
             end
