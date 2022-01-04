@@ -274,7 +274,7 @@ function _softmax(x; tau=1)
     if tau > 0.0
         return exp.((x .- m) ./ tau)
     else
-        return exp.((x .+ m) ./ tau)
+        return exp.((x .- m) ./ tau)
     end
 end
 
@@ -313,60 +313,147 @@ function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}, surface:
     end
 end
 
-function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}; tau=1.0, rate=0.01, max_convergence=0.1) where {T <: Number}
+function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}; tau=1.0, lambda=1.0, rate=0.01, max_convergence=0.1, nstep=1000) where {T <: Number}
     tip_xsiz, tip_ysiz = size(tip0)
     surf_xsiz, surf_ysiz = size(image)
     xc, yc = MDToolbox.compute_xc_yc(tip0)
     #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
-    #tip0 .= -10.0
+    #tip0 .= -200.0
     #tip0 .= tip0 .- maximum(tip0)
-    #tip0[xc, yc] = 0.0
+    tip0[xc, yc] = 0.0
     icount = 0
     check_convergence = T(Inf) 
     tip0_old = deepcopy(tip0)
     d = zeros(eltype(tip0), size(tip0))
-    while (check_convergence > max_convergence) & (icount < 5000)
+    while (check_convergence > max_convergence) & (icount < nstep)
         s, e_index = ierosion_pdiff(image, tip0)
         r, r_index = MDToolbox.idilation_pdiff(s, tip0)
+        ##############################################
         #r .= r .- minimum(r)
+        ##############################################
         d .= 0.0
         for i = 1:surf_xsiz
             for j = 1:surf_ysiz
+                grad1 = zeros(eltype(tip0), size(tip0))
                 pxmin = max(i-surf_xsiz, -xc+1)
                 pymin = max(j-surf_ysiz, -yc+1)
                 pxmax = min(i-1, -xc+tip_xsiz)
                 pymax = min(j-1, -yc+tip_ysiz)
-                temp1 = zeros(eltype(tip0), size(tip0))
-                temp1[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= _softmax(s[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]; tau=tau)
-                temp2 = zeros(eltype(tip0), size(tip0))
-                t = zeros(eltype(tip0), size(tip0))
-                #temp2[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= - _softmax( - image[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]; tau=tau) .+ 1.0
+                temp = s[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]
+                grad1[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= _softmax(temp; tau=tau)
+
+                grad2 = ones(eltype(tip0), size(tip0))
+                t = ones(eltype(tip0), size(tip0))
                 for px = pxmin:pxmax
                     for py = pymin:pymax
-                        t .= 0.0
-                        xmin = max(i-px+pxmin, -xc+1, 1)
-                        xmax = min(i-px+pxmax, -xc+tip_xsiz)
-                        ymin = max(j-py+pymin, -yc+1, 1)
-                        ymax = min(j-py+pymax, -yc+tip_ysiz)
-                        if (xmin < xmax) & (ymin < ymax) & ((i-px+xmin) < (i-px+xmax)) & ((j-py+ymin) < (j-py+ymax))
-                            t[(xc+xmin):(xc+xmax), (yc+ymin):(yc+ymax)] = _softmax( image[(i-px+xmin):(i-px+xmax), (j-py+ymin):(j-py+ymax)] .- tip0[xc+px, yc+py]; tau=-tau) .+ 1.0
-                            temp2[xc+px, yc+py] = t[xc+px, yc+py]
+                        pxmin2 = max(-i+px+1, -xc+1)
+                        pymin2 = max(-j+py+1, -yc+1)
+                        pxmax2 = min(-i+px+surf_xsiz, -xc+tip_xsiz)
+                        pymax2 = min(-j+py+surf_ysiz, -yc+tip_ysiz)
+                        if (pxmin2 < pxmax2) & (pymin2 < pymax2)
+                            t .= 1.0
+                            t[(xc+pxmin2):(xc+pxmax2), (yc+pymin2):(yc+pymax2)] .= _softmax(image[(i-px+pxmin2):(i-px+pxmax2), (j-py+pymin2):(j-py+pymax2)] .- tip0[xc+px, yc+py]; tau=-tau) .+ 1.0
+                            grad2[xc+px, yc+py] = t[xc+px, yc+py]
                         end
                     end
                 end
-                d .+= (r[i, j] - image[i, j]) .* temp1 .* temp2
+                grad2 = ones(eltype(tip0), size(tip0))
+                #d .+= (r[i, j] - image[i, j]) .* grad1 .* grad2
+                d .+= - grad1 .* grad2
             end
         end
-        #d .= max.(d, 0.0)
-        d[xc, yc] = 0.0
-        #d .-= d[xc, yc]
+        #temp = 100.0 * (1.0 - icount / nstep)
+        #temp = 100000.0
+        #d .+= temp .* randn(size(d))
+        #d .+= lambda .* (1.0 ./ (tip0 .+ 0.1).^2) .+ temp .* randn(size(d))
+        diff = zeros(eltype(d), size(d))
+        for i = 2:(tip_xsiz-1)
+            for j = 2:(tip_ysiz-1)
+                tip[i, j] 
+            end
+        end
+        d .+= lambda .* tip0
+        #d[xc, yc] = 0.0
+        d .-= d[xc, yc]
+        #d .= min.(d, 0.0)
         tip0 .-= (d .* rate)
-        icount += 1
+        tip0 .= min.(tip0, 0.0)
         check_convergence = maximum(abs.(tip0_old .- tip0))
         tip0_old .= tip0
-        if mod(icount, 1000) == 0
-            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
-            @printf "iteration %d : %f\n" icount check_convergence
+        icount += 1
+        if mod(icount, 10) == 0
+            @printf "iteration %d : %f %f %f\n" icount sum((idilation(ierosion(image, tip0), tip0) .- image).^2) (sum((idilation(ierosion(image, tip0), tip0) .- image).^2) + lambda .* sum(tip0.^2)) check_convergence
+        end
+    end
+end
+
+function itip_least_squares_montecarlo!(tip0::Matrix{T}, image::Matrix{T}; tau=1.0, lambda=1.0, rate=0.01, max_convergence=0.1, nstep=1000) where {T <: Number}
+    tip_xsiz, tip_ysiz = size(tip0)
+    surf_xsiz, surf_ysiz = size(image)
+    xc, yc = MDToolbox.compute_xc_yc(tip0)
+    #tip0 .= -200.0
+    tip0[xc, yc] = 0.0
+    icount = 0
+    check_convergence = T(Inf) 
+    tip0_old = deepcopy(tip0)
+    d = zeros(eltype(tip0), size(tip0))
+    cons_ref = sum((idilation(ierosion(image, tip0), tip0) .- image).^2)
+    loss_ref = sum(abs.(tip0))
+    while icount < nstep
+        tip0_new =  tip0 .+ randn(eltype(tip0), size(tip0)) .* 1.0
+        tip0_new[xc, yc] = 0.0
+        tip0_new .= min.(tip0_new, 0.0)
+        cons_new = sum((idilation(ierosion(image, tip0_new), tip0_new) .- image).^2)
+        loss_new = sum(abs.(tip0_new))
+        #if (cons_new < (cons_ref + 100.0)) & (loss_new < loss_ref)
+        if cons_new < cons_ref
+            tip0 .= tip0_new
+            cons_ref = cons_new
+        end
+        check_convergence = maximum(abs.(tip0_old .- tip0))
+        tip0_old .= tip0
+        icount += 1
+        if mod(icount, 10000) == 0
+            @printf "iteration %d : %f %f %f\n" icount sum((idilation(ierosion(image, tip0), tip0) .- image).^2) sum(abs.(tip0)) check_convergence
+        end
+    end
+end
+
+function itip_least_squares_montecarlo!(tip0::Matrix{T}, images::Vector{Any}; tau=1.0, lambda=1.0, rate=0.01, max_convergence=0.1, nstep=1000) where {T <: Number}
+    tip_xsiz, tip_ysiz = size(tip0)
+    surf_xsiz, surf_ysiz = size(images[1])
+    xc, yc = MDToolbox.compute_xc_yc(tip0)
+    #tip0 .= -200.0
+    tip0[xc, yc] = 0.0
+    icount = 0
+    check_convergence = T(Inf) 
+    tip0_old = deepcopy(tip0)
+    d = zeros(eltype(tip0), size(tip0))
+    nframe = length(images)
+    cons_ref = 0.0
+    for iframe = 1:nframe
+        cons_ref += sum((idilation(ierosion(images[iframe], tip0), tip0) .- images[iframe]).^2)
+    end
+    loss_ref = sum(abs.(tip0))
+    while icount < nstep
+        tip0_new =  tip0 .+ randn(eltype(tip0), size(tip0)) .* 1.0
+        tip0_new[xc, yc] = 0.0
+        tip0_new .= min.(tip0_new, 0.0)
+        cons_new = 0.0
+        for iframe = 1:nframe
+            cons_new += sum((idilation(ierosion(images[iframe], tip0_new), tip0_new) .- images[iframe]).^2)
+        end
+        loss_new = sum(abs.(tip0_new))
+        #if (cons_new < (cons_ref + 100.0)) & (loss_new < loss_ref)
+        if cons_new < cons_ref
+            tip0 .= tip0_new
+            cons_ref = cons_new
+        end
+        check_convergence = maximum(abs.(tip0_old .- tip0))
+        tip0_old .= tip0
+        icount += 1
+        if mod(icount, 10000) == 0
+            @printf "iteration %d : %f %f %f\n" icount cons_ref sum(abs.(tip0)) check_convergence
         end
     end
 end
@@ -500,7 +587,7 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
         #end
         #tip0 .= tip0 .- tip0[xc, yc]
 
-        if mod(i, 100) == 0
+        if mod(i, 1000) == 0
             loss_train = 0.0
             for iframe = 1:nframe
                 s, e_index = ierosion_pdiff(images[iframe], tip0)
@@ -528,21 +615,20 @@ function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, ns
     return loss_train_array, loss_val_array
 end
 
-function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100, lambda=0.0)
-    #@show sum((idilation(surf, tip0) .- image).^2)
+function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100)
     xc, yc = MDToolbox.compute_xc_yc(tip0)
-    tip0 .-= 10^(-8).*rand(Float64, size(tip0))
+    #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
+    #tip0 .= -50.0
     tip0[xc, yc] = 0.0
-    nframe = ceil(Int, length(images)*0.8)
-    mframe = length(images)
+    nframe = length(images)
     d = zeros(eltype(tip0), size(tip0))
     loss_train_array = []
-    loss_val_array = []
     for istep = 1:nstep
         d .= eltype(tip0)(0.0)
         for iframe = 1:nframe
             s, e_index = ierosion_pdiff(images[iframe], tip0)
             r, d_index = idilation_pdiff(s, tip0)
+            #r .-= minimum(r)
             for ix = 1:size(tip0, 1)
                 for iy = 1:size(tip0, 2)
                     if (ix == xc) & (iy == yc)
@@ -571,7 +657,7 @@ function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, n
         end
 
         tip0 .+= d .* rate
-        tip0 .= min.(tip0, 0.0)
+        #tip0 .= min.(tip0, 0.0)
 
         if mod(istep, 100) == 0
             loss_train = 0.0
@@ -580,25 +666,14 @@ function itip_least_squares2!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, n
                 r, d_index = idilation_pdiff(s, tip0)
                 loss_train += sum((r .- images[iframe]).^2)
             end
-            loss_train += lambda * sum(abs.(tip0))
+            #loss_train += lambda * sum(abs.(tip0))
             #loss_train /= nframe
 
-            loss_val = 0.0
-            for iframe = (nframe+1):mframe
-                s, e_index = ierosion_pdiff(images[iframe], tip0)
-                r, d_index = idilation_pdiff(s, tip0)
-                loss_val += sum((r .- images[iframe]).^2)
-            end
-            if nframe != mframe
-                loss_val /= (mframe - nframe)
-            end
-
-            println("step $(istep): loss_train = $(loss_train)   loss_validation = $(loss_val)")
+            println("step $(istep): loss_train = $(loss_train)")
             push!(loss_train_array, loss_train)
-            push!(loss_val_array, loss_val)
         end
     end
-    return loss_train_array, loss_val_array
+    return loss_train_array
 end
 
 function itip_least_squares2_old!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100)
@@ -1157,7 +1232,7 @@ function surfing(t::TrjArray, config::AfmizeConfig)
     return stage
 end
 
-function afmize(tra::TrjArray, config::AfmizeConfig)
+function afmize(tra::TrjArray, config::AfmizeConfig; removeBottom=true)
     message = checkConfig(tra, config)
     if !isnothing(message)
         println(message)
@@ -1168,7 +1243,9 @@ function afmize(tra::TrjArray, config::AfmizeConfig)
     height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
     atoms = [Sphere(tra.xyz[1, 3*(i-1)+1], tra.xyz[1, 3*(i-1)+2], tra.xyz[1, 3*(i-1)+3],
             config.atomRadiusDict[tra.atomname[i]]) for i in 1:tra.natom]
-    moveBottom(atoms)
+    if removeBottom
+        moveBottom(atoms)
+    end
 
     stage = zeros(height, width)
     probes = [Probe(config.range_min.x + (w-0.5) * config.resolution.x,
@@ -1753,3 +1830,5 @@ function getafmposteriors_alpha(afm_frames, model_array::TrjArray, quate_array::
 
     return results
 end
+
+
