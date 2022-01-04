@@ -148,13 +148,14 @@ julia> ta = mdload("ak.pdb")
 julia> orient!(ta)
 ```
 """
-function orient!(ta::TrjArray{T, U}, index::AbstractVector=Vector{U}(undef, 0)) where {T, U}
+function orient!(ta::TrjArray{T, U}; index::AbstractVector=Vector{U}(undef, 0)) where {T, U}
     natom = ta.natom
-    natom3 = natom*3
-    index2 = preprocess_index(natom, index)
-    decenter!(ta, index=index2)
+    decenter!(ta, index=index)
 
+    index2 = preprocess_index(natom, index)
     ta_sub = ta[:, index2]
+    natom_sub = ta_sub.natom
+    natom3_sub = 3*natom_sub
     if isempty(ta_sub.mass)
         mass = ones(T, ta_sub.natom)
     else
@@ -163,9 +164,9 @@ function orient!(ta::TrjArray{T, U}, index::AbstractVector=Vector{U}(undef, 0)) 
 
     I = zeros(T, 3, 3)
     for iframe = 1:ta.nframe
-        x = view(ta_sub.xyz, iframe, 1:3:natom3)
-        y = view(ta_sub.xyz, iframe, 2:3:natom3)
-        z = view(ta_sub.xyz, iframe, 3:3:natom3)
+        x = view(ta_sub.xyz, iframe, 1:3:natom3_sub)
+        y = view(ta_sub.xyz, iframe, 2:3:natom3_sub)
+        z = view(ta_sub.xyz, iframe, 3:3:natom3_sub)
 
         I[1, 1] = sum(mass.*(y.^2 + z.^2));
         I[2, 2] = sum(mass.*(x.^2 + z.^2));
