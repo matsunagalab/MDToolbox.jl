@@ -9,7 +9,7 @@ function preprocess_index(natom::Int, index::AbstractVector)::AbstractVector
         index2 = index
     end
     if natom < maximum(index2)
-        @printf "Warning: some index are over # of atoms, truncated.\n"
+        @printf "Warning: some indices are larger than # of atoms, truncated.\n"
         id = index2 .<= natom
         index2 = index2[id]
     end
@@ -126,16 +126,19 @@ julia> decenter!(ta)
 """
 function decenter!(ta::TrjArray{T, U}; isweight::Bool=true, 
     index::AbstractVector=Vector{Int64}(undef, 0)) where {T, U}
-    #println("decenter!")
     com = centerofmass(ta, isweight=isweight, index=index)
-    ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
-    ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
-    ta.xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
+    natom3 = ta.natom*3
+    x = view(ta.xyz, :, 1:3:natom3)
+    y = view(ta.xyz, :, 2:3:natom3)
+    z = view(ta.xyz, :, 3:3:natom3)
+    x .= x .- com.xyz[:, 1:1]
+    y .= y .- com.xyz[:, 2:2]
+    z .= z .- com.xyz[:, 3:3]
     return com
 end
 
 """
-    orient!(ta::TrjArray)
+    orient!(ta::TrjArray, index::Union{UnitRange,Vector,BitArray})
 
 Orient the molecule using its principal axes of inertia. 
 
@@ -145,21 +148,24 @@ julia> ta = mdload("ak.pdb")
 julia> orient!(ta)
 ```
 """
-function orient!(ta::TrjArray{T, U}) where {T, U}
+function orient!(ta::TrjArray{T, U}, index::AbstractVector=Vector{U}(undef, 0)) where {T, U}
     natom = ta.natom
     natom3 = natom*3
-    decenter!(ta)
-    if isempty(ta.mass)
-        mass = ones(T, ta.natom)
+    index2 = preprocess_index(natom, index)
+    decenter!(ta, index=index2)
+
+    ta_sub = ta[:, index2]
+    if isempty(ta_sub.mass)
+        mass = ones(T, ta_sub.natom)
     else
-        mass = ta.mass
+        mass = ta_sub.mass
     end
 
     I = zeros(T, 3, 3)
     for iframe = 1:ta.nframe
-        x = view(ta.xyz, iframe, 1:3:natom3)
-        y = view(ta.xyz, iframe, 2:3:natom3)
-        z = view(ta.xyz, iframe, 3:3:natom3)
+        x = view(ta_sub.xyz, iframe, 1:3:natom3)
+        y = view(ta_sub.xyz, iframe, 2:3:natom3)
+        z = view(ta_sub.xyz, iframe, 3:3:natom3)
 
         I[1, 1] = sum(mass.*(y.^2 + z.^2));
         I[2, 2] = sum(mass.*(x.^2 + z.^2));
@@ -422,10 +428,22 @@ function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2
     end
 end
 
+function applyrotation!(iframe::U, xyz::Matrix{T}, rot::Vector{T}) where {T, U}
+    natom = length(xyz[iframe, 1:3:end])
+    @simd for iatom = 1:natom
+        x = rot[1] * xyz[iframe, 3*(iatom-1)+1] + rot[2] * xyz[iframe, 3*(iatom-1)+2] + rot[3] * xyz[iframe, 3*(iatom-1)+3]
+        y = rot[4] * xyz[iframe, 3*(iatom-1)+1] + rot[5] * xyz[iframe, 3*(iatom-1)+2] + rot[6] * xyz[iframe, 3*(iatom-1)+3]
+        z = rot[7] * xyz[iframe, 3*(iatom-1)+1] + rot[8] * xyz[iframe, 3*(iatom-1)+2] + rot[9] * xyz[iframe, 3*(iatom-1)+3]
+        xyz[iframe, 3*(iatom-1)+1] = x
+        xyz[iframe, 3*(iatom-1)+2] = y
+        xyz[iframe, 3*(iatom-1)+3] = z
+    end
+end
+
 #function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2}, z::AbstractArray{T, 2}, xyz::Matrix{T}, rot::Vector{T}) where {T, U}
-#    @inbounds x[iframe, :] .= rot[1] .* xyz[iframe, 1:3:end] .+ rot[2] .* xyz[iframe, 2:3:end] .+ rot[3] .* xyz[iframe, 3:3:end]
-#    @inbounds y[iframe, :] .= rot[4] .* xyz[iframe, 1:3:end] .+ rot[5] .* xyz[iframe, 2:3:end] .+ rot[6] .* xyz[iframe, 3:3:end]
-#    @inbounds z[iframe, :] .= rot[7] .* xyz[iframe, 1:3:end] .+ rot[8] .* xyz[iframe, 2:3:end] .+ rot[9] .* xyz[iframe, 3:3:end]
+#    @simd @inbounds x[iframe, :] .= rot[1] .* xyz[iframe, 1:3:end] .+ rot[2] .* xyz[iframe, 2:3:end] .+ rot[3] .* xyz[iframe, 3:3:end]
+#    @simd @inbounds y[iframe, :] .= rot[4] .* xyz[iframe, 1:3:end] .+ rot[5] .* xyz[iframe, 2:3:end] .+ rot[6] .* xyz[iframe, 3:3:end]
+#    @simd @inbounds z[iframe, :] .= rot[7] .* xyz[iframe, 1:3:end] .+ rot[8] .* xyz[iframe, 2:3:end] .+ rot[9] .* xyz[iframe, 3:3:end]
 #end
 
 #function applyrotation!(iframe::U, x::AbstractArray{T, 2}, y::AbstractArray{T, 2}, z::AbstractArray{T, 2}, x_ta::AbstractArray{T, 2}, y_ta::AbstractArray{T, 2}, z_ta::AbstractArray{T, 2}, rot::Vector{T}) where {T, U}
@@ -600,10 +618,8 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0), isdecenter::Bool=false)::TrjArray{T, U} where {T, U}
     nframe = ta.nframe
     natom = max(ref.natom, ta.natom)
-    natom3_ref = ref.natom*3
     natom3_ta = ta.natom*3
 
-    #println("step1")
     index2 = preprocess_index(natom, index)
     if min(ref.natom, ta.natom) < maximum(index2)
         @printf "Warning: some atom indices are larger than # of atoms, truncated.\n"
@@ -611,11 +627,9 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
         index2 = index2[id]
     end
 
-    #println("step2")
     weight = preprocess_weight(min(ref.natom, ta.natom), isweight, ta.mass)
     wsum_inv = one(T) / sum(weight)
 
-    #println("step3")
     ref2 = deepcopy(ref[1, :])
     ta2 = deepcopy(ta)
 
@@ -624,10 +638,6 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
         com = decenter!(ref2, isweight=isweight, index=index2)
         decenter!(ta2, isweight=isweight, index=index2)
     end
-
-    x_ta = view(ta2.xyz, :, 1:3:natom3_ta)
-    y_ta = view(ta2.xyz, :, 2:3:natom3_ta)
-    z_ta = view(ta2.xyz, :, 2:3:natom3_ta)
 
     xyz = Matrix{T}(undef, nframe, natom3_ta)
     x = view(xyz, :, 1:3:natom3_ta)
@@ -657,6 +667,42 @@ function superimpose(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     #@time xyz[:, 3:3:end] .= z
 
     return TrjArray(ta, xyz=xyz)
+end
+
+function superimpose!(ref::TrjArray{T, U}, ta::TrjArray{T, U};
+    isweight::Bool=true, index::AbstractVector=Vector{U}(undef, 0), isdecenter::Bool=false)::Vector{T} where {T, U}
+    nframe = ta.nframe
+    natom = max(ref.natom, ta.natom)
+
+    index2 = preprocess_index(natom, index)
+    if min(ref.natom, ta.natom) < maximum(index2)
+        @printf "Warning: some atom indices are larger than # of atoms, truncated.\n"
+        id = index2 .<= min(ref.natom, ta.natom)
+        index2 = index2[id]
+    end
+
+    weight = preprocess_weight(min(ref.natom, ta.natom), isweight, ta.mass)
+    wsum_inv = one(T) / sum(weight)
+
+    if !isdecenter
+        com = decenter!(ref, isweight=isweight, index=index2)
+        decenter!(ta, isweight=isweight, index=index2)
+    end
+
+    rmsd = zeros(T, nframe)
+    Threads.@threads for iframe in 1:nframe
+        A, E0 = innerproduct(iframe, ref.xyz, ta.xyz, index2, isweight, weight)
+        rmsd[iframe], rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
+        applyrotation!(iframe, ta.xyz, rot)
+    end
+
+    if !isdecenter
+        ta.xyz[:, 1:3:end] .= ta.xyz[:, 1:3:end] .+ com.xyz[:, 1]
+        ta.xyz[:, 2:3:end] .= ta.xyz[:, 2:3:end] .+ com.xyz[:, 2]
+        ta.xyz[:, 3:3:end] .= ta.xyz[:, 3:3:end] .+ com.xyz[:, 3]
+    end
+
+    return rmsd
 end
 
 function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
@@ -1447,3 +1493,58 @@ function compute_pairlist_bruteforce(ta::TrjArray{T, U}, rcut::T; iframe=1::Int)
     return (pair=pair, dist=dist)
 end
 
+
+"""
+    compute_skrew(t0::TrjArray, t1::TrjArray) -> S
+
+Compute the skrew motion prameters by interpreting two structural placements
+as a rigid body skrew motion
+
+Returns a NamedTuple object `S` which contains 
+the angle of rotation about the skrew axis in `S.phi`, 
+the translation along the skrew axis in `S.d`, 
+a unit vector parallel to the screw axis in `S.omega`
+and the shortest vector to the point on the screw axis (perpendicular to the screw axis) in `S.prou`. 
+
+# Example
+```julia-repl
+julia> t0 = mdload("monomer1.pdb")
+julia> t1 = mdload("monomer2.pdb")
+julia> S = compute_skrew(t1, t2)
+```
+"""
+function compute_skrew(t0::TrjArray{T, U}, t1::TrjArray{T, U}) where {T, U}
+    @assert t0.natom == t1.natom
+    i = 1
+    j = round(Int, t0.natom / 2)
+    k = t1.natom
+    P0 = t0[1, i].xyz[:]
+    Q0 = t0[1, j].xyz[:]
+    R0 = t0[1, k].xyz[:]
+    P1 = t1[1, i].xyz[:]
+    Q1 = t1[1, j].xyz[:]
+    R1 = t1[1, k].xyz[:]
+    nume = cross((Q1 .- Q0) .- (R1 .- R0), (P1 .- P0) .- (R1 .- R0))
+    denom = dot((Q1 .- Q0) .- (R1 .- R0), (P1 .+ P0) .- (R1 .+ R0))
+    omega = nume ./ denom
+    omega_norm = norm(omega, 2.0)
+    omega = omega ./ omega_norm
+    phi = 2.0 * atan(omega_norm)
+    prou = 0.5 .* (cross(omega, P1 .- P0)./tan(0.5*phi) .- dot(omega, P1 .+ P0) .* omega .+ P0 .+ P1)
+    d = dot(omega, P1 .- P0)
+    return (omega=omega, phi=phi, prou=prou, d=d)
+end
+
+function disp_skrew(S, d=500.0, d0=0.0)
+    x1 = S.prou[1] + d0*S.omega[1]
+    y1 = S.prou[2] + d0*S.omega[2]
+    z1 = S.prou[3] + d0*S.omega[3]
+    x2 = S.prou[1] + d0*S.omega[1] + d*S.omega[1]
+    y2 = S.prou[2] + d0*S.omega[2] + d*S.omega[2]
+    z2 = S.prou[3] + d0*S.omega[3] + d*S.omega[3]
+    @printf "pseudoatom pt1, pos=[%f, %f, %f]\n" x1 y1 z1
+    @printf "pseudoatom pt2, pos=[%f, %f, %f]\n" x2 y2 z2
+    @printf "distance /pt1, /pt2\n"
+    @printf "set dash_gap, 0\n"
+    @printf "set dash_width, 10\n"
+end
