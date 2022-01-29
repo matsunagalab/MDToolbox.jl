@@ -22,6 +22,7 @@ LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
 MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 
 [compat]
 julia = "1.6"
