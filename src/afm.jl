@@ -71,6 +71,93 @@ function idilation(surface, tip)
     return r
 end
 
+function idilation_pdiff(surface, tip)
+    xc, yc = compute_xc_yc(tip)
+    surf_xsiz, surf_ysiz = size(surface)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = similar(surface)
+    r_index = zeros(Int, size(r))
+    for i = 1:surf_xsiz
+        for j = 1:surf_ysiz
+            pxmin = max(i-surf_xsiz, -xc+1)
+            pymin = max(j-surf_ysiz, -yc+1)
+            pxmax = min(i-1, -xc+tip_xsiz)
+            pymax = min(j-1, -yc+tip_ysiz)
+            dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
+            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = surface[i-px, j-py] + tip[xc+px, yc+py]
+                    if temp > dil_max
+                        dil_max = temp
+                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
+                    end
+                end
+            end
+            r[i, j] = dil_max
+        end
+    end
+    return r, r_index
+end
+
+function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::AbstractArray)
+    tip_xsiz, tip_ysiz = size(tip)
+    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
+    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp) - 1
+    surf_xsiz, surf_ysiz = size(surface)
+    image = similar(surface)
+    MAX_i = zeros(Int, size(surface))
+    MAX_j = zeros(Int, size(surface))
+    MAX_u = zeros(Int, size(surface))
+    MAX_v = zeros(Int, size(surface))
+    for i = 1:surf_xsiz
+        for j = 1:surf_ysiz
+            pxmin = max(i-surf_xsiz, -xc+1)
+            pymin = max(j-surf_ysiz, -yc+1)
+            pxmax = min(i-1, -xc+tip_xsiz)
+            pymax = min(j-1, -yc+tip_ysiz)
+            dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
+            i_max = i-pxmin
+            j_max = j-pymin
+            u_max = xc+pxmin
+            v_max = yc+pymin
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = surface[i-px, j-py] + tip[xc+px, yc+py]
+                    if temp > dil_max
+                        dil_max = temp
+                        i_max = i-px
+                        j_max = j-py
+                        u_max = xc+px
+                        v_max = yc+py
+                    end
+                end
+            end
+            MAX_i[i, j] = i_max
+            MAX_j[i, j] = j_max
+            MAX_u[i, j] = u_max
+            MAX_v[i, j] = v_max
+            image[i, j] = dil_max
+        end
+    end
+
+    function idilation_pullback(dI)
+        dS = zeros(eltype(surface), size(surface))
+        dP = zeros(eltype(tip), size(tip))
+        for i = 1:surf_xsiz
+            for j = 1:surf_ysiz
+                dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
+                dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
+            end
+        end
+        #dP .= dP .- dP[xc, yc]
+        #dP .= max.(0.0, dP)
+        #dP[xc, yc] = 0.0
+        return NoTangent(), dS, dP
+    end
+    return image, idilation_pullback
+end
+
 function ierosion(image, tip)
     xc, yc = compute_xc_yc(tip)
     im_xsiz, im_ysiz = size(image)
@@ -93,6 +180,93 @@ function ierosion(image, tip)
         end
     end
     return r
+end
+
+function ierosion_pdiff(image, tip)
+    xc, yc = compute_xc_yc(tip)
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip)
+    r = similar(image)
+    r_index = zeros(Int, size(r))
+    for i = 1:im_xsiz
+        for j = 1:im_ysiz
+            pxmin = max(-i+1, -xc+1)
+            pymin = max(-j+1, -yc+1)
+            pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
+            pymax = min(-j+im_ysiz, -yc+tip_ysiz)
+            eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
+            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = image[i+px, j+py] - tip[xc+px, yc+py]
+                    if temp < eros_min
+                        eros_min = temp
+                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
+                    end
+                end
+            end
+            r[i, j] = eros_min
+        end
+    end
+    return r, r_index
+end
+
+function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::AbstractArray)
+    tip_xsiz, tip_ysiz = size(tip)
+    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
+    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp) - 1
+    im_xsiz, im_ysiz = size(image)
+    surface = similar(image)
+    MIN_i = zeros(Int, size(image))
+    MIN_j = zeros(Int, size(image))
+    MIN_u = zeros(Int, size(image))
+    MIN_v = zeros(Int, size(image))
+    for i = 1:im_xsiz
+        for j = 1:im_ysiz
+            pxmin = max(-i+1, -xc+1)
+            pymin = max(-j+1, -yc+1)
+            pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
+            pymax = min(-j+im_ysiz, -yc+tip_ysiz)
+            eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
+            i_min = i+pxmin
+            j_min = j+pymin
+            u_min = xc+pxmin
+            v_min = yc+pymin
+            for px = pxmin:pxmax
+                for py = pymin:pymax
+                    temp = image[i+px, j+py] - tip[xc+px, yc+py]
+                    if temp < eros_min
+                        eros_min = temp
+                        i_min = i+px
+                        j_min = j+py
+                        u_min = xc+px
+                        v_min = yc+py
+                    end
+                end
+            end
+            MIN_i[i, j] = i_min
+            MIN_j[i, j] = j_min
+            MIN_u[i, j] = u_min
+            MIN_v[i, j] = v_min
+            surface[i, j] = eros_min
+        end
+    end
+
+    function ierosion_pullback(dS)
+        dI = zeros(eltype(image), size(image))
+        dP = zeros(eltype(tip), size(tip))
+        for i = 1:im_xsiz
+            for j = 1:im_ysiz
+                dI[MIN_i[i,j], MIN_j[i,j]] += dS[i,j]
+                dP[MIN_u[i,j], MIN_v[i,j]] -= dS[i,j]
+            end
+        end
+        #dP .= dP .- dP[xc, yc]
+        #dP .= max.(0.0, dP)
+        #dP[xc, yc] = 0.0
+        return NoTangent(), dI, dP
+    end
+    return surface, ierosion_pullback
 end
 
 function iopen(image, tip)
@@ -175,64 +349,6 @@ function itip_estimate!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
         @printf "%d image locations produced refinement\n" count
     end
     return count
-end
-
-function idilation_pdiff(surface, tip)
-    xc, yc = compute_xc_yc(tip)
-    surf_xsiz, surf_ysiz = size(surface)
-    tip_xsiz, tip_ysiz = size(tip)
-    r = similar(surface)
-    r_index = zeros(Int, size(r))
-    for i = 1:surf_xsiz
-        for j = 1:surf_ysiz
-            pxmin = max(i-surf_xsiz, -xc+1)
-            pymin = max(j-surf_ysiz, -yc+1)
-            pxmax = min(i-1, -xc+tip_xsiz)
-            pymax = min(j-1, -yc+tip_ysiz)
-            dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
-            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
-            for px = pxmin:pxmax
-                for py = pymin:pymax
-                    temp = surface[i-px, j-py] + tip[xc+px, yc+py]
-                    if temp > dil_max
-                        dil_max = temp
-                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
-                    end
-                end
-            end
-            r[i, j] = dil_max
-        end
-    end
-    return r, r_index
-end
-
-function ierosion_pdiff(image, tip)
-    xc, yc = compute_xc_yc(tip)
-    im_xsiz, im_ysiz = size(image)
-    tip_xsiz, tip_ysiz = size(tip)
-    r = similar(image)
-    r_index = zeros(Int, size(r))
-    for i = 1:im_xsiz
-        for j = 1:im_ysiz
-            pxmin = max(-i+1, -xc+1)
-            pymin = max(-j+1, -yc+1)
-            pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
-            pymax = min(-j+im_ysiz, -yc+tip_ysiz)
-            eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
-            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
-            for px = pxmin:pxmax
-                for py = pymin:pymax
-                    temp = image[i+px, j+py] - tip[xc+px, yc+py]
-                    if temp < eros_min
-                        eros_min = temp
-                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
-                    end
-                end
-            end
-            r[i, j] = eros_min
-        end
-    end
-    return r, r_index
 end
 
 function itip_least_squares!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{T}; rate=0.01, max_convergence=0.1) where {T <: Number}
@@ -596,7 +712,7 @@ mutable struct Sphere
 end
 
 mutable struct AfmizeConfig
-    probeAngle::Float64        # Radian
+    probeAngle::Float64  # Radian
     probeRadius::Float64
     range_min::Point2D
     range_max::Point2D
@@ -627,6 +743,115 @@ function afmize!(tip::Matrix, config::AfmizeConfig)
     end
     tip .= tip .- maximum(tip)
     return 0
+end
+
+function surfing(t::TrjArray, config::AfmizeConfig)
+    message = checkConfig(t, config)
+    if !isnothing(message)
+        println(message)
+        return zeros(1, 1)
+    end
+
+    width = floor(Int, (config.range_max.x - config.range_min.x) / config.resolution.x)
+    height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
+    stage = zeros(height, width)
+
+    #radius_max = maximum(t.radius)
+    radius = zeros(Float64, t.natom)
+    for iatom = 1:t.natom
+        radius[iatom] = config.atomRadiusDict[t.atomname[iatom]]
+    end
+
+    x = t.xyz[1, 1:3:end]
+    y = t.xyz[1, 2:3:end]
+    z = t.xyz[1, 3:3:end]
+    z .= z .- minimum(z)
+    for w in 1:width
+        grid_x = config.range_min.x + (w-0.5) * config.resolution.x
+        dx = abs.(grid_x .- x)
+        index_x = dx .< radius
+        for h in 1:height
+            grid_y = config.range_min.y + (h-0.5) * config.resolution.y
+            dy = abs.(grid_y .- y)
+            index_y = dy .< radius
+            index = index_x .& index_y
+            if any(index)
+                d = sqrt.(dx[index].^2 + dy[index].^2)
+                r = radius[index]
+                index2 = d .< r
+                if any(index2)
+                    z_surface = z[index][index2] .+ sqrt.(r[index2].^2 .- d[index2].^2)
+                    stage[h, w] = maximum(z_surface)
+                end
+            end
+        end
+    end
+
+    return stage
+end
+
+function ChainRulesCore.rrule(::typeof(surfing), xyz::AbstractArray, radius::AbstractArray, max_x::Number, min_x::Number, max_y::Number, min_y::Number, resolution_x::Number, resolution_y::Number)
+    width = floor(Int, (max_x - min_x) / resolution_x)
+    height = floor(Int, (max_y - min_y) / resolution_y)
+    S = zeros(height, width)
+    natom3 = length(xyz)
+    natom = Int(natom3 / 3)
+
+    #radius_max = maximum(t.radius)
+
+    x = xyz[1:3:end]
+    y = xyz[2:3:end]
+    z = xyz[3:3:end]
+    z .= z .- minimum(z)
+    
+    S_iatom = zeros(Int, height, width)
+
+    for w in 1:width
+        grid_x = min_x + (w-0.5) * resolution_x
+        dx = abs.(grid_x .- x)
+        index_x = dx .< radius
+        for h in 1:height
+            grid_y = min_y + (h-0.5) * resolution_y
+            dy = abs.(grid_y .- y)
+            index_y = dy .< radius
+            index = index_x .& index_y
+            if any(index)
+                d = sqrt.(dx[index].^2 + dy[index].^2)
+                r = radius[index]
+                index2 = d .< r
+                if any(index2)
+                    z_surface = z[index][index2] .+ sqrt.(r[index2].^2 .- d[index2].^2)
+                    max_s, max_iatom = findmax(z_surface)
+                    S[h, w] = max_s
+                    S_iatom[h, w] = (1:natom)[index][index2][max_iatom]
+                end
+            end
+        end
+    end
+
+    function surfing_pullback(dS)
+        dxyz = zeros(eltype(xyz), natom3)
+        dradius = zeros(eltype(radius), natom)
+        for w in 1:width
+            grid_x = min_x + (w-0.5) * resolution_x
+            for h in 1:height
+                grid_y = min_y + (h-0.5) * resolution_y
+                iatom = S_iatom[h, w]
+                if iatom != 0
+                    ix = 3 * (iatom - 1) + 1
+                    dxyz[ix] += - 2.0 * (x[iatom] - grid_x) / sqrt(radius[iatom]^2 - (x[iatom] - grid_x)^2 - (y[iatom] - grid_y)^2) * dS[h, w]
+                    iy = 3 * (iatom - 1) + 2
+                    dxyz[iy] += - 2.0 * (y[iatom] - grid_y) / sqrt(radius[iatom]^2 - (x[iatom] - grid_x)^2 - (y[iatom] - grid_y)^2) * dS[h, w]
+                    iz = 3 * (iatom - 1) + 3
+                    dxyz[iz] += dS[h, w]
+                    dradius[iatom] += 2.0 * radius[iatom] / sqrt(radius[iatom]^2 - (x[iatom] - grid_x)^2 - (y[iatom] - grid_y)^2) * dS[h, w]
+                end
+            end
+        end
+        return NoTangent(), dxyz, dradius, ZeroTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent()
+    end
+    
+    return S, surfing_pullback
 end
 
 ###################################################
@@ -749,51 +974,6 @@ function calRectangle_circularThrusters(atom::Sphere, config::AfmizeConfig)
                         atom.y + dist_xy)
 
     return calRectangle(min_point, max_point, config)
-end
-
-function surfing(t::TrjArray, config::AfmizeConfig)
-    message = checkConfig(t, config)
-    if !isnothing(message)
-        println(message)
-        return zeros(1, 1)
-    end
-
-    width = floor(Int, (config.range_max.x - config.range_min.x) / config.resolution.x)
-    height = floor(Int, (config.range_max.y - config.range_min.y) / config.resolution.y)
-    stage = zeros(height, width)
-
-    #radius_max = maximum(t.radius)
-    radius = zeros(Float64, t.natom)
-    for iatom = 1:t.natom
-        radius[iatom] = config.atomRadiusDict[t.atomname[iatom]]
-    end
-
-    x = t.xyz[1, 1:3:end]
-    y = t.xyz[1, 2:3:end]
-    z = t.xyz[1, 3:3:end]
-    z .= z .- minimum(z)
-    for w in 1:width
-        grid_x = config.range_min.x + (w-0.5) * config.resolution.x
-        dx = abs.(grid_x .- x)
-        index_x = dx .< radius
-        for h in 1:height
-            grid_y = config.range_min.y + (h-0.5) * config.resolution.y
-            dy = abs.(grid_y .- y)
-            index_y = dy .< radius
-            index = index_x .& index_y
-            if any(index)
-                d = sqrt.(dx[index].^2 + dy[index].^2)
-                r = radius[index]
-                index2 = d .< r
-                if any(index2)
-                    z_surface = z[index][index2] .+ sqrt.(r[index2].^2 .- d[index2].^2)
-                    stage[h, w] = maximum(z_surface)
-                end
-            end
-        end
-    end
-
-    return stage
 end
 
 function afmize(tra::TrjArray, config::AfmizeConfig; removeBottom=true)

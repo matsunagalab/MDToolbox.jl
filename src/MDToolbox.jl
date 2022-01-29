@@ -9,14 +9,15 @@ using FFTW
 #using Bio3DView
 using CUDA
 using ProgressMeter
-using SparseArrays
 using MetaGraphs, LightGraphs, GraphRecipes, Plots
+using ChainRulesCore
+import ChainRulesCore: rrule
 
-# satndard library
+# standard library
 using Printf
 using Statistics
 using LinearAlgebra
-#using SparseArrays
+using SparseArrays
 using Dates
 using Distributed
 using Base.Threads
