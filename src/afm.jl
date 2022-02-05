@@ -279,21 +279,29 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
     xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
-    interior = (tip_xsiz <= (ixp-1) ) & (ixp <= (im_xsiz-tip_xsiz)) & (tip_ysiz <= (jxp-1)) & (jxp <= (im_ysiz-tip_ysiz))
+    interior = ((tip_xsiz-1) <= ixp) & (ixp <= (im_xsiz-tip_xsiz)) & ((tip_ysiz-1) <= jxp) & (jxp <= (im_ysiz-tip_ysiz))
     count = 0
     if interior
         for ix = 0:(tip_xsiz-1)
             for jx = 0:(tip_ysiz-1)
-                if (ix+1) == xc & (jx+1) == yc
+                if ((ix+1) == xc) & ((jx+1) == yc)
                     continue
                 end
+                imagep = image[ixp+1, jxp+1]
                 dil = - eltype(image)(Inf)
                 for id = 0:(tip_xsiz-1)
                     for jd = 0:(tip_ysiz-1)
-                        if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0) | (xc == (id+1) & yc == (jd+1))
+                        #if (imagep - image[ixp+xc-id, jxp+yc-jd]) > tip0[id+1, jd+1]
+                        #    continue
+                        #end
+                        #if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0) | (xc == (id+1) & yc == (jd+1))
+                        #    continue
+                        #end
+                        if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0)
                             continue
                         end
-                        temp = image[ixp+ix-id+1, jxp+jx-jd+1] - image[ixp+1, jxp+1] + thresh
+                        #temp = image[ix+ixp-id+1, jx+jxp-jd+1] + tip0[id+1, jd+1] - imagep + thresh
+                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
                         dil = max(dil, temp)
                     end
                 end
@@ -316,8 +324,8 @@ function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Num
     tip_xsiz, tip_ysiz = size(tip0)
     count = 0
     open_image = iopen(image, tip0)
-    for ixp = (tip_xsiz-xc-1):(im_xsiz-xc-1)
-        for jxp = (tip_ysiz-yc-1):(im_ysiz-yc-1)
+    for ixp = (tip_xsiz-xc):(im_xsiz-xc)
+        for jxp = (tip_ysiz-yc):(im_ysiz-yc)
             if (image[ixp+1, jxp+1] - open_image[ixp+1, jxp+1]) > thresh
                 c = itip_estimate_point!(tip0, image, ixp, jxp, thresh=thresh)
                 if c > 0
@@ -329,26 +337,33 @@ function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Num
     return count
 end
 
-function itip_estimate!(tip0, images::Vector{Any}; thresh=0.0)
-    nframe = length(images)
-    for iframe = 1:nframe
-        @printf "Processing %d-th image\n" iframe
-        itip_estimate!(tip0, images[iframe], thresh=0.0)
-        @printf "\n"
-    end
-    return
-end
-
-function itip_estimate!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
+function itip_estimate_single_image!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
     iter = 0
     count = 1
+    count_cumsum = 0
     while count > 0
         iter += 1
         count = itip_estimate_iter!(tip0, image, thresh=thresh)
-        @printf "Finished iteration %d\n" iter
-        @printf "%d image locations produced refinement\n" count
+        count_cumsum += count
     end
-    return count
+    return count_cumsum
+end
+
+function itip_estimate!(tip0, images::AbstractVector; thresh=0.0)
+    nframe = length(images)
+    count_cumsum2 = 0
+    for iframe = 1:nframe
+        count_cumsum = itip_estimate_single_image!(tip0, images[iframe], thresh=thresh)
+        count_cumsum2 += count_cumsum
+    end
+    @printf "Processed %d image\n" nframe
+    @printf "%d refinements \n" count_cumsum2
+    return
+end
+
+function itip_estimate!(tip0, image::AbstractMatrix; thresh=0.0)
+    itip_estimate!(tip0, [image], thresh=thresh)
+    return
 end
 
 function itip_least_squares!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{T}; rate=0.01, max_convergence=0.1) where {T <: Number}
