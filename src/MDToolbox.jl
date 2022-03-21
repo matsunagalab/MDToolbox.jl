@@ -9,7 +9,7 @@ using FFTW
 #using Bio3DView
 using CUDA
 using ProgressMeter
-using MetaGraphs, LightGraphs, GraphRecipes, Plots
+using MetaGraphs, Graphs, GraphRecipes, Plots
 using ChainRulesCore
 import ChainRulesCore: rrule
 
@@ -37,7 +37,7 @@ export wham, wham_iteration
 export mbar, mbar_weight
 export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmforward_missing, msmbackward, msmbackward_missing, msmbaumwelch, msmbaumwelch_missing, msmviterbi, msmimpliedtime
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
-export idilation, ierosion, itip_estimate!, itip_least_squares!, surfing, afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
+export idilation, ierosion, itip_estimate!, surfing, afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
 export Asd, readasd
 export get_residues, gpu, gpu32, cpu, cpu64, logsumexp
 
