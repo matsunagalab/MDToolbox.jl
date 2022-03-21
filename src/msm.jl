@@ -610,14 +610,18 @@ function msmviterbi(observation, T, pi_i, emission)
     # argmax forward
     Z = zeros(eltype(T2), nstate, nstate)
     for t = 2:nframe
-        if observation[t] === missing
-          Z .= P[:, (t-1):(t-1)] .+ log.(T2)
-        else
-          Z .= P[:, (t-1):(t-1)] .+ log.(T2) .+ log.(emission2[:, observation[t]:observation[t]]')
-        end
+        Z .= P[:, (t-1):(t-1)] .+ log.(T2)
+        #if observation[t] === missing
+        #  Z .= P[:, (t-1):(t-1)] .+ log.(T2)
+        #else
+        #  Z .= P[:, (t-1):(t-1)] .+ log.(T2) .+ log.(emission2[:, observation[t]:observation[t]]')
+        #end
         I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
-        #P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
-        P[:, t] .= maximum(Z, dims=1)[:]
+        if observation[t] === missing
+          P[:, t] .= maximum(Z, dims=1)[:]
+        else
+          P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
+        end
     end
 
     # termination
