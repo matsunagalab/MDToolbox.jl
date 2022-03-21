@@ -238,6 +238,20 @@ function mbar_weight(u_kl, f_k, u_k=nothing)
     return w_k
 end
 
+function ChainRulesCore.rrule(::typeof(mbar_weight), u_kl, f_k, u_k)
+    w_k = mbar_weight(u_kl, f_k, u_k)
+    function mbar_weight_pullback(dw_k)
+        du_k = deepcopy(w_k)
+        for k = 1:length(w_k)
+            for n = 1:length(w_k[k])
+                du_k[k][n] = dw_k[k][n] * (- w_k[k][n])
+            end
+        end
+        return NoTangent(), ZeroTangent(), NoTangent(), du_k
+    end
+    return w_k, mbar_weight_pullback
+end
+
 # MATLAB-style coding
 function mbar_log_wi_jn(N_k, f_k, u_kln, u_kn, K, N_max)
     log_wi_jn = zeros(Float64, (K, N_max))
