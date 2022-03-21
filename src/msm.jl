@@ -24,7 +24,7 @@ function msmplot(T; pi_i=nothing, x=nothing, y=nothing, filename=nothing,
   for i = 1:n
     for j = 1:n
       if !iszero(T[i, j])
-        add_edge!(g, i, j)
+        Graphs.SimpleGraphs.add_edge!(g, i, j)
       end
      end
   end
