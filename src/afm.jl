@@ -300,8 +300,8 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
                         if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0)
                             continue
                         end
-                        #temp = image[ix+ixp-id+1, jx+jxp-jd+1] + tip0[id+1, jd+1] - imagep + thresh
-                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
+                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] + tip0[id+1, jd+1] - imagep + thresh
+                        #temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
                         dil = max(dil, temp)
                     end
                 end
@@ -1022,6 +1022,7 @@ function afmize(tra::TrjArray, config::AfmizeConfig; removeBottom=true)
             probe = probes[h, w]
 
             stage[h, w] = max(stage[h, w], calcCollisionAsSphere(probe, atom))
+            #stage[h, w] = calcCollisionAsSphere(probe, atom)
         end
     end
 
@@ -1034,6 +1035,7 @@ function afmize(tra::TrjArray, config::AfmizeConfig; removeBottom=true)
             probe = probes[h, w]
 
             stage[h, w] = max(stage[h, w], calcCollisionAsCircularThrusters(probe, atom))
+            #stage[h, w] = calcCollisionAsCircularThrusters(probe, atom)
         end
     end
 
