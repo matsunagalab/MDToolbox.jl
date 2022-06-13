@@ -86,6 +86,80 @@ function clusterkcenters(ta::TrjArray, kcluster::Int; nReplicates::Int=10)
 end
 
 """
+    clusterkmeans(X::AbstractMatrix, kcluster::Int; nReplicates::Int=10) -> F
+
+Perform clustering with K-means algorithm. Input data `X` should belong to AbstractMatrix type 
+and its columns corresponds to variables, rows are frames. Also, the number of clusters `kcluster` should be specified. 
+
+Returns a NamedTuple object `F` which contains cluster index for each sample in `F.indexOfCluster`,
+the coordinates of centroid in `F.center`, and distances of samples from the nearest centroid in `F.distanceFromCenter`.
+
+#  Example
+```julia-repl
+julia> using MDToolbox, Plots
+julia> X = rand(1000, 2)
+julia> F = clusterkmeans(X, 3)
+julia> scatter(X[:, 1], X[:, 2], c=F.indexOfCluster)
+```
+"""
+function clusterkmeans(x::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
+    N = size(x, 1)
+    P = size(x, 2)
+    K = kcluster
+
+    # return variables
+    class_out = rand(1:K, N)
+    centers_out = zeros(Float64, K, P)
+    d_min_out = zeros(Float64, N)
+    score_out = Inf64
+
+    # initialization
+    for iter = 1:nReplicates
+        class = rand(1:K, N)
+        centers = zeros(Float64, K, P)
+        d_min = zeros(Float64, N)
+        for k = 1:K
+            centers[k:k, :] .= mean(x[class .== k, :], dims=1)
+        end
+
+        class_old = deepcopy(class)
+        while true
+            d_min .= Inf64
+            class_old .= class
+
+            # update clustering
+            for k = 1:K
+              d = sqrt.(sum((x .- centers[k:k, :]).^2, dims=2))
+              idx = d .< d_min
+              class[idx[:]] .= k
+              d_min[idx[:]] .= d[idx]
+            end
+
+            # update centroid
+            for k = 1:K
+                centers[k:k, :] .= mean(x[class .== k, :], dims=1)
+            end
+
+            # check convergence
+            hammingDistance = sum(class_old .!= class) / N
+            if hammingDistance < 10^(-6)
+                break
+            end
+        end
+        score = sum(d_min.^2)
+
+        if score < score_out
+            class_out .= class
+            centers_out .= centers_out
+            d_min_out .= d_min
+            score_out = score
+        end
+    end
+
+    return (indexOfCluster=class_out, center=centers_out, distanceFromCenter=d_min_out)
+end
+
+"""
     clustercutoff(X::AbstractMatrix, rcut=10.0) -> F
 
 Perform clustering using the given cutoff radius.
