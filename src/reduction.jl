@@ -100,6 +100,7 @@ julia> using MDToolbox, Plots
 julia> X = rand(1000, 2)
 julia> F = clusterkmeans(X, 3)
 julia> scatter(X[:, 1], X[:, 2], c=F.indexOfCluster)
+julia> scatter!(X[F.indexOfCenter, 1], X[F.indexOfCenter, 2], color=:red)
 ```
 """
 function clusterkmeans(x::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
@@ -156,7 +157,16 @@ function clusterkmeans(x::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
         end
     end
 
-    return (indexOfCluster=class_out, center=centers_out, distanceFromCenter=d_min_out)
+    indexOfCenter = zeros(Int64, K)
+    d_tmp = deepcopy(d_min_out)
+    for k = 1:K
+        d_tmp .= Inf64
+        idx = class_out .== k
+        d_tmp[idx] .= d_min_out[idx]
+        indexOfCenter[k] = argmin(d_tmp)
+    end
+
+    return (indexOfCluster=class_out, center=centers_out, distanceFromCenter=d_min_out, indexOfCenter=indexOfCenter)
 end
 
 """
