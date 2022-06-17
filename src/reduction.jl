@@ -151,7 +151,7 @@ function clusterkmeans(x::AbstractMatrix, kcluster::Int; nReplicates::Int=10)
 
         if score < score_out
             class_out .= class
-            centers_out .= centers_out
+            centers_out .= centers
             d_min_out .= d_min
             score_out = score
         end
