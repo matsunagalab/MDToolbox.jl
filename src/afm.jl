@@ -71,35 +71,6 @@ function idilation(surface, tip)
     return r
 end
 
-function idilation_pdiff(surface, tip)
-    xc, yc = compute_xc_yc(tip)
-    surf_xsiz, surf_ysiz = size(surface)
-    tip_xsiz, tip_ysiz = size(tip)
-    r = similar(surface)
-    r_index = zeros(Int, size(r))
-    for i = 1:surf_xsiz
-        for j = 1:surf_ysiz
-            pxmin = max(i-surf_xsiz, -xc+1)
-            pymin = max(j-surf_ysiz, -yc+1)
-            pxmax = min(i-1, -xc+tip_xsiz)
-            pymax = min(j-1, -yc+tip_ysiz)
-            dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
-            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
-            for px = pxmin:pxmax
-                for py = pymin:pymax
-                    temp = surface[i-px, j-py] + tip[xc+px, yc+py]
-                    if temp > dil_max
-                        dil_max = temp
-                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
-                    end
-                end
-            end
-            r[i, j] = dil_max
-        end
-    end
-    return r, r_index
-end
-
 function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::AbstractArray)
     tip_xsiz, tip_ysiz = size(tip)
     xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
@@ -133,10 +104,12 @@ function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::
                     end
                 end
             end
-            MAX_i[i, j] = i_max
-            MAX_j[i, j] = j_max
-            MAX_u[i, j] = u_max
-            MAX_v[i, j] = v_max
+	    if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
+              MAX_i[i, j] = i_max
+              MAX_j[i, j] = j_max
+              MAX_u[i, j] = u_max
+              MAX_v[i, j] = v_max
+	    end
             image[i, j] = dil_max
         end
     end
@@ -146,8 +119,10 @@ function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::
         dP = zeros(eltype(tip), size(tip))
         for i = 1:surf_xsiz
             for j = 1:surf_ysiz
-                dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
-                dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
+	        if MAX_i[i,j] != 0
+                  dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
+                  dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
+		end
             end
         end
         #dP .= dP .- dP[xc, yc]
@@ -180,35 +155,6 @@ function ierosion(image, tip)
         end
     end
     return r
-end
-
-function ierosion_pdiff(image, tip)
-    xc, yc = compute_xc_yc(tip)
-    im_xsiz, im_ysiz = size(image)
-    tip_xsiz, tip_ysiz = size(tip)
-    r = similar(image)
-    r_index = zeros(Int, size(r))
-    for i = 1:im_xsiz
-        for j = 1:im_ysiz
-            pxmin = max(-i+1, -xc+1)
-            pymin = max(-j+1, -yc+1)
-            pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
-            pymax = min(-j+im_ysiz, -yc+tip_ysiz)
-            eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
-            r_index[i, j] = (yc+pymin-1)*size(tip, 1) + (xc+pxmin)
-            for px = pxmin:pxmax
-                for py = pymin:pymax
-                    temp = image[i+px, j+py] - tip[xc+px, yc+py]
-                    if temp < eros_min
-                        eros_min = temp
-                        r_index[i, j] = (yc+py-1)*size(tip, 1) + (xc+px)
-                    end
-                end
-            end
-            r[i, j] = eros_min
-        end
-    end
-    return r, r_index
 end
 
 function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::AbstractArray)
@@ -244,10 +190,12 @@ function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::Abs
                     end
                 end
             end
-            MIN_i[i, j] = i_min
-            MIN_j[i, j] = j_min
-            MIN_u[i, j] = u_min
-            MIN_v[i, j] = v_min
+	    if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
+              MIN_i[i, j] = i_min
+              MIN_j[i, j] = j_min
+              MIN_u[i, j] = u_min
+              MIN_v[i, j] = v_min
+	    end
             surface[i, j] = eros_min
         end
     end
@@ -257,8 +205,10 @@ function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::Abs
         dP = zeros(eltype(tip), size(tip))
         for i = 1:im_xsiz
             for j = 1:im_ysiz
-                dI[MIN_i[i,j], MIN_j[i,j]] += dS[i,j]
-                dP[MIN_u[i,j], MIN_v[i,j]] -= dS[i,j]
+	        if MIN_i[i,j] != 0
+                  dI[MIN_i[i,j], MIN_j[i,j]] += dS[i,j]
+                  dP[MIN_u[i,j], MIN_v[i,j]] -= dS[i,j]
+		end
             end
         end
         #dP .= dP .- dP[xc, yc]
@@ -366,96 +316,6 @@ function itip_estimate!(tip0, image::AbstractMatrix; thresh=0.0)
     return
 end
 
-function itip_least_squares!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{T}; rate=0.01, max_convergence=0.1) where {T <: Number}
-    tip_xsiz, tip_ysiz = size(tip0)
-    icount = 0
-    check_convergence = T(Inf) 
-    tip0_old = deepcopy(tip0)
-    while check_convergence > max_convergence
-        xc, yc = MDToolbox.compute_xc_yc(tip0)
-        r, r_index = MDToolbox.idilation_pdiff(surface, tip0)
-        for ix = 1:tip_xsiz
-            for iy = 1:tip_ysiz
-                if (ix == xc) & (iy == yc)
-                    continue
-                end
-                id = r_index .== ((iy-1)*size(tip0, 1) + ix)
-                if any(id)
-                    tip0[ix, iy] -= sum(r[id] .- image[id]) * rate
-                end
-            end
-        end
-        icount += 1
-        check_convergence = maximum(abs.(tip0_old .- tip0))
-        tip0_old .= tip0
-        if mod(icount, 1000) == 0
-            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
-            @printf "iteration %d : %f\n" icount check_convergence
-        end
-    end
-end
-
-function itip_least_squares!(tip0, images::Vector{Any}; thresh=0.1, rate=0.1, nstep=100)
-    xc, yc = MDToolbox.compute_xc_yc(tip0)
-    #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
-    #tip0 .= -50.0
-    tip0[xc, yc] = 0.0
-    nframe = length(images)
-    d = zeros(eltype(tip0), size(tip0))
-    loss_train_array = []
-    for istep = 1:nstep
-        d .= eltype(tip0)(0.0)
-        for iframe = 1:nframe
-            s, e_index = ierosion_pdiff(images[iframe], tip0)
-            r, d_index = idilation_pdiff(s, tip0)
-            #r .-= minimum(r)
-            for ix = 1:size(tip0, 1)
-                for iy = 1:size(tip0, 2)
-                    if (ix == xc) & (iy == yc)
-                        continue
-                    end
-                    id_d = d_index .== ((iy-1)*size(tip0, 1) + ix)
-                    id_e = e_index .== ((iy-1)*size(tip0, 1) + ix)
-                    for i = 1:size(images[iframe], 1)
-                        for j = 1:size(images[iframe], 2)
-                            if id_d[i, j] > 0.5
-                                ii = i - (ix - xc)
-                                jj = j - (iy - yc)
-                                if 1 <= ii <= size(images[iframe], 1)
-                                    if 1 <= jj <= size(images[iframe], 2)
-                                        if id_e[ii, jj] > 0.5
-                                            id_d[i, j] = 0
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    d[ix, iy] += - sum((r[id_d] .- images[iframe][id_d]))
-                end
-            end
-        end
-
-        tip0 .+= d .* rate
-        #tip0 .= min.(tip0, 0.0)
-
-        if mod(istep, 100) == 0
-            loss_train = 0.0
-            for iframe = 1:nframe
-                s, e_index = ierosion_pdiff(images[iframe], tip0)
-                r, d_index = idilation_pdiff(s, tip0)
-                loss_train += sum((r .- images[iframe]).^2)
-            end
-            #loss_train += lambda * sum(abs.(tip0))
-            #loss_train /= nframe
-
-            println("step $(istep): loss_train = $(loss_train)")
-            push!(loss_train_array, loss_train)
-        end
-    end
-    return loss_train_array
-end
-
 function _logsumexp(x; tau=1)
     if tau > 0.0
         c = maximum(x)
@@ -471,115 +331,6 @@ function _softmax(x; tau=1)
         return exp.((x .- m) ./ tau)
     else
         return exp.((x .- m) ./ tau)
-    end
-end
-
-function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}, surface::Matrix{T}; rate=0.01, max_convergence=0.1) where {T <: Number}
-    tip_xsiz, tip_ysiz = size(tip0)
-    surf_xsiz, surf_ysiz = size(surface)
-    xc, yc = MDToolbox.compute_xc_yc(tip0)
-    icount = 0
-    check_convergence = T(Inf) 
-    tip0_old = deepcopy(tip0)
-    tau = 1.0
-    d = zeros(eltype(tip0), size(tip0))
-    while (check_convergence > max_convergence) & (icount < 5000)
-        r, r_index = MDToolbox.idilation_pdiff(surface, tip0)
-        #tip0[ix, iy] -= sum(r[id] .- image[id]) * rate
-        d .= 0.0
-        for i = 1:surf_xsiz
-            for j = 1:surf_ysiz
-                pxmin = max(i-surf_xsiz, -xc+1)
-                pymin = max(j-surf_ysiz, -yc+1)
-                pxmax = min(i-1, -xc+tip_xsiz)
-                pymax = min(j-1, -yc+tip_ysiz)
-                temp = surface[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]
-                d[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .+= (r[i, j] - image[i,j]) .* _softmax(temp; tau=tau)
-            end
-        end
-        d[xc, yc] = 0.0
-        tip0 .-= (d .* rate)
-        icount += 1
-        check_convergence = maximum(abs.(tip0_old .- tip0))
-        tip0_old .= tip0
-        if mod(icount, 1000) == 0
-            #@printf "iteration %d : %f\n" icount sum((idilation(surface, tip0) .- image).^2)
-            @printf "iteration %d : %f\n" icount check_convergence
-        end
-    end
-end
-
-function itip_least_squares_entropy!(tip0::Matrix{T}, image::Matrix{T}; tau=1.0, lambda=1.0, rate=0.01, max_convergence=0.1, nstep=1000) where {T <: Number}
-    tip_xsiz, tip_ysiz = size(tip0)
-    surf_xsiz, surf_ysiz = size(image)
-    xc, yc = MDToolbox.compute_xc_yc(tip0)
-    #tip0 .-= 10^(-8).*rand(Float64, size(tip0))
-    #tip0 .= -200.0
-    #tip0 .= tip0 .- maximum(tip0)
-    tip0[xc, yc] = 0.0
-    icount = 0
-    check_convergence = T(Inf) 
-    tip0_old = deepcopy(tip0)
-    d = zeros(eltype(tip0), size(tip0))
-    while (check_convergence > max_convergence) & (icount < nstep)
-        s, e_index = ierosion_pdiff(image, tip0)
-        r, r_index = MDToolbox.idilation_pdiff(s, tip0)
-        ##############################################
-        #r .= r .- minimum(r)
-        ##############################################
-        d .= 0.0
-        for i = 1:surf_xsiz
-            for j = 1:surf_ysiz
-                grad1 = zeros(eltype(tip0), size(tip0))
-                pxmin = max(i-surf_xsiz, -xc+1)
-                pymin = max(j-surf_ysiz, -yc+1)
-                pxmax = min(i-1, -xc+tip_xsiz)
-                pymax = min(j-1, -yc+tip_ysiz)
-                temp = s[(i-pxmin):-1:(i-pxmax), (j-pymin):-1:(j-pymax)] .+ tip0[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)]
-                grad1[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= _softmax(temp; tau=tau)
-
-                grad2 = ones(eltype(tip0), size(tip0))
-                t = ones(eltype(tip0), size(tip0))
-                for px = pxmin:pxmax
-                    for py = pymin:pymax
-                        pxmin2 = max(-i+px+1, -xc+1)
-                        pymin2 = max(-j+py+1, -yc+1)
-                        pxmax2 = min(-i+px+surf_xsiz, -xc+tip_xsiz)
-                        pymax2 = min(-j+py+surf_ysiz, -yc+tip_ysiz)
-                        if (pxmin2 < pxmax2) & (pymin2 < pymax2)
-                            t .= 1.0
-                            t[(xc+pxmin2):(xc+pxmax2), (yc+pymin2):(yc+pymax2)] .= _softmax(image[(i-px+pxmin2):(i-px+pxmax2), (j-py+pymin2):(j-py+pymax2)] .- tip0[xc+px, yc+py]; tau=-tau) .+ 1.0
-                            grad2[xc+px, yc+py] = t[xc+px, yc+py]
-                        end
-                    end
-                end
-                grad2 = ones(eltype(tip0), size(tip0))
-                #d .+= (r[i, j] - image[i, j]) .* grad1 .* grad2
-                d .+= - grad1 .* grad2
-            end
-        end
-        #temp = 100.0 * (1.0 - icount / nstep)
-        #temp = 100000.0
-        #d .+= temp .* randn(size(d))
-        #d .+= lambda .* (1.0 ./ (tip0 .+ 0.1).^2) .+ temp .* randn(size(d))
-        diff = zeros(eltype(d), size(d))
-        for i = 2:(tip_xsiz-1)
-            for j = 2:(tip_ysiz-1)
-                tip[i, j] 
-            end
-        end
-        d .+= lambda .* tip0
-        #d[xc, yc] = 0.0
-        d .-= d[xc, yc]
-        #d .= min.(d, 0.0)
-        tip0 .-= (d .* rate)
-        tip0 .= min.(tip0, 0.0)
-        check_convergence = maximum(abs.(tip0_old .- tip0))
-        tip0_old .= tip0
-        icount += 1
-        if mod(icount, 10) == 0
-            @printf "iteration %d : %f %f %f\n" icount sum((idilation(ierosion(image, tip0), tip0) .- image).^2) (sum((idilation(ierosion(image, tip0), tip0) .- image).^2) + lambda .* sum(tip0.^2)) check_convergence
-        end
     end
 end
 
