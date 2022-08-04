@@ -119,10 +119,10 @@ function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::
         dP = zeros(eltype(tip), size(tip))
         for i = 1:surf_xsiz
             for j = 1:surf_ysiz
-	        if MAX_i[i,j] != 0
-                  dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
-                  dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
-		end
+    	        if MAX_i[i,j] != 0
+                    dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
+                    dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
+        		end
             end
         end
         #dP .= dP .- dP[xc, yc]
@@ -205,10 +205,10 @@ function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::Abs
         dP = zeros(eltype(tip), size(tip))
         for i = 1:im_xsiz
             for j = 1:im_ysiz
-	        if MIN_i[i,j] != 0
-                  dI[MIN_i[i,j], MIN_j[i,j]] += dS[i,j]
-                  dP[MIN_u[i,j], MIN_v[i,j]] -= dS[i,j]
-		end
+    	        if MIN_i[i,j] != 0
+                      dI[MIN_i[i,j], MIN_j[i,j]] += dS[i,j]
+                      dP[MIN_u[i,j], MIN_v[i,j]] -= dS[i,j]
+        		end
             end
         end
         #dP .= dP .- dP[xc, yc]
@@ -225,7 +225,7 @@ function iopen(image, tip)
     return r
 end
 
-function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
+function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0, iregularize=false)
     xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
@@ -244,14 +244,21 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
                         #if (imagep - image[ixp+xc-id, jxp+yc-jd]) > tip0[id+1, jd+1]
                         #    continue
                         #end
-                        #if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0) | (xc == (id+1) & yc == (jd+1))
+                        #if ((imagep - image[ixp+xc-id, jxp+yc-jd]) > 0.0) | (xc == (id+1) & yc == (jd+1))
                         #    continue
                         #end
-                        if ((image[ixp+1, jxp+1] - image[ixp+xc-id, jxp+yc-jd]) > 0.0)
-                            continue
+                        if iregularize
+                            if ((imagep - image[ixp+xc-id, jxp+yc-jd] + thresh) > tip0[id+1, jd+1])
+                                continue
+                            end
+                        else
+                            #if ((imagep - image[ixp+xc-id, jxp+yc-jd]) > 0.0)
+                            if ((imagep - image[ixp+xc-id, jxp+yc-jd]) > tip0[id+1, jd+1])
+                                continue
+                            end
                         end
-                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] + tip0[id+1, jd+1] - imagep + thresh
-                        #temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
+                        #temp = image[ix+ixp-id+1, jx+jxp-jd+1] + tip0[id+1, jd+1] - imagep + thresh
+                        temp = image[ix+ixp-id+1, jx+jxp-jd+1] - imagep + thresh
                         dil = max(dil, temp)
                     end
                 end
@@ -268,7 +275,7 @@ function itip_estimate_point!(tip0, image, ixp, jxp; thresh=0.0)
     return count
 end
 
-function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
+function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0, iregularize=false) where {T <: Number}
     xc, yc = compute_xc_yc(tip0)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip0)
@@ -277,7 +284,7 @@ function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Num
     for ixp = (tip_xsiz-xc):(im_xsiz-xc)
         for jxp = (tip_ysiz-yc):(im_ysiz-yc)
             if (image[ixp+1, jxp+1] - open_image[ixp+1, jxp+1]) > thresh
-                c = itip_estimate_point!(tip0, image, ixp, jxp, thresh=thresh)
+                c = itip_estimate_point!(tip0, image, ixp, jxp, thresh=thresh, iregularize=iregularize)
                 if c > 0
                     count += 1
                 end
@@ -287,23 +294,23 @@ function itip_estimate_iter!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Num
     return count
 end
 
-function itip_estimate_single_image!(tip0, image::Matrix{T}; thresh=0.0) where {T <: Number}
+function itip_estimate_single_image!(tip0, image::Matrix{T}; thresh=0.0, iregularize=false) where {T <: Number}
     iter = 0
     count = 1
     count_cumsum = 0
     while count > 0
         iter += 1
-        count = itip_estimate_iter!(tip0, image, thresh=thresh)
+        count = itip_estimate_iter!(tip0, image, thresh=thresh, iregularize=iregularize)
         count_cumsum += count
     end
     return count_cumsum
 end
 
-function itip_estimate!(tip0, images::AbstractVector; thresh=0.0)
+function itip_estimate!(tip0, images::AbstractVector; thresh=0.0, iregularize=false)
     nframe = length(images)
     count_cumsum2 = 0
     for iframe = 1:nframe
-        count_cumsum = itip_estimate_single_image!(tip0, images[iframe], thresh=thresh)
+        count_cumsum = itip_estimate_single_image!(tip0, images[iframe], thresh=thresh, iregularize=iregularize)
         count_cumsum2 += count_cumsum
     end
     @printf "Processed %d image\n" nframe
@@ -311,8 +318,8 @@ function itip_estimate!(tip0, images::AbstractVector; thresh=0.0)
     return
 end
 
-function itip_estimate!(tip0, image::AbstractMatrix; thresh=0.0)
-    itip_estimate!(tip0, [image], thresh=thresh)
+function itip_estimate!(tip0, image::AbstractMatrix; thresh=0.0, iregularize=false)
+    itip_estimate!(tip0, [image], thresh=thresh, iregularize=iregularize)
     return
 end
 
