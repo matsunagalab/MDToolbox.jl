@@ -4,8 +4,8 @@ Blind tip reconstruction from AFM image
 
 function compute_xc_yc(tip)
     tip_xsiz, tip_ysiz = size(tip)
-    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
-    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp) - 1
+    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp)
+    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp)
     return xc, yc
 end
 
@@ -73,8 +73,7 @@ end
 
 function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::AbstractArray)
     tip_xsiz, tip_ysiz = size(tip)
-    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
-    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp) - 1
+    xc, yc = compute_xc_yc(tip)
     surf_xsiz, surf_ysiz = size(surface)
     image = similar(surface)
     MAX_i = zeros(Int, size(surface))
@@ -104,12 +103,12 @@ function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::
                     end
                 end
             end
-	    if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
-              MAX_i[i, j] = i_max
-              MAX_j[i, j] = j_max
-              MAX_u[i, j] = u_max
-              MAX_v[i, j] = v_max
-	    end
+    	    if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
+                  MAX_i[i, j] = i_max
+                  MAX_j[i, j] = j_max
+                  MAX_u[i, j] = u_max
+                  MAX_v[i, j] = v_max
+    	    end
             image[i, j] = dil_max
         end
     end
@@ -159,8 +158,7 @@ end
 
 function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::AbstractArray)
     tip_xsiz, tip_ysiz = size(tip)
-    xc = round(Int, tip_xsiz/2, RoundNearestTiesUp) - 1
-    yc = round(Int, tip_ysiz/2, RoundNearestTiesUp) - 1
+    xc, yc = compute_xc_yc(tip)
     im_xsiz, im_ysiz = size(image)
     surface = similar(image)
     MIN_i = zeros(Int, size(image))
@@ -190,12 +188,12 @@ function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::Abs
                     end
                 end
             end
-	    if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
-              MIN_i[i, j] = i_min
-              MIN_j[i, j] = j_min
-              MIN_u[i, j] = u_min
-              MIN_v[i, j] = v_min
-	    end
+    	    if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
+                  MIN_i[i, j] = i_min
+                  MIN_j[i, j] = j_min
+                  MIN_u[i, j] = u_min
+                  MIN_v[i, j] = v_min
+    	    end
             surface[i, j] = eros_min
         end
     end
