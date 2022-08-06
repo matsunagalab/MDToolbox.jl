@@ -9,6 +9,79 @@ function compute_xc_yc(tip)
     return xc, yc
 end
 
+function translate_tip_peak(P)
+    tip_xsiz, tip_ysiz = size(P)
+    xc, yc = MDToolbox.compute_xc_yc(P)
+
+    p_max, id = findmax(P)
+    p_min = minimum(P)
+
+    P_new = deepcopy(P)
+    P_new .= p_min - p_max
+
+    pxmin = max(1-xc, 1-id[1])
+    pymin = max(1-yc, 1-id[2])
+    pxmax = min(tip_xsiz-xc, tip_xsiz-id[1])
+    pymax = min(tip_ysiz-yc, tip_ysiz-id[2])
+    for px = pxmin:pxmax
+        for py = pymin:pymax
+            P_new[xc+px, yc+py] = P[id[1]+px, id[2]+py] - p_max
+        end
+    end
+    return P_new
+end
+
+function translate_tip_mean(P; cutoff=10^(-8))
+    tip_xsiz, tip_ysiz = size(P)
+    xc, yc = MDToolbox.compute_xc_yc(P)
+
+    p_min = minimum(P)
+
+    weight = P .- p_min
+    #if all(weight .< 10.0^(1))
+    #    weight .= 1.0
+    #end
+    for ix = 1:tip_xsiz
+        for iy = 1:tip_ysiz
+            if weight[ix, iy] < cutoff
+                weight[ix, iy] = 0.0
+            end
+        end
+    end
+
+    if all(weight .< 10^(-10))
+        weight .= 1.0
+    end
+
+    com_x = 0.0
+    com_y = 0.0
+    for ix = 1:tip_xsiz
+        for iy = 1:tip_ysiz
+            com_x += ix * weight[ix, iy]
+            com_y += iy * weight[ix, iy]
+        end
+    end
+    com_x = com_x / sum(weight)
+    com_y = com_y / sum(weight)
+    id_x = round(Int, com_x, RoundNearestTiesUp)
+    id_y = round(Int, com_y, RoundNearestTiesUp)
+
+    p_max = maximum(P)
+    P_new = deepcopy(P)
+    P_new .= p_min .- p_max
+
+    pxmin = max(1-xc, 1-id_x)
+    pymin = max(1-yc, 1-id_y)
+    pxmax = min(tip_xsiz-xc, tip_xsiz-id_x)
+    pymax = min(tip_ysiz-yc, tip_ysiz-id_y)
+    for px = pxmin:pxmax
+        for py = pymin:pymax
+            P_new[xc+px, yc+py] = P[id_x+px, id_y+py] .- p_max
+        end
+    end
+    return P_new
+end
+
 function ireflect(surface)
     surface2 = - surface[end:-1:1, end:-1:1]
     return surface2
