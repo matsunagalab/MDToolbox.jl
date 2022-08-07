@@ -4,9 +4,6 @@ import Base: convert, copy, show, getindex, lastindex, isempty,
 abstract type AbstractTrajectory end
 
 struct TrjArray{T, U} <: AbstractTrajectory
-    #DONE: support for x, y, z = nothing, nothing, nothing
-    #DONE: natom, nframe
-    #TODO: revert to parametric type, fix slowness of constructor
     #TODO: simple and easy constructions for other functions which outputs a new trjarray (such as centerofmass)
     #TODO: should allow one-dimensional array (vector) for x, y, z constructor input
     xyz::AbstractArray{T}
@@ -17,6 +14,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
     resid::AbstractArray{U}
     atomname::AbstractArray{String}
     atomtype::AbstractArray{String}
+    atomtype_id::AbstractArray{U}
     atomid::AbstractArray{U}
     mass::AbstractArray{T}
     radius::AbstractArray{T}
@@ -33,7 +31,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
     natom::Int64
     nframe::Int64
 
-    function TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomtype, atomid, mass, radius, charge, sasa, nnb, 
+    function TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomtype, atomtype_id, atomid, mass, radius, charge, sasa, nnb, 
                       list_bond, list_angle, list_dihedral, list_improper, list_cmap, list_donor, list_acceptor) where {T, U}
         # nrow, ncol = (size(trj, 1), size(trj, 2))
         # natom = Int64(ncol/3)
@@ -54,7 +52,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
 
         # check size and define natom
         natom = 0
-        vec_collection = [chainname, chainid, resname, resid, atomname, atomtype, atomid, mass, radius, charge, sasa, nnb]
+        vec_collection = [chainname, chainid, resname, resid, atomname, atomtype, atomtype_id, atomid, mass, radius, charge, sasa, nnb]
         if !isempty(xyz)
             natom = U(size(xyz, 2)/3)
         else
@@ -75,7 +73,7 @@ struct TrjArray{T, U} <: AbstractTrajectory
         end
         natom = U(natom)
 
-        return new(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomtype, atomid, mass, radius, charge, sasa, nnb, 
+        return new(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomtype, atomtype_id, atomid, mass, radius, charge, sasa, nnb, 
                    list_bond, list_angle, list_dihedral, list_improper, list_cmap, list_donor, list_acceptor, natom, nframe)
     end
 end
@@ -85,12 +83,12 @@ function TrjArray{T, U}(;xyz = Matrix{T}(undef, 0, 0),
                   boxsize = Matrix{T}(undef, 0, 0),
                   chainname = Vector{String}(undef, 0), chainid = Vector{U}(undef, 0),
                   resname = Vector{String}(undef, 0), resid = Vector{U}(undef, 0),
-                  atomname = Vector{String}(undef, 0), atomtype = Vector{String}(undef, 0), atomid = Vector{U}(undef, 0),
+                  atomname = Vector{String}(undef, 0), atomtype = Vector{String}(undef, 0), atomtype_id = Vector{U}(undef, 0), atomid = Vector{U}(undef, 0),
                   mass = Vector{T}(undef, 0), radius = Vector{T}(undef, 0), charge = Vector{T}(undef, 0), sasa = Vector{T}(undef, 0), nnb = Vector{T}(undef, 0),
                   list_bond = Matrix{U}(undef, 0, 0), list_angle = Matrix{U}(undef, 0, 0),
                   list_dihedral = Matrix{U}(undef, 0, 0), list_improper = Matrix{U}(undef, 0, 0),
                   list_cmap = Matrix{U}(undef, 0, 0), list_donor = Matrix{U}(undef, 0, 0), list_acceptor = Matrix{U}(undef, 0, 0)) where {T, U}
-    TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomtype, atomid, mass, radius, charge, sasa, nnb, 
+    TrjArray{T, U}(xyz, boxsize, chainname, chainid, resname, resid, atomname, atomtype, atomtype_id, atomid, mass, radius, charge, sasa, nnb, 
              list_bond, list_angle, list_dihedral, list_improper, list_cmap, list_donor, list_acceptor)
 end
 
@@ -98,7 +96,7 @@ TrjArray(ta::TrjArray{T, U}; xyz = nothing,
     boxsize = nothing,
     chainname = nothing, chainid = nothing,
     resname = nothing, resid = nothing,
-    atomname = nothing, atomtype = nothing, atomid = nothing,
+    atomname = nothing, atomtype = nothing, atomtype_id = nothing, atomid = nothing,
     mass = nothing, radius = nothing, charge = nothing, sasa = nothing, nnb = nothing, 
     list_bond = nothing, list_angle = nothing,
     list_dihedral = nothing, list_improper = nothing,
@@ -111,6 +109,7 @@ TrjArray(ta::TrjArray{T, U}; xyz = nothing,
         resid = isnothing(resid) ? ta.resid : resid,
         atomname = isnothing(atomname) ? ta.atomname : atomname,
         atomtype = isnothing(atomtype) ? ta.atomtype : atomtype,
+        atomtype_id = isnothing(atomtype_id) ? ta.atomtype_id : atomtype_id,
         atomid = isnothing(atomid) ? ta.atomid : atomid,
         mass = isnothing(mass) ? ta.mass : mass, 
         radius = isnothing(radius) ? ta.radius : radius, 
@@ -130,7 +129,7 @@ TrjArray(xyz::AbstractArray{T}, boxsize::AbstractArray{T}, ta::TrjArray{T, U}) w
        TrjArray{T, U}(xyz = xyz, boxsize = boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
-                      atomname = ta.atomname, atomtype = ta.atomtype, atomid = ta.atomid,
+                      atomname = ta.atomname, atomtype = ta.atomtype, atomtype_id = ta.atomtype_id, atomid = ta.atomid,
                       mass = ta.mass, radius = ta.radius, charge = ta.charge, sasa = ta.sasa, nnb = ta.nnb, 
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
@@ -140,7 +139,7 @@ TrjArray(xyz::AbstractArray{T}, ta::TrjArray{T, U}) where {T, U} =
        TrjArray{T, U}(xyz = xyz, boxsize = ta.boxsize,
                       chainname = ta.chainname, chainid = ta.chainid,
                       resname = ta.resname, resid = ta.resid,
-                      atomname = ta.atomname, atomtype = ta.atomtype, atomid = ta.atomid,
+                      atomname = ta.atomname, atomtype = ta.atomtype, atomtype_id = ta.atomtype_id, atomid = ta.atomid,
                       mass = ta.mass, radius = ta.radius, charge = ta.charge, sasa = ta.sasa, nnb = ta.nnb, 
                       list_bond = ta.list_bond, list_angle = ta.list_angle,
                       list_dihedral = ta.list_dihedral, list_improper = ta.list_improper,
@@ -268,6 +267,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::Int) where {T, U} = TrjArray{T, U}(
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r:r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r:r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r:r],
+             atomtype_id = isempty(ta.atomtype_id) ? ta.atomtype_id : ta.atomtype_id[r:r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r:r],
              #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:1),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r:r],
@@ -303,6 +303,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::UnitRange{Int}) where {T, U} = TrjArray
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r],
+             atomtype_id = isempty(ta.atomtype_id) ? ta.atomtype_id : ta.atomtype_id[r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
@@ -339,6 +340,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{S}) where {T, U, S <: In
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r],
+             atomtype_id = isempty(ta.atomtype_id) ? ta.atomtype_id : ta.atomtype_id[r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:length(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
@@ -374,6 +376,7 @@ getindex(ta::TrjArray{T, U}, ::Colon, r::AbstractVector{Bool}) where {T, U} = Tr
              resid = isempty(ta.resid) ? ta.resid : ta.resid[r],
              atomname = isempty(ta.atomname) ? ta.atomname : ta.atomname[r],
              atomtype = isempty(ta.atomtype) ? ta.atomtype : ta.atomtype[r],
+             atomtype_id = isempty(ta.atomtype_id) ? ta.atomtype_id : ta.atomtype_id[r],
              atomid = isempty(ta.atomid) ? ta.atomid : ta.atomid[r],
              #atomid = isempty(ta.atomid) ? ta.atomid : collect(Int64, 1:sum(r)),
              mass = isempty(ta.mass) ? ta.mass : ta.mass[r],
@@ -599,7 +602,7 @@ copy(ta::TrjArray)::TrjArray =
     TrjArray(ta.xyz, ta.boxsize,
              ta.chainname, ta.chainid,
              ta.resname, ta.resid,
-             ta.atomname, ta.atomtype, ta.atomid,
+             ta.atomname, ta.atomtype, ta.atomtype_id, ta.atomid,
              ta.mass, ta.radius, ta.charge, ta.sasa, ta.nnb, 
              ta.list_bond, ta.list_angle, ta.list_dihedral, ta.list_improper, 
              ta.list_cmap, ta.list_donor, ta.list_acceptor)
@@ -667,6 +670,7 @@ function hcat(ta_collection::TrjArray...)
     resid = ta_collection[1].resid
     atomname = ta_collection[1].atomname
     atomtype = ta_collection[1].atomtype
+    atomtype_id = ta_collection[1].atomtype_id
     atomid = ta_collection[1].atomid
     mass = ta_collection[1].mass
     radius = ta_collection[1].radius
@@ -724,6 +728,12 @@ function hcat(ta_collection::TrjArray...)
             atomtype = []
         else
             atomtype = [atomtype; ta_collection[i].atomtype]
+        end
+
+        if isempty(atomtype_id) | isempty(ta_collection[i].atomtype_id)
+            atomtype_id = []
+        else
+            atomtype_id = [atomtype_id; ta_collection[i].atomtype_id]
         end
 
         if isempty(mass) | isempty(ta_collection[i].mass)
@@ -803,7 +813,7 @@ function hcat(ta_collection::TrjArray...)
     return TrjArray(xyz=xyz, boxsize=boxsize, 
              chainname=chainname, chainid=chainid,
              resname=resname, resid=resid,
-             atomname=atomname, atomtype=atomtype, atomid=atomid,
+             atomname=atomname, atomtype=atomtype, atomtype_id=atomtype_id, atomid=atomid,
              mass=mass, radius=radius, charge=charge, sasa=sasa, nnb=nnb, 
              list_bond=list_bond, list_angle=list_angle,
              list_dihedral=list_dihedral, list_improper=list_improper,

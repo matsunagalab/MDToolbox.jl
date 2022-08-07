@@ -726,7 +726,8 @@ function readpsf(filename::String)
 
     TrjArray{Float64, Int64}(chainname=psf_segment_name,
              resname=psf_residue_name, resid=psf_residue_id,
-             atomname=psf_atom_name, atomtype=psf_atom_type_letter, atomid=psf_atom_id,
+             atomname=psf_atom_name, atomtype=psf_atom_type_letter, atomtype_id=psf_atom_type_number, 
+             atomid=psf_atom_id,
              mass=psf_mass, charge=psf_charge, nnb=psf_nnb, 
              list_bond=list_bond, list_angle=list_angle,
              list_dihedral=list_dihedral, list_improper=list_improper,

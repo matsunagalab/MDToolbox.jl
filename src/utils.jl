@@ -1,6 +1,6 @@
 #using .Bio3DView
 
-function get_residues(ta::TrjArray)
+function split_into_residues(ta::TrjArray)
     natom = ta.natom
 
     properties = Dict()
@@ -59,6 +59,41 @@ function get_residues(ta::TrjArray)
     return res_array
 end
 
+function split_into_chains(ta::TrjArray)
+    natom = ta.natom
+
+    properties = Dict()
+    if isempty(ta.chainid)
+        properties["chainid"] = [nothing]
+    else
+        properties["chainid"] = unique(ta.chainid)
+    end
+    if isempty(ta.chainname)
+        properties["chainname"] = [nothing]
+    else
+        properties["chainname"] = unique(ta.chainname)
+    end
+
+    chain_array = []
+    id = BitArray(undef, natom)
+    id_c1 = BitArray(undef, natom)
+    id_c2 = BitArray(undef, natom)
+    for c1 in properties["chainid"]
+        id .= id_c1 .= id_c2 .= 1
+        if !isnothing(c1)
+            id_c1 .= (id .& Bool(ta.chainid .== c1))
+        end
+        for c2 in properties["chainname"]
+            if !isnothing(c2)
+                id_c2 .= (id_c1 .& (ta.chainname .== c2))
+            end
+            push!(chain_array, ta[:, id_c2])
+        end
+    end
+
+    return chain_array
+end
+
 #"""
 #viewstruct
 #
@@ -77,7 +112,7 @@ function gpu(ta::TrjArray{T, U}) where {T, U}
     TrjArray{T, U}(CuArray(ta.xyz), CuArray(ta.boxsize),
       ta.chainname, CuArray(ta.chainid),
       ta.resname, CuArray(ta.resid),
-      ta.atomname, CuArray(ta.atomid),
+      ta.atomname, ta.atomtype, CuArray(ta.atomtype_id), CuArray(ta.atomid),
       CuArray(ta.mass), CuArray(ta.radius), CuArray(ta.charge), CuArray(ta.sasa),
       CuArray(ta.list_bond), CuArray(ta.list_angle), CuArray(ta.list_dihedral),
       CuArray(ta.list_improper), CuArray(ta.list_cmap))
@@ -87,17 +122,17 @@ function gpu32(ta::TrjArray)
     TrjArray{Float32, Int64}(CUDA.cu(ta.xyz), CUDA.cu(ta.boxsize),
       ta.chainname, CUDA.cu(ta.chainid),
       ta.resname, CUDA.cu(ta.resid),
-      ta.atomname, CUDA.cu(ta.atomid),
-      CUDA.cu(ta.mass), CUDA.cu(ta.radius), CUDA.cu(ta.charge), CUDA.cu(ta.sasa),
+      ta.atomname, ta.atomtype, CUDA.cu(ta.atomtype_id), CUDA.cu(ta.atomid),
+      CUDA.cu(ta.mass), CUDA.cu(ta.radius), CUDA.cu(ta.charge), CUDA.cu(ta.sasa), CUDA.cu(ta.nnb), 
       CUDA.cu(ta.list_bond), CUDA.cu(ta.list_angle), CUDA.cu(ta.list_dihedral),
-      CUDA.cu(ta.list_improper), CUDA.cu(ta.list_cmap))
+      CUDA.cu(ta.list_improper), CUDA.cu(ta.list_cmap), CUDA.cu(ta.list_donor), CUDA.cu(ta.list_acceptor))
 end
 
 function cpu(ta::TrjArray{T, U}) where {T, U}
     TrjArray{T, U}(Array(ta.xyz), Array(ta.boxsize),
       ta.chainname, Array(ta.chainid),
       ta.resname, Array(ta.resid),
-      ta.atomname, Array(ta.atomid),
+      ta.atomname, ta.atomtype, Array(ta.atomtype_id), Array(ta.atomid),
       Array(ta.mass), Array(ta.radius), Array(ta.charge), Array(ta.sasa),
       Array(ta.list_bond), Array(ta.list_angle), Array(ta.list_dihedral),
       Array(ta.list_improper), Array(ta.list_cmap))
@@ -107,7 +142,7 @@ function cpu64(ta::TrjArray)
     TrjArray{Float64, Int64}(Array{Float64}(ta.xyz), Array{Float64}(ta.boxsize),
       ta.chainname, Array{Int64}(ta.chainid),
       ta.resname, Array{Int64}(ta.resid),
-      ta.atomname, Array{Int64}(ta.atomid),
+      ta.atomname, ta.atomtype, Array(ta.atomtype_id), Array{Int64}(ta.atomid),
       Array{Float64}(ta.mass), Array{Float64}(ta.radius), Array{Float64}(ta.charge), Array{Float64}(ta.sasa),
       Array{Int64}(ta.list_bond), Array{Int64}(ta.list_angle), Array{Int64}(ta.list_dihedral),
       Array{Int64}(ta.list_improper), Array{Int64}(ta.list_cmap))
