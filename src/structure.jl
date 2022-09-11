@@ -19,16 +19,20 @@ function preprocess_index(natom::Int, index::AbstractVector)::AbstractVector
     return index2
 end
 
-function preprocess_weight(natom::Int, isweight::Bool, mass::Vector{T}) where {T}
+function preprocess_weight(natom::Int, isweight::Bool, mass::AbstractArray{T}) where {T}
     if isweight
         if isempty(mass)
             #@printf "Warning: not weighted because masses are not provided.\n"
-            weight = ones(T, natom)
+            #weight = ones(T, natom)
+            weight = similar(mass, natom)
+            weight .= one(T)
         else
             weight = mass
         end
     else
-        weight = ones(T, natom)
+        #weight = ones(T, natom)
+        weight = similar(mass, natom)
+        weight .= one(T)
     end
     return weight
 end
@@ -63,7 +67,8 @@ function centerofmass(ta::TrjArray{T, U};
     #elapsed = time() - start; println("elapsed1 = $(elapsed)")
 
     #start = time()
-    xyz = zeros(T, nframe, 3)
+    xyz = similar(ta.xyz, nframe, 3)
+    xyz .= zero(T)
     if natom_sub == 1
         return ta[:, index2]
     else
@@ -157,12 +162,14 @@ function orient!(ta::TrjArray{T, U}; index::AbstractVector=Vector{U}(undef, 0)) 
     natom_sub = ta_sub.natom
     natom3_sub = 3*natom_sub
     if isempty(ta_sub.mass)
-        mass = ones(T, ta_sub.natom)
+        mass = similar(ta_sub.mass, ta_sub.natom)
+        mass .= one(T)
     else
         mass = ta_sub.mass
     end
 
-    I = zeros(T, 3, 3)
+    I = similar(ta.xyz, 3, 3)
+    I .= zero(T)
     for iframe = 1:ta.nframe
         x = view(ta_sub.xyz, iframe, 1:3:natom3_sub)
         y = view(ta_sub.xyz, iframe, 2:3:natom3_sub)
@@ -185,7 +192,7 @@ function orient!(ta::TrjArray{T, U}; index::AbstractVector=Vector{U}(undef, 0)) 
         p_axis = F.Vt[end:-1:1, :]; #z-axis has the largest inertia
 
         # check reflection
-        if det(p_axis) < 0.0
+        if det(Array(p_axis)) < 0.0
             p_axis[1, :] .= - p_axis[1, :]
         end
 
