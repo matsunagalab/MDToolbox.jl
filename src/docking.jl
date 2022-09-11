@@ -23,7 +23,7 @@ function get_acescore()
     return ace_score
 end
 
-function set_atomtype(ta::TrjArray{T,U}) where {T,U}
+function set_atomtype_id(ta::TrjArray{T,U}) where {T,U}
     atomtype_id = Array{Int64}(undef, ta.natom)
 
     for iatom = 1:ta.natom
@@ -432,17 +432,17 @@ function generate_grid(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}; i
     zmin_grid = zmin_receptor - size_ligand - spacing
     zmax_grid = zmax_receptor + size_ligand + spacing
 
-    x_grid = Array{T, 1}(range(xmin_grid, xmax_grid, step=spacing))
+    x_grid = Array{T,1}(range(xmin_grid, xmax_grid, step=spacing))
     if typeof(receptor_org.xyz) <: CuArray
         x_grid = CuArray(x_grid)
     end
 
-    y_grid = Array{T, 1}(range(ymin_grid, ymax_grid, step=spacing))
+    y_grid = Array{T,1}(range(ymin_grid, ymax_grid, step=spacing))
     if typeof(receptor_org.xyz) <: CuArray
         y_grid = CuArray(y_grid)
     end
 
-    z_grid = Array{T, 1}(range(zmin_grid, zmax_grid, step=spacing))
+    z_grid = Array{T,1}(range(zmin_grid, zmax_grid, step=spacing))
     if typeof(receptor_org.xyz) <: CuArray
         z_grid = CuArray(z_grid)
     end
@@ -823,20 +823,81 @@ function assign_sc_ligand!(grid_real::AbstractArray{T}, grid_imag::AbstractArray
     return nothing
 end
 
-function assign_ds!(grid_real::Array{T}, grid_imag::Array{T},
-    x::Vector{T}, y::Vector{T}, z::Vector{T},
-    x_grid::Vector{T}, y_grid::Vector{T}, z_grid::Vector{T},
-    ace_score::Vector{T}) where {T}
+function assign_ds!(grid_real::AbstractArray{T}, grid_imag::AbstractArray{T},
+    x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T},
+    x_grid::AbstractVector{T}, y_grid::AbstractVector{T}, z_grid::AbstractVector{T},
+    ace_score::AbstractVector{T}) where {T}
 
     grid_real .= zero(T)
     grid_imag .= zero(T)
 
     radius = similar(ace_score)
-    radius .= 6.0
+    radius .= T(6.0)
     spread_neighbors_add!(grid_real, x, y, z, x_grid, y_grid, z_grid, ace_score, radius)
 
-    radius .= 1.0
+    radius .= T(1.0)
     spread_nearest_substitute!(grid_imag, x, y, z, x_grid, y_grid, z_grid, radius)
+
+    return nothing
+end
+
+################ rotate
+function rotate!(x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T},
+    q::AbstractVector{T}) where {T}
+    natom = length(x)
+    r1 = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]
+    r2 = 2.0 * (q[1] * q[2] + q[3] * q[4])
+    r3 = 2.0 * (q[1] * q[3] - q[2] * q[4])
+    r4 = 2.0 * (q[1] * q[2] - q[3] * q[4])
+    r5 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[3] * q[3]
+    r6 = 2.0 * (q[2] * q[3] + q[1] * q[4])
+    r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
+    r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
+    r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
+    for iatom = 1:natom
+        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
+        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
+        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
+    return nothing
+end
+
+function rotate!(x::CuVector{T}, y::CuVector{T}, z::CuVector{T},
+                 q::CuVector{T}) where {T}
+    natom = length(x)
+    nthreads = 256
+    @cuda blocks = ceil(Int, natom / nthreads) threads = nthreads rotate_kernel!(x, y, z, q)
+    return nothing
+end
+
+function rotate_kernel!(x::CuDeviceVector{T}, y::CuDeviceVector{T}, z::CuDeviceVector{T},
+                        q::CuDeviceVector{T}) where {T}
+    natom = length(x)
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid  # global thread id
+
+    r1 = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]
+    r2 = 2.0 * (q[1] * q[2] + q[3] * q[4])
+    r3 = 2.0 * (q[1] * q[3] - q[2] * q[4])
+    r4 = 2.0 * (q[1] * q[2] - q[3] * q[4])
+    r5 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[3] * q[3]
+    r6 = 2.0 * (q[2] * q[3] + q[1] * q[4])
+    r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
+    r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
+    r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
+
+    iatom = gtid
+    if iatom <= natom
+        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
+        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
+        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
+        x[iatom] = x_new
+        y[iatom] = y_new
+        z[iatom] = z_new
+    end
 
     return nothing
 end
@@ -872,145 +933,6 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
 
     return ret
 end
-
-function compute_docking_score_on_xyplane(grid_RSC, grid_LSC)
-    if CUDA.functional()
-        grid_RSC_gpu = cu(grid_RSC)
-        grid_LSC_gpu = cu(grid_LSC)
-        t_gpu = ifft(fft(grid_RSC_gpu) .* conj.(fft(conj.(grid_LSC_gpu))))
-        score_gpu = real(t_gpu)
-        score = Array(score_gpu)
-    else
-        t = ifft(fft(grid_RSC) .* conj.(fft(conj.(grid_LSC))))
-        score = real(t)
-    end
-
-    return score[:, :, 1]
-end
-
-function rotate_with_matrix!(x, y, z, R)
-    natom = length(x)
-    for iatom = 1:natom
-        x_curr = x[iatom]
-        y_curr = y[iatom]
-        z_curr = z[iatom]
-        x_new = R[1, 1] * x_curr + R[1, 2] * y_curr + R[1, 3] * z_curr
-        y_new = R[2, 1] * x_curr + R[2, 2] * y_curr + R[2, 3] * z_curr
-        z_new = R[3, 1] * x_curr + R[3, 2] * y_curr + R[3, 3] * z_curr
-        x[iatom] = x_new
-        y[iatom] = y_new
-        z[iatom] = z_new
-    end
-    return
-end
-
-function rotate!(x, y, z, q::AbstractVector{T}) where {T,U}
-    natom = length(x)
-    r1 = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]
-    r2 = 2.0 * (q[1] * q[2] + q[3] * q[4])
-    r3 = 2.0 * (q[1] * q[3] - q[2] * q[4])
-    r4 = 2.0 * (q[1] * q[2] - q[3] * q[4])
-    r5 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[3] * q[3]
-    r6 = 2.0 * (q[2] * q[3] + q[1] * q[4])
-    r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
-    r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
-    r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
-    for iatom = 1:natom
-        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
-        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
-        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
-        x[iatom] = x_new
-        y[iatom] = y_new
-        z[iatom] = z_new
-    end
-    return nothing
-end
-
-function rotate_with_matrix!(x, y, z, R::AbstractMatrix{T}) where {T,U}
-    natom = length(x)
-    r1 = R[1, 1]
-    r2 = R[1, 2]
-    r3 = R[1, 3]
-    r4 = R[2, 1]
-    r5 = R[2, 2]
-    r6 = R[2, 3]
-    r7 = R[3, 1]
-    r8 = R[3, 2]
-    r9 = R[3, 3]
-    for iatom = 1:natom
-        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
-        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
-        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
-        x[iatom] = x_new
-        y[iatom] = y_new
-        z[iatom] = z_new
-    end
-    return nothing
-end
-
-function rotate_gpu!(x, y, z, q)
-    natom = length(x)
-    ngid = gridDim().x * blockDim().x
-    gid = (blockIdx().x - 1) * blockDim().x + threadIdx().x - 1
-
-    r1 = 1.0 - 2.0 * q[2] * q[2] - 2.0 * q[3] * q[3]
-    r2 = 2.0 * (q[1] * q[2] + q[3] * q[4])
-    r3 = 2.0 * (q[1] * q[3] - q[2] * q[4])
-    r4 = 2.0 * (q[1] * q[2] - q[3] * q[4])
-    r5 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[3] * q[3]
-    r6 = 2.0 * (q[2] * q[3] + q[1] * q[4])
-    r7 = 2.0 * (q[1] * q[3] + q[2] * q[4])
-    r8 = 2.0 * (q[2] * q[3] - q[1] * q[4])
-    r9 = 1.0 - 2.0 * q[1] * q[1] - 2.0 * q[2] * q[2]
-
-    ntile = ceil(Int, natom / ngid)
-    for itile = 1:ntile
-        iatom = ngid * (itile - 1) + gid + 1
-        if iatom > natom
-            return
-        end
-        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
-        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
-        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
-        x[iatom] = x_new
-        y[iatom] = y_new
-        z[iatom] = z_new
-    end
-    return nothing
-end
-
-
-function rotate_with_matrix_gpu!(x, y, z, q)
-    natom = length(x)
-    ngid = gridDim().x * blockDim().x
-    gid = (blockIdx().x - 1) * blockDim().x + threadIdx().x - 1
-
-    r1 = R[1, 1]
-    r2 = R[1, 2]
-    r3 = R[1, 3]
-    r4 = R[2, 1]
-    r5 = R[2, 2]
-    r6 = R[2, 3]
-    r7 = R[3, 1]
-    r8 = R[3, 2]
-    r9 = R[3, 3]
-
-    ntile = ceil(Int, natom / ngid)
-    for itile = 1:ntile
-        iatom = ngid * (itile - 1) + gid + 1
-        if iatom > natom
-            return
-        end
-        x_new = r1 * x[iatom] + r2 * y[iatom] + r3 * z[iatom]
-        y_new = r4 * x[iatom] + r5 * y[iatom] + r6 * z[iatom]
-        z_new = r7 * x[iatom] + r8 * y[iatom] + r9 * z[iatom]
-        x[iatom] = x_new
-        y[iatom] = y_new
-        z[iatom] = z_new
-    end
-    return nothing
-end
-
 
 function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
     if any(score .< score_tops[tops+1])
@@ -1292,437 +1214,8 @@ function dock!(receptor::TrjArray{T,U}, ligand::TrjArray{T,U}, quaternions::Matr
     end
 
     return (receptor=receptor, ligand=ligand_return, score=score_tops, iq=iq_tops, cartesian=cartesian_tops,
-            grid_RSC=grid_RSC, grid_LSC=grid_LSC,
-            grid_RDS=grid_RDS, grid_LDS=grid_LDS,
-            score_sc, score_ds)
-end
-
-function dock_multimer!(receptor::TrjArray{T,U}; deg=15.0, grid_space=1.2, iframe=1, tops=100, alpha=0.01, beta=0.06, nfold=3, rot_space=10.0) where {T,U}
-    decenter!(receptor)
-    orient!(receptor)
-
-    # Assign atom radius
-    println("step1: assigning atom radius")
-    receptor = set_radius(receptor)
-
-    # Solvent accessible surface
-    println("step2: computing SASA")
-    receptor = compute_sasa(receptor, 1.4)
-
-    # ACE scores
-    println("step3: assigning ACE scores")
-    receptor = set_acescore(receptor)
-
-    # Determine grid size and coordinates
-    println("step5: computing grid size and coordinates")
-    size_ligand = maximum(receptor.xyz[iframe, 1:3:end]) - minimum(receptor.xyz[iframe, 1:3:end])
-
-    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
-    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
-    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
-
-    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
-    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
-    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
-
-    x_grid = collect(x_min:grid_space:x_max)
-    y_grid = collect(y_min:grid_space:y_max)
-    z_grid = collect(z_min:grid_space:z_max)
-
-    nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
-    nxyz = nx * ny * nz
-
-    println("step6: assigning values to grid points")
-    # receptor grid: shape complementarity
-    id_surface = receptor.sasa .> 1.0
-    id_core = .!id_surface
-
-    x = receptor.xyz[iframe, 1:3:end]
-    y = receptor.xyz[iframe, 2:3:end]
-    z = receptor.xyz[iframe, 3:3:end]
-    rcut = zeros(T, receptor.natom)
-    rcut[id_core] .= receptor.radius[id_core] .* sqrt(1.5)
-    rcut[id_surface] .= receptor.radius[id_surface] .* sqrt(0.8)
-    value_core = fill(Complex{T}(9im), receptor.natom)
-
-    x_surface = x[id_surface]
-    y_surface = y[id_surface]
-    z_surface = z[id_surface]
-    rcut_surface = receptor.radius[id_surface] .+ 3.4
-    value_surface = fill(Complex{T}(1.0), length(rcut_surface))
-
-    # receptor grid: desolvation free energy
-    grid_RSC = zeros(Complex{T}, (nx, ny, nz))
-    grid_LSC = zeros(Complex{T}, (nx, ny, nz))
-    grid_RDS = zeros(Complex{T}, (nx, ny, nz))
-    grid_LDS = zeros(Complex{T}, (nx, ny, nz))
-    rcut_ds = fill(T(6.0), receptor.natom)
-    #spread_nearest!(grid_RDS, x, y, z, x_grid, y_grid, z_grid)
-    #spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
-
-    println("step7: docking")
-    score_sc = similar(grid_RSC, T)
-    score_ds = similar(grid_RSC, T)
-    score_tops = fill(typemax(eltype(Float32)), 2 * tops)
-    cartesian_tops = Vector{CartesianIndex{2}}(undef, 2 * tops)
-    rotz_tops = fill(-1.0, 2 * tops)
-    rotx_tops = fill(-1.0, 2 * tops)
-    rot_z_pi = collect((0.0:rot_space:360.0) ./ 360.0 .* (2.0 * pi))
-    rot_x_pi = collect((0.0:rot_space:90.0) ./ 360.0 .* (2.0 * pi))
-    #if CUDA.functional()
-    if 1 == 0
-    else
-        x_org = deepcopy(x)
-        y_org = deepcopy(y)
-        z_org = deepcopy(z)
-        t = similar(grid_LSC)
-        score = real(t)
-        @showprogress for rotz in rot_z_pi
-            R = [cos(rotz) -sin(rotz) 0.0; sin(rotz) cos(rotz) 0.0; 0.0 0.0 1.0]
-            receptor_rot = rotate_with_matrix(receptor, R)
-            for rotx in rot_x_pi
-                R = [1.0 0.0 0.0; 0.0 cos(rotx) -sin(rotx); 0.0 sin(rotx) cos(rotx)]
-                receptor_rot = rotate_with_matrix(receptor_rot, R)
-                R = [cos(2.0 * pi / nfold) -sin(2.0 * pi / nfold) 0.0; sin(2.0 * pi / nfold) cos(2.0 * pi / nfold) 0.0; 0.0 0.0 1.0]
-                ligand_rot = rotate_with_matrix(receptor_rot, R)
-
-                x = receptor_rot.xyz[iframe, 1:3:end]
-                y = receptor_rot.xyz[iframe, 2:3:end]
-                z = receptor_rot.xyz[iframe, 3:3:end]
-                grid_RSC .= zero(eltype(grid_RSC))
-                spread_neighbors_substitute!(grid_RSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
-                spread_neighbors_substitute!(grid_RSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
-
-                x = ligand_rot.xyz[iframe, 1:3:end]
-                y = ligand_rot.xyz[iframe, 2:3:end]
-                z = ligand_rot.xyz[iframe, 3:3:end]
-                grid_LSC .= zero(eltype(grid_LSC))
-                spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
-                spread_neighbors_substitute!(grid_LSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
-
-                t .= ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC))) .* nxyz
-                score_sc .= -real(t) .+ imag(t)
-
-                x = receptor_rot.xyz[iframe, 1:3:end]
-                y = receptor_rot.xyz[iframe, 2:3:end]
-                z = receptor_rot.xyz[iframe, 3:3:end]
-                grid_RDS .= zero(eltype(grid_RDS))
-                spread_nearest!(grid_RDS, x, y, z, x_grid, y_grid, z_grid)
-                spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
-
-                x = ligand_rot.xyz[iframe, 1:3:end]
-                y = ligand_rot.xyz[iframe, 2:3:end]
-                z = ligand_rot.xyz[iframe, 3:3:end]
-                grid_LDS .= zero(eltype(grid_LDS))
-                spread_nearest!(grid_LDS, x, y, z, x_grid, y_grid, z_grid)
-                spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
-
-                t .= 0.5 .* ifftshift(ifft(ifft(grid_RDS) .* fft(grid_LDS))) .* nxyz
-                score_ds .= -imag(t)
-
-                score .= alpha .* score_sc .+ score_ds
-                filter_tops!(score_tops, cartesian_tops, rotz_tops, rotx_tops, score, rotz, rotx, tops)
-            end
-        end
-    end
-
-    receptor_init = deepcopy(receptor[iframe, :])
-    receptor_return = deepcopy(receptor[0, :])
-    ligand_return = deepcopy(receptor[0, :])
-    ix_center = ceil(Int, (nx / 2.0) + 1.0)
-    iy_center = ceil(Int, (ny / 2.0) + 1.0)
-    iz_center = ceil(Int, (nz / 2.0) + 1.0)
-    for itop = 1:tops
-        rotz = rotz_tops[itop]
-        R = [cos(rotz) -sin(rotz) 0.0; sin(rotz) cos(rotz) 0.0; 0.0 0.0 1.0]
-        receptor_rot = rotate_with_matrix(receptor_init, R)
-        rotx = rotx_tops[itop]
-        R = [1.0 0.0 0.0; 0.0 cos(rotx) -sin(rotx); 0.0 sin(rotx) cos(rotx)]
-        receptor_rot = rotate_with_matrix(receptor_rot, R)
-        receptor_return = [receptor_return; receptor_rot]
-        R = [cos(2.0 * pi / nfold) -sin(2.0 * pi / nfold) 0.0; sin(2.0 * pi / nfold) cos(2.0 * pi / nfold) 0.0; 0.0 0.0 1.0]
-        ligand_rot = rotate_with_matrix(receptor_rot, R)
-        dx = (cartesian_tops[itop][1] - ix_center) * grid_space
-        dy = (cartesian_tops[itop][2] - iy_center) * grid_space
-        #dz = (cartesian_tops[itop][3]-iz_center) * grid_space
-        ligand_rot.xyz[1, 1:3:end] .-= dx
-        ligand_rot.xyz[1, 2:3:end] .-= dy
-        #ligand_rot.xyz[1, 3:3:end] .-= dz
-        ligand_return = [ligand_return; ligand_rot]
-    end
-
-    natom = receptor_return.natom
-    cc = TrjArray(receptor_return[1, :], chainname=fill(string(1), natom), chainid=fill(1, natom))
-    for ifold = 2:nfold
-        cc = [cc TrjArray(receptor_return[1, :], chainname=fill(string(ifold), natom), chainid=fill(ifold, natom))]
-    end
-    @show cc
-    complex_return = deepcopy(cc[0, :])
-    for itop = 1:tops
-        com1 = centerofmass(receptor_return[itop, :])
-        com2 = centerofmass(ligand_return[itop, :])
-        L = [com2.xyz[1, 1] - com1.xyz[1, 1], com2.xyz[1, 2] - com1.xyz[1, 2]]
-        L_norm = sqrt(L[1]^2 + L[2]^2)
-        alpha = (180.0 - (360.0 / nfold)) / 2.0
-        alpha = (alpha / 360.0) * 2.0 * pi
-        d_norm = L_norm / (2.0 * cos(alpha))
-
-        cc = TrjArray(receptor_return[itop, :], chainname=fill(string(1), natom), chainid=fill(1, natom))
-        cc.xyz[:, 1:3:end] .= cc.xyz[:, 1:3:end] .+ d_norm
-        tmp = deepcopy(cc)
-        for ifold = 2:nfold
-            beta = (2.0 * pi / nfold) * (ifold - 1)
-            R = [cos(beta) -sin(beta) 0.0; sin(beta) cos(beta) 0.0; 0.0 0.0 1.0]
-            r = rotate_with_matrix(tmp, R)
-            cc = [cc TrjArray(r, chainname=fill(string(ifold), natom), chainid=fill(ifold, natom))]
-        end
-        complex_return = [complex_return; cc]
-    end
-
-    return (receptor=receptor, ligand=ligand_return, multimer=complex_return, score=score_tops, rotz=rotz_tops, rotx=rotx_tops, cartesian=cartesian_tops,
         grid_RSC=grid_RSC, grid_LSC=grid_LSC,
         grid_RDS=grid_RDS, grid_LDS=grid_LDS,
         score_sc, score_ds)
 end
 
-
-function dock_multimer(receptor::TrjArray{T,U}; rot_space=10.0, grid_space=1.2, iframe=1, tops=10, nfold=3) where {T,U}
-    # generate grid coordinates for receptor
-    receptor2, dummy = decenter(receptor)
-
-    @show "step 1"
-    x_min, x_max = minimum(receptor2.xyz[iframe, 1:3:end]), maximum(receptor2.xyz[iframe, 1:3:end])
-    y_min, y_max = minimum(receptor2.xyz[iframe, 2:3:end]), maximum(receptor2.xyz[iframe, 2:3:end])
-    z_min, z_max = minimum(receptor2.xyz[iframe, 3:3:end]), maximum(receptor2.xyz[iframe, 3:3:end])
-    size_receptor = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
-
-    x_min = minimum(receptor2.xyz[iframe, 1:3:end]) - size_receptor - grid_space
-    y_min = minimum(receptor2.xyz[iframe, 2:3:end]) - size_receptor - grid_space
-    z_min = minimum(receptor2.xyz[iframe, 3:3:end]) - size_receptor - grid_space
-
-    x_max = maximum(receptor2.xyz[iframe, 1:3:end]) + size_receptor + grid_space
-    y_max = maximum(receptor2.xyz[iframe, 2:3:end]) + size_receptor + grid_space
-    z_max = maximum(receptor2.xyz[iframe, 3:3:end]) + size_receptor + grid_space
-
-    x_grid = collect(x_min:grid_space:x_max)
-    y_grid = collect(y_min:grid_space:y_max)
-    z_grid = collect(z_min:grid_space:z_max)
-
-    @show "step 2"
-    nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
-
-    # shape complementarity of receptor
-    @show "step 3"
-    iatom_surface = receptor2.sasa .> 1.0
-    iatom_core = .!iatom_surface
-    rcut1 = zeros(T, receptor2.natom)
-    rcut2 = zeros(T, receptor2.natom)
-
-    rcut1[iatom_core] .= receptor2.radius[iatom_core] * sqrt(1.5)
-    rcut2[iatom_core] .= -1.0
-    rcut1[iatom_surface] .= receptor2.radius[iatom_surface] * sqrt(0.8)
-    rcut2[iatom_surface] .= receptor2.radius[iatom_surface] .+ 3.4
-
-    @show nx ny nz
-    @show "step 4"
-    grid_RSC = zeros(complex(T), nx, ny, nz)
-    grid_LSC = zeros(complex(T), nx, ny, nz)
-    #assign_shape_complementarity!(grid_RSC, receptor2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-
-    @show "step 4.1"
-    # compute score with FFT
-    #nq = size(quaternions, 1)
-    #s = @showprogress pmap(q -> compute_docking_score_with_fft(quaternions[q, :], grid_RSC, grid_LSC, ligand2, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe, tops, q), 1:nq)
-    rot_z_pi = collect((0.0:rot_space:360.0) ./ 360.0 .* (2.0 * pi))
-    rot_x_pi = collect((0.0:rot_space:360.0) ./ 360.0 .* (2.0 * pi))
-    score_best = -Inf
-    @show "step 4.2"
-    receptor_best = deepcopy(receptor2)
-    ligand_best = deepcopy(receptor2)
-    dx_estimated = 0
-    dy_estimated = 0
-    @show "step 5"
-    for z in rot_z_pi
-        @printf "%f \n" z
-        R = [cos(z) -sin(z) 0.0; sin(z) cos(z) 0.0; 0.0 0.0 1.0]
-        receptor_rot = rotate_with_matrix(receptor2, R)
-        for x in rot_x_pi
-            R = [1.0 0.0 0.0; 0.0 cos(x) -sin(x); 0.0 sin(x) cos(x)]
-            receptor_rot = rotate_with_matrix(receptor_rot, R)
-            R = [cos(2.0 * pi / nfold) -sin(2.0 * pi / nfold) 0.0; sin(2.0 * pi / nfold) cos(2.0 * pi / nfold) 0.0; 0.0 0.0 1.0]
-            ligand_rot = rotate_with_matrix(receptor_rot, R)
-            assign_shape_complementarity!(grid_RSC, receptor_rot, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-            assign_shape_complementarity!(grid_LSC, ligand_rot, grid_space, rcut1, rcut2, x_grid, y_grid, z_grid, iframe)
-            score = compute_docking_score_on_xyplane(grid_RSC, grid_LSC)
-            score_max = maximum(score)
-            if score_best < score_max
-                id = argmax(score)
-                dx_estimated = id[1]
-                dy_estimated = id[2]
-                receptor_best = deepcopy(receptor_rot)
-                ligand_best = deepcopy(ligand_rot)
-                score_best = score_max
-            end
-        end
-    end
-
-    ligand_return = deepcopy(ligand_best)
-    dx = (dx_estimated - 1) * grid_space
-    if dx > (nx * grid_space / 2.0)
-        dx = dx - (nx * grid_space)
-    end
-    dy = (dy_estimated - 1) * grid_space
-    if dy > (ny * grid_space / 2.0)
-        dy = dy - (ny * grid_space)
-    end
-    ligand_return.xyz[iframe, 1:3:end] .+= dx
-    ligand_return.xyz[iframe, 2:3:end] .+= dy
-
-    return (receptor=receptor_best, ligand=ligand_return, score=score_best)
-end
-
-
-function docking_by_electrostatic_energy(receptor::TrjArray{T,U}, ligand::TrjArray{T,U}, quaternions; grid_space=1.2, iframe=1, tops=10) where {T,U}
-
-    # generate grid coordinates of receptor
-    decenter!(receptor)
-    decenter!(ligand)
-
-    # determine size of ligand
-    x_min = minimum(ligand.xyz[iframe, 1:3:end])
-    y_min = minimum(ligand.xyz[iframe, 2:3:end])
-    z_min = minimum(ligand.xyz[iframe, 3:3:end])
-    x_max = maximum(ligand.xyz[iframe, 1:3:end])
-    y_max = maximum(ligand.xyz[iframe, 2:3:end])
-    z_max = maximum(ligand.xyz[iframe, 3:3:end])
-    size_ligand = sqrt((x_max - x_min)^2 + (y_max - y_min)^2 + (z_max - z_min)^2)
-
-    # extension grid of receptor using size of ligand
-    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
-    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
-    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
-    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
-    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
-    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
-
-    x_grid = collect(x_min:grid_space:x_max)
-    y_grid = collect(y_min:grid_space:y_max)
-    z_grid = collect(z_min:grid_space:z_max)
-
-    nx = length(x_grid)
-    ny = length(y_grid)
-    nz = length(z_grid)
-
-    grid_elec = zeros(T, nx, ny, nz)
-    # assign ace score for RDS
-    for iatom = 1:receptor.natom
-        # create atom coordinates of receptor
-        x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
-        y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
-        z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
-
-        # determin Real part of RDS
-        rcut = 20.0
-        ix_min = findfirst(abs.(x_atom .- x_grid) .< rcut)
-        iy_min = findfirst(abs.(y_atom .- y_grid) .< rcut)
-        iz_min = findfirst(abs.(z_atom .- z_grid) .< rcut)
-        ix_max = findlast(abs.(x_atom .- x_grid) .< rcut)
-        iy_max = findlast(abs.(y_atom .- y_grid) .< rcut)
-        iz_max = findlast(abs.(z_atom .- z_grid) .< rcut)
-
-        # ６Åの判別（まだ条件分岐をつくってないので注意）    
-        for ix = ix_min:ix_max
-            for iy = iy_min:iy_max
-                for iz = iz_min:iz_max
-                    dist = sqrt((x_atom - x_grid[ix])^2 + (y_atom - y_grid[iy])^2 + (z_atom - z_grid[iz])^2)
-                    if dist < 2.0
-                        grid_elec[ix, iy, iz] += 0.0
-                    elseif dist < 6.0
-                        dielec = 4.0
-                        grid_elec[ix, iy, iz] += receptor.charge[iatom] / (dielec * dist^2)
-                    elseif dist < 8.0
-                        dielec = 38.0 * dist - 224.0
-                        grid_elec[ix, iy, iz] += receptor.charge[iatom] / (dielec * dist^2)
-                    else
-                        dielec = 80.0
-                        grid_elec[ix, iy, iz] += receptor.charge[iatom] / (dielec * dist^2)
-                    end
-                end
-            end
-        end
-    end
-
-    for iatom = 1:receptor.natom
-        if receptor.radius[iatom] > 1.0
-            rcut = receptor.radius[iatom] * sqrt(0.8)
-        else
-            rcut = receptor.radius[iatom] * sqrt(1.5)
-        end
-
-        x_atom = receptor.xyz[iframe, 3*(iatom-1)+1]
-        y_atom = receptor.xyz[iframe, 3*(iatom-1)+2]
-        z_atom = receptor.xyz[iframe, 3*(iatom-1)+3]
-
-        ix_min = findfirst(abs.(x_atom .- x_grid) .< rcut)
-        iy_min = findfirst(abs.(y_atom .- y_grid) .< rcut)
-        iz_min = findfirst(abs.(z_atom .- z_grid) .< rcut)
-        ix_max = findlast(abs.(x_atom .- x_grid) .< rcut)
-        iy_max = findlast(abs.(y_atom .- y_grid) .< rcut)
-        iz_max = findlast(abs.(z_atom .- z_grid) .< rcut)
-
-        for ix = ix_min:ix_max
-            for iy = iy_min:iy_max
-                for iz = iz_min:iz_max
-                    grid_elec[ix, iy, iz] = 0.0
-                end
-            end
-        end
-    end
-
-    # generate grid coordinates of ligand at every rotation by quaternions
-    grid_charge = zeros(T, nx, ny, nz)
-    score = similar(grid_charge)
-    nq = size(quaternions, 1)
-    @showprogress for iq = 1:nq
-        grid_charge .= 0.0
-
-        # rotate ligand by quaternions
-        ligand_rotated = rotate(ligand, quaternions[iq, :])
-
-        # assign ace score for LDS
-        for iatom = 1:ligand_rotated.natom
-
-            # create atom coordinates of ligand
-            x_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+1]
-            y_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+2]
-            z_atom = ligand_rotated.xyz[iframe, 3*(iatom-1)+3]
-
-            # invert atoms coordinates into grid coordinates
-            ix_min = floor(Int, (x_atom - x_grid[1]) / grid_space)
-            iy_min = floor(Int, (y_atom - y_grid[1]) / grid_space)
-            iz_min = floor(Int, (z_atom - z_grid[1]) / grid_space)
-
-            a = x_atom - x_grid[ix_min] - (0.5 * grid_space)
-            b = y_atom - y_grid[iy_min] - (0.5 * grid_space)
-            c = z_atom - z_grid[iz_min] - (0.5 * grid_space)
-
-            for ix = 1:2
-                for iy = 1:2
-                    for iz = 1:2
-                        X = (-1)^ix * (0.5 * grid_space)
-                        Y = (-1)^iy * (0.5 * grid_space)
-                        Z = (-1)^iz * (0.5 * grid_space)
-                        weight = (X + a) * (Y + b) * (Z + c) / (X * Y * Z) / 8.0
-                        grid_charge[ix_min+ix-1, iy_min+iy-1, iz_min+iz-1] = weight * ligand.charge[iatom]
-                    end
-                end
-            end
-        end
-
-        # compute elec socre with FFT
-        t = ifft(fft(grid_elec) .* conj.(fft(conj.(grid_charge))))
-        score = real(t)
-    end
-
-    return score
-end

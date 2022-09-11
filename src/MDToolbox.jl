@@ -39,7 +39,7 @@ export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, ms
 export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export idilation, ierosion, itip_estimate!, surfing, afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
 export Asd, readasd
-export get_residues, gpu, gpu32, cpu, cpu64, logsumexp
+export split_into_residues, split_into_chains, CuArray, gpu, cu, Array, logsumexp
 
 # constants
 const KB_kcalpermol = 0.0019872041 #Boltzmann constant taken from wikipedia
