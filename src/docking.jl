@@ -934,288 +934,111 @@ function compute_docking_score_with_fft(quaternion, grid_RSC, grid_LSC, ligand2,
     return ret
 end
 
-function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
-    if any(score .< score_tops[tops+1])
-        c = findall(score .< score_tops[tops+1])
-        s = score[c]
-        if isempty(s)
-            return
-        end
-        nrows = length(s)
-        nrows = min(nrows, tops)
-        score_tops[(tops+1):(tops+nrows)] .= Array(s[1:nrows])
-        cartesian_tops[(tops+1):(tops+nrows)] .= Array(c[1:nrows])
-        iq_tops[(tops+1):(tops+nrows)] .= iq
-        id = sortperm(score_tops)
+function filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, ntop)
+    id = score_tops[ntop+1] .< score
+    if any(id)
+        score_passed = score[id]
+        cartesian_passed = findall(id)
+
+        id = sortperm(score_passed, rev=true)
+        score_passed .= score_passed[id]
+        cartesian_passed .= cartesian_passed[id]
+
+        nrows = min(length(score_passed), ntop)
+        score_tops[(ntop+1):(ntop+nrows)] .= score_passed[1:nrows]
+        cartesian_tops[(ntop+1):(ntop+nrows)] .= cartesian_passed[1:nrows]
+        iq_tops[(ntop+1):(ntop+nrows)] .= iq
+
+        id = sortperm(score_tops, rev=true)
         score_tops .= score_tops[id]
         cartesian_tops .= cartesian_tops[id]
         iq_tops .= iq_tops[id]
     end
-    return
+    return nothing
 end
 
-
-function filter_tops!(score_tops, cartesian_tops, rotz_tops, rotx_tops, score, rotz, rotx, tops)
-    nz = size(score, 3)
-    iz_center = ceil(Int, (nz / 2.0) + 1.0)
-    score_xy = score[:, :, iz_center]
-    if any(score_xy .< score_tops[tops+1])
-        c = findall(score_xy .< score_tops[tops+1])
-        s = score_xy[c]
-        if isempty(s)
-            return
-        end
-        nrows = length(s)
-        nrows = min(nrows, tops)
-        score_tops[(tops+1):(tops+nrows)] .= Array(s[1:nrows])
-        cartesian_tops[(tops+1):(tops+nrows)] .= Array(c[1:nrows])
-        rotz_tops[(tops+1):(tops+nrows)] .= rotz
-        rotx_tops[(tops+1):(tops+nrows)] .= rotx
-        id = sortperm(score_tops)
-        score_tops .= score_tops[id]
-        cartesian_tops .= cartesian_tops[id]
-        rotz_tops .= rotz_tops[id]
-        rotx_tops .= rotx_tops[id]
-    end
-    return
-end
-
-
-function dock!(receptor::TrjArray{T,U}, ligand::TrjArray{T,U}, quaternions::Matrix{T}; deg=15.0, grid_space=1.2, iframe=1, tops=100, alpha=0.01, beta=0.06) where {T,U}
-    decenter!(receptor)
-    decenter!(ligand)
-    orient!(receptor)
-    orient!(ligand)
-
-    # Assign atom radius
-    println("step1: assigning atom radius")
-    receptor = set_radius(receptor)
-    ligand = set_radius(ligand)
-
-    # SASA
-    println("step2: computing SASA")
-    receptor = compute_sasa(receptor, 1.4)
-    ligand = compute_sasa(ligand, 1.4)
-
-    # ACE scores
-    println("step3: assigning ACE scores")
-    receptor = set_acescore(receptor)
-    ligand = set_acescore(ligand)
-
-    # Determine grid size and coordinates
-    println("step4: computing grid size and coordinates")
-    size_ligand = maximum(ligand.xyz[iframe, 1:3:end]) - minimum(ligand.xyz[iframe, 1:3:end])
-    #size_ligand = size_ligand*2
-
-    x_min = minimum(receptor.xyz[iframe, 1:3:end]) - size_ligand - grid_space
-    y_min = minimum(receptor.xyz[iframe, 2:3:end]) - size_ligand - grid_space
-    z_min = minimum(receptor.xyz[iframe, 3:3:end]) - size_ligand - grid_space
-
-    x_max = maximum(receptor.xyz[iframe, 1:3:end]) + size_ligand + grid_space
-    y_max = maximum(receptor.xyz[iframe, 2:3:end]) + size_ligand + grid_space
-    z_max = maximum(receptor.xyz[iframe, 3:3:end]) + size_ligand + grid_space
-
-    x_grid = collect(x_min:grid_space:x_max)
-    y_grid = collect(y_min:grid_space:y_max)
-    z_grid = collect(z_min:grid_space:z_max)
-
-    nx, ny, nz = length(x_grid), length(y_grid), length(z_grid)
-    nxyz = nx * ny * nz
-
-    println("step5: assigning values to grid points")
-    # receptor grid: shape complementarity
-    grid_RSC = zeros(Complex{T}, (nx, ny, nz))
-
-    id_surface = receptor.sasa .> 1.0
-    id_core = .!id_surface
-
-    x = receptor.xyz[iframe, 1:3:end]
-    y = receptor.xyz[iframe, 2:3:end]
-    z = receptor.xyz[iframe, 3:3:end]
-    rcut = zeros(T, receptor.natom)
-    rcut[id_core] .= receptor.radius[id_core] .* sqrt(1.5)
-    rcut[id_surface] .= receptor.radius[id_surface] .* sqrt(0.8)
-    value_core = fill(Complex{T}(9im), receptor.natom)
-
-    x_surface = x[id_surface]
-    y_surface = y[id_surface]
-    z_surface = z[id_surface]
-    rcut_surface = receptor.radius[id_surface] .+ 3.4
-    value_surface = fill(Complex{T}(1.0), length(rcut_surface))
-
-    spread_neighbors_substitute!(grid_RSC, x_surface, y_surface, z_surface, x_grid, y_grid, z_grid, rcut_surface, value_surface)
-    spread_neighbors_substitute!(grid_RSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
-
-    # receptor grid: desolvation free energy
-    grid_RDS = zeros(Complex{T}, (nx, ny, nz))
-    rcut_ds = fill(T(6.0), receptor.natom)
-    spread_nearest!(grid_RDS, x, y, z, x_grid, y_grid, z_grid)
-    spread_neighbors_add!(grid_RDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, receptor.mass)
-
-    # ligand grid: shape complementarity
-    grid_LSC = zeros(Complex{T}, (nx, ny, nz))
-
-    id_surface = ligand.sasa .> 1.0
-    id_core = .!id_surface
-
-    x = ligand.xyz[iframe, 1:3:end]
-    y = ligand.xyz[iframe, 2:3:end]
-    z = ligand.xyz[iframe, 3:3:end]
-    rcut = zeros(T, ligand.natom)
-    rcut[id_core] .= ligand.radius[id_core] .* sqrt(1.5)
-    rcut[id_surface] .= ligand.radius[id_surface] .* sqrt(0.8)
-    value_core = fill(Complex{T}(9im), ligand.natom)
-    rcut_surface = ligand.radius[id_surface]
-    value_surface = fill(Complex{T}(1.0), length(rcut_surface))
-
-    x_surface = x[id_surface]
-    y_surface = y[id_surface]
-    z_surface = z[id_surface]
-    spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
-    spread_neighbors_substitute!(grid_LSC, x_surface, y_surface, z_surface, x_grid, y_grid, z_grid, rcut_surface, value_surface)
-
-    # ligand grid: desolvation free energy
-    grid_LDS = zeros(Complex{T}, (nx, ny, nz))
-    rcut_ds = fill(T(6.0), ligand.natom)
-    spread_nearest!(grid_LDS, x, y, z, x_grid, y_grid, z_grid)
-    spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, ligand.mass)
-
-    println("step7: docking")
-    score_sc = similar(grid_RSC, T)
-    score_ds = similar(grid_RSC, T)
-    score_tops = fill(typemax(eltype(Float32)), 2 * tops)
-    cartesian_tops = Vector{CartesianIndex{3}}(undef, 2 * tops)
-    iq_tops = fill(-1, 2 * tops)
-    if CUDA.functional()
-        grid_RSC_d = cu(grid_RSC)
-        grid_LSC_d = cu(grid_LSC)
-        grid_RDS_d = cu(grid_RDS)
-        grid_LDS_d = cu(grid_LDS)
-        grid_LDS_real = real.(grid_LDS_d)
-        grid_LDS_imag = real.(grid_LDS_d)
-        x_grid_d = cu(x_grid)
-        y_grid_d = cu(y_grid)
-        z_grid_d = cu(z_grid)
-        x_org = cu(x)
-        y_org = cu(y)
-        z_org = cu(z)
-        x_d = cu(x)
-        y_d = cu(y)
-        z_d = cu(z)
-
-        id_surface_d = cu(id_surface)
-        rcut_d = cu(rcut)
-        rcut_surface_d = cu(rcut_surface)
-        value_core_d = cu(value_core)
-        value_surface_d = cu(value_surface)
-
-        rcut_ds_d = cu(rcut_ds)
-        ligand_mass_d = cu(ligand.mass)
-
-        t_d = similar(grid_RSC_d)
-        score_sc_d = real(t_d)
-        score_ds_d = real(t_d)
-        score_d = real(t_d)
-
-        quaternions_d = cu(quaternions)
-        nblocks = ceil(Int, length(x) / 256)
-        @time @showprogress for iq = 1:size(quaternions, 1)
-            # rotate ligand
-            x_d .= x_org
-            y_d .= y_org
-            z_d .= z_org
-            #@time CUDA.@sync @cuda threads=256 blocks=nblocks rotate_with_matrix_gpu!(x_d, y_d, z_d, R_d)
-            @cuda threads = 256 blocks = nblocks rotate_gpu!(x_d, y_d, z_d, quaternions_d[iq, :])
-
-            # shape complementarity
-            grid_LSC_d .= zero(eltype(grid_LSC_d))
-            @cuda threads = 256 blocks = nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_d, value_core_d)
-            @cuda threads = 256 blocks = nblocks spread_neighbors_substitute_gpu!(grid_LSC_d, x_d[id_surface_d], y_d[id_surface_d], z_d[id_surface_d], x_grid_d, y_grid_d, z_grid_d, rcut_surface_d, value_surface_d)
-            #t_d .= ifftshift(ifft(ifft(grid_RSC_d) .* fft(grid_LSC_d))) .* nxyz
-            #score_sc_d .= - real(t_d) .+ imag(t_d)
-            t_d .= ifftshift(ifft(ifft(grid_RSC_d) .* fft(grid_LSC_d))) .* nxyz
-            score_sc_d .= -real(t_d) .+ imag(t_d)
-
-            # desolvation free energy
-            grid_LDS_d .= zero(eltype(grid_LDS_d))
-            grid_LDS_real .= zero(eltype(grid_LDS_real))
-            grid_LDS_imag .= zero(eltype(grid_LDS_imag))
-            @cuda threads = 256 blocks = nblocks spread_nearest_gpu!(grid_LDS_imag, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d)
-            #@show typeof(grid_LDS_real)
-            #@show typeof(ligand_mass_d)
-            @cuda threads = 256 blocks = nblocks spread_neighbors_add_gpu!(grid_LDS_real, x_d, y_d, z_d, x_grid_d, y_grid_d, z_grid_d, rcut_ds_d, ligand_mass_d)
-            grid_LDS_d .= grid_LDS_real .+ grid_LDS_imag .* im
-            t_d .= 0.5 .* ifftshift(ifft(ifft(grid_RDS_d) .* fft(grid_LDS_d))) .* nxyz
-            score_ds_d .= -imag(t_d)
-
-            # filter top scores
-            #score_d .= alpha .* score_sc_d
-            score_d .= alpha .* score_sc_d .+ score_ds_d
-            filter_tops!(score_tops, cartesian_tops, iq_tops, score_d, iq, tops)
-        end
-        grid_RSC .= Array(grid_RSC_d)
-        grid_LSC .= Array(grid_LSC_d)
-        grid_RDS .= Array(grid_RDS_d)
-        grid_LDS .= Array(grid_LDS_d)
-        score_sc .= Array(score_sc_d)
-        score_ds .= Array(score_ds_d)
-    else
-        x_org = deepcopy(x)
-        y_org = deepcopy(y)
-        z_org = deepcopy(z)
-        t = similar(grid_LSC)
-        score = real(t)
-
-        @time @showprogress for iq = 1:size(quaternions, 1)
-            # rotate ligand
-            x .= x_org
-            y .= y_org
-            z .= z_org
-            rotate!(x, y, z, quaternions[iq, :])
-
-            # shape complementarity
-            grid_LSC .= zero(eltype(grid_LSC))
-            spread_neighbors_substitute!(grid_LSC, x, y, z, x_grid, y_grid, z_grid, rcut, value_core)
-            spread_neighbors_substitute!(grid_LSC, x[id_surface], y[id_surface], z[id_surface], x_grid, y_grid, z_grid, rcut_surface, value_surface)
-            #t .= ifft(fft(grid_RSC) .* conj.(fft(conj.(grid_LSC))))
-            #score_sc .= real(t)
-            t .= ifftshift(ifft(ifft(grid_RSC) .* fft(grid_LSC))) .* nxyz
-            score_sc .= -real(t) .+ imag(t)
-
-            # desolvation free energy
-            grid_LDS .= zero(eltype(grid_LDS))
-            spread_nearest!(grid_LDS, x, y, z, x_grid, y_grid, z_grid)
-            spread_neighbors_add!(grid_LDS, x, y, z, x_grid, y_grid, z_grid, rcut_ds, ligand.mass)
-            t .= 0.5 .* ifftshift(ifft(ifft(grid_RDS) .* fft(grid_LDS))) .* nxyz
-            score_ds .= -imag(t)
-
-            # filter top scores
-            #score .= score_sc
-            score .= alpha .* score_sc .+ score_ds
-            filter_tops!(score_tops, cartesian_tops, iq_tops, score, iq, tops)
-        end
-    end
-
+function generate_ligand(ligand::TrjArray{T,U}, quaternions::AbstractArray{T},
+                         grid, cartesian_tops, iq_tops, spacing, ntop; iframe=1) where {T,U}
+    nx, ny, nz = size(grid)
     ligand_init = deepcopy(ligand[iframe, :])
     ligand_return = deepcopy(ligand[0, :])
     ix_center = ceil(Int, (nx / 2.0) + 1.0)
     iy_center = ceil(Int, (ny / 2.0) + 1.0)
     iz_center = ceil(Int, (nz / 2.0) + 1.0)
-    for itop = 1:tops
+    for itop = 1:ntop
         iq = iq_tops[itop]
         ligand_tmp = rotate(ligand_init, quaternions[iq, :])
-        dx = (cartesian_tops[itop][1] - ix_center) * grid_space
-        dy = (cartesian_tops[itop][2] - iy_center) * grid_space
-        dz = (cartesian_tops[itop][3] - iz_center) * grid_space
+        dx = (cartesian_tops[itop][1] - ix_center) * spacing
+        dy = (cartesian_tops[itop][2] - iy_center) * spacing
+        dz = (cartesian_tops[itop][3] - iz_center) * spacing
         ligand_tmp.xyz[1, 1:3:end] .-= dx
         ligand_tmp.xyz[1, 2:3:end] .-= dy
         ligand_tmp.xyz[1, 3:3:end] .-= dz
         ligand_return = [ligand_return; ligand_tmp]
     end
-
-    return (receptor=receptor, ligand=ligand_return, score=score_tops, iq=iq_tops, cartesian=cartesian_tops,
-        grid_RSC=grid_RSC, grid_LSC=grid_LSC,
-        grid_RDS=grid_RDS, grid_LDS=grid_LDS,
-        score_sc, score_ds)
+    return ligand_return
 end
 
+function docking(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}, q::AbstractMatrix{T}; deg=15.0, spacing=1.2, iframe=1, ntop=100, alpha=0.01, beta=0.06) where {T,U}
+    receptor = deepcopy(receptor_org)
+    ligand = deepcopy(ligand_org)
+
+    decenter!(receptor)
+    decenter!(ligand)
+    
+    grid_real, grid_imag, x_grid, y_grid, z_grid = generate_grid(receptor, ligand, spacing=spacing)
+    nxyz = prod(size(grid_real))
+    
+    x = receptor.xyz[1, 1:3:end]
+    y = receptor.xyz[1, 2:3:end]
+    z = receptor.xyz[1, 3:3:end]
+    id_surface = receptor.sasa .> 1.0
+    
+    assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
+    grid_sc_receptor = grid_real .+ im .* grid_imag
+    
+    assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
+    grid_ds_receptor = grid_real .+ im .* grid_imag
+    
+    x_org = ligand.xyz[1, 1:3:end]
+    y_org = ligand.xyz[1, 2:3:end]
+    z_org = ligand.xyz[1, 3:3:end]
+    id_surface = ligand.sasa .> 1.0
+    
+    x = deepcopy(x_org)
+    y = deepcopy(y_org)
+    z = deepcopy(z_org)
+    grid_sc_ligand = deepcopy(grid_sc_receptor)
+    grid_ds_ligand = deepcopy(grid_ds_receptor)
+    score_sc = deepcopy(grid_real)
+    score_ds = deepcopy(grid_real)
+    score_total = deepcopy(grid_real)
+    
+    score_tops = similar(q, T, 2 * ntop)
+    cartesian_tops = similar(q, CartesianIndex{3}, 2 * ntop)
+    iq_tops = similar(q, U, 2 * ntop)
+    
+    @time @showprogress for i = 1:size(q, 1)
+        x .= x_org
+        y .= y_org
+        z .= z_org
+        rotate!(x, y, z, q[i, :])
+    
+        assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligand.radius, id_surface)
+        grid_sc_ligand .= grid_real .+ im .* grid_imag
+        grid_sc_ligand .= ifftshift(ifft(ifft(grid_sc_receptor) .* fft(grid_sc_ligand))) .* nxyz
+        score_sc .= - real(grid_sc_ligand) .+ imag(grid_sc_ligand)
+    
+        assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligand.mass)
+        grid_ds_ligand .= grid_real .+ im .* grid_imag
+        grid_ds_ligand .= 0.5 .* ifftshift(ifft(ifft(grid_ds_receptor) .* fft(grid_ds_ligand))) .* nxyz
+        score_ds .= - imag(grid_ds_ligand)
+    
+        score_total .= alpha .* score_sc .+ score_ds
+        filter_tops!(score_tops, cartesian_tops, iq_tops, -score_total, i, ntop)
+    end
+
+    ligand_return = generate_ligand(ligand, q, grid_real, cartesian_tops, iq_tops, spacing, ntop)
+
+    return score_tops, receptor, ligand_return
+end
