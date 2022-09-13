@@ -987,7 +987,7 @@ function docking(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}, q::Abst
     decenter!(ligand)
     
     grid_real, grid_imag, x_grid, y_grid, z_grid = generate_grid(receptor, ligand, spacing=spacing)
-    nxyz = prod(size(grid_real))
+    nxyz = T(prod(size(grid_real)))
     
     x = receptor.xyz[1, 1:3:end]
     y = receptor.xyz[1, 2:3:end]
@@ -1026,16 +1026,16 @@ function docking(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}, q::Abst
     
         assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligand.radius, id_surface)
         grid_sc_ligand .= grid_real .+ im .* grid_imag
-        grid_sc_ligand .= ifftshift(ifft(ifft(grid_sc_receptor) .* fft(grid_sc_ligand))) .* nxyz
-        score_sc .= - real(grid_sc_ligand) .+ imag(grid_sc_ligand)
+        grid_sc_ligand .= ifftshift(ifft(ifft(grid_sc_receptor) .* fft(grid_sc_ligand)))
+        score_sc .= (real(grid_sc_ligand) .+ imag(grid_sc_ligand)) .* nxyz
     
         assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligand.mass)
         grid_ds_ligand .= grid_real .+ im .* grid_imag
-        grid_ds_ligand .= 0.5 .* ifftshift(ifft(ifft(grid_ds_receptor) .* fft(grid_ds_ligand))) .* nxyz
-        score_ds .= - imag(grid_ds_ligand)
+        grid_ds_ligand .= ifftshift(ifft(ifft(grid_ds_receptor) .* fft(grid_ds_ligand)))
+        score_ds .= T(0.5) .* imag(grid_ds_ligand) .* nxyz
     
         score_total .= alpha .* score_sc .+ score_ds
-        filter_tops!(score_tops, cartesian_tops, iq_tops, -score_total, i, ntop)
+        filter_tops!(score_tops, cartesian_tops, iq_tops, score_total, i, ntop)
     end
 
     ligand_return = generate_ligand(ligand, q, grid_real, cartesian_tops, iq_tops, spacing, ntop)
