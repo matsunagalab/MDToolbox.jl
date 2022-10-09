@@ -36,7 +36,7 @@ export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
 export mbar, mbar_weight
 export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmforward_missing, msmbackward, msmbackward_missing, msmbaumwelch, msmbaumwelch_missing, msmviterbi, msmimpliedtime
-export sp_delta_pmf, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
+export sp_delta_pmf_with_gaussian, sp_delta_pmf_with_kde, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export idilation, ierosion, itip_estimate!, surfing, afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
 export Asd, readasd
 export split_into_residues, split_into_chains, CuArray, gpu, cu, Array, logsumexp

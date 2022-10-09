@@ -1,4 +1,4 @@
-function sp_delta_pmf(umbrella_center, data_k, kbt, spring_constant)
+function sp_delta_pmf_with_gaussian(umbrella_center, data_k, kbt, spring_constant)
     nframe = size(data_k[1], 1)
     K = length(data_k)
     delta_pmf      = similar(umbrella_center, nframe, K)
@@ -14,7 +14,44 @@ function sp_delta_pmf(umbrella_center, data_k, kbt, spring_constant)
         bias_potential = spring_constant * sum((data_k[k] .- umbrella_center[k:k, :]).^2, dims=2)
         d = data_k[k] .- dd_mean
         tmp_pmf = kbt .* (-0.5 .* sum((d * dd_inv) .* d, dims=2))
-        delta_pmf[:, k:k] .= .- tmp_pmf .+ tmp_pmf[1, 1] .- bias_potential .+ bias_potential[1, 1]
+        delta_pmf[:, k:k] .= - (tmp_pmf .- tmp_pmf[1, 1]) .- (bias_potential .- bias_potential[1, 1])
+    end
+
+    return delta_pmf
+end
+
+function _logsumexp_1d(x)
+    max_x = maximum(x)
+    exp_x = exp.(x .- max_x)
+    s = log(sum(exp_x)) + max_x
+    return s
+end
+
+function logpdf_estimator(x_query, data, sigma)
+    nframe, ndim = size(data)
+    logpdf = zeros(Float64, ndim)
+    for idim = 1:ndim
+        d = - (x_query[idim] .- data[:, idim]).^2 ./ sigma[idim]^2
+        logpdf[idim] = _logsumexp_1d(d)
+    end
+    return sum(logpdf)
+end
+
+function sp_delta_pmf_with_kde(umbrella_center, data_k, kbt, spring_constant)
+    nframe, ndim = size(data_k[1])
+    K = length(data_k)
+    delta_pmf = similar(umbrella_center, nframe, K)
+    delta_pmf .= zero(umbrella_center[1])
+    sigma = 1.0 .* ones(Float64, ndim)
+
+    for k = 1:K
+        log_pdf_1 = logpdf_estimator(data_k[k][1, :], data_k[k], sigma)
+        bias_potential_1 = spring_constant * sum((data_k[k][1, :] .- umbrella_center[k, :]).^2)
+        for iframe = 1:nframe
+            log_pdf_2 = logpdf_estimator(data_k[k][iframe, :], data_k[k], sigma)
+            bias_potential_2 = spring_constant * sum((data_k[k][iframe, :] .- umbrella_center[k, :]).^2)
+            delta_pmf[iframe, k] = - kbt .* (log_pdf_2 - log_pdf_1) - (bias_potential_2 - bias_potential_1)
+        end
     end
 
     return delta_pmf
