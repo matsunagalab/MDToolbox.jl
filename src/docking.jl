@@ -1027,7 +1027,7 @@ function docking(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}, q::Abst
         assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligand.radius, id_surface)
         grid_sc_ligand .= grid_real .+ im .* grid_imag
         grid_sc_ligand .= ifftshift(ifft(ifft(grid_sc_receptor) .* fft(grid_sc_ligand)))
-        score_sc .= (real(grid_sc_ligand) .+ imag(grid_sc_ligand)) .* nxyz
+        score_sc .= (real(grid_sc_ligand) .- imag(grid_sc_ligand)) .* nxyz
     
         assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligand.mass)
         grid_ds_ligand .= grid_real .+ im .* grid_imag
@@ -1040,5 +1040,70 @@ function docking(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}, q::Abst
 
     ligand_return = generate_ligand(ligand, q, grid_real, cartesian_tops, iq_tops, spacing, ntop)
 
-    return score_tops, receptor, ligand_return
+    return score_tops[1:ntop], receptor, ligand_return
+end
+
+function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, alpha=0.01) where {T,U}
+    spacing = 1.5
+    receptor = deepcopy(receptor_org)
+    ligands = deepcopy(ligands_org)
+
+    decenter!(receptor)
+    decenter!(ligands)
+
+    grid_real, grid_imag, x_grid, y_grid, z_grid = generate_grid(receptor, ligands, spacing=spacing)
+    nxyz = T(prod(size(grid_real)))
+
+    receptor = deepcopy(receptor_org)
+    ligands = deepcopy(ligands_org)
+
+    com = centerofmass(receptor)
+    receptor.xyz[:, 1:3:end] .= receptor.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
+    receptor.xyz[:, 2:3:end] .= receptor.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
+    receptor.xyz[:, 3:3:end] .= receptor.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
+    ligands.xyz[:, 1:3:end] .= ligands.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
+    ligands.xyz[:, 2:3:end] .= ligands.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
+    ligands.xyz[:, 3:3:end] .= ligands.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
+
+    x = receptor.xyz[1, 1:3:end]
+    y = receptor.xyz[1, 2:3:end]
+    z = receptor.xyz[1, 3:3:end]
+    id_surface = receptor.sasa .> 1.0
+
+    assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
+    grid_sc_receptor = grid_real .+ im .* grid_imag
+
+    assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
+    grid_ds_receptor = grid_real .+ im .* grid_imag
+
+    x = ligands.xyz[1, 1:3:end]
+    y = ligands.xyz[1, 2:3:end]
+    z = ligands.xyz[1, 3:3:end]
+    id_surface = ligands.sasa .> 1.0
+
+    grid_sc_ligand = deepcopy(grid_sc_receptor)
+    grid_ds_ligand = deepcopy(grid_ds_receptor)
+    score_sc = similar(grid_real, ligands.nframe)
+    score_ds = similar(grid_real, ligands.nframe)
+    score_total = similar(grid_real, ligands.nframe)
+
+    @showprogress for iframe = 1:ligands.nframe
+        x .= ligands.xyz[iframe, 1:3:end]
+        y .= ligands.xyz[iframe, 2:3:end]
+        z .= ligands.xyz[iframe, 3:3:end]
+
+        assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.radius, id_surface)
+        grid_sc_ligand .= grid_real .+ im .* grid_imag
+        multi = grid_sc_receptor .* grid_sc_ligand
+        score_sc[iframe] = sum(real.(multi)) - sum(imag.(multi))
+
+        assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
+        grid_ds_ligand .= grid_real .+ im .* grid_imag
+        multi = grid_ds_receptor .* grid_ds_ligand
+        score_ds[iframe] = T(0.5) * sum(imag(multi))
+
+        score_total[iframe] = alpha .* score_sc[iframe] .+ score_ds[iframe]
+    end
+
+    return score_total
 end
