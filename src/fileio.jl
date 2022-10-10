@@ -882,6 +882,34 @@ function writepsf(filename::String, ta::TrjArray)
     end
 end
 
+function readpdb_biostructures(filename::String)
+    struc = BioStructures.read(filename, BioStructures.PDB)
+    atoms = BioStructures.collectatoms(struc)
+
+    natom = length(atoms)
+
+    xx = BioStructures.x.(atoms)
+    yy = BioStructures.y.(atoms)
+    zz = BioStructures.z.(atoms)
+
+    xyz = zeros(Float64, 1, natom * 3)
+    xyz[1, 1:3:end] .= xx
+    xyz[1, 2:3:end] .= yy
+    xyz[1, 3:3:end] .= zz
+
+    chainname = BioStructures.chainid.(atoms)
+
+    resid = BioStructures.resnumber.(atoms)
+    resname = BioStructures.resname.(atoms)
+
+    atomid = BioStructures.serial.(atoms)
+    atomname = BioStructures.atomname.(atoms)
+
+    return TrjArray(xyz=xyz, atomname=atomname, atomid=atomid, 
+                    resname=resname, resid=resid, 
+                    chainname=chainname)
+end
+
 function readpdb(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)

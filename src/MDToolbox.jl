@@ -12,6 +12,7 @@ using ProgressMeter
 using MetaGraphs, Graphs, GraphRecipes, Plots
 using ChainRulesCore
 import ChainRulesCore: rrule
+import BioStructures
 
 # standard library
 using Printf
