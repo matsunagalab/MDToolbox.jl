@@ -125,7 +125,7 @@ function idilation(surface, tip)
     surf_xsiz, surf_ysiz = size(surface)
     tip_xsiz, tip_ysiz = size(tip)
     r = zeros(eltype(surface), size(surface))
-    for i = 1:surf_xsiz
+    Threads.@threads for i = 1:surf_xsiz
         for j = 1:surf_ysiz
             pxmin = max(i-surf_xsiz, -xc+1)
             pymin = max(j-surf_ysiz, -yc+1)
@@ -153,7 +153,7 @@ function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::
     MAX_j = zeros(Int, size(surface))
     MAX_u = zeros(Int, size(surface))
     MAX_v = zeros(Int, size(surface))
-    for i = 1:surf_xsiz
+    Threads.@threads for i = 1:surf_xsiz
         for j = 1:surf_ysiz
             pxmin = max(i-surf_xsiz, -xc+1)
             pymin = max(j-surf_ysiz, -yc+1)
@@ -210,7 +210,7 @@ function ierosion(image, tip)
     im_xsiz, im_ysiz = size(image)
     tip_xsiz, tip_ysiz = size(tip)
     r = similar(image)
-    for i = 1:im_xsiz
+    Threads.@threads for i = 1:im_xsiz
         for j = 1:im_ysiz
             pxmin = max(-i+1, -xc+1)
             pymin = max(-j+1, -yc+1)
@@ -238,7 +238,7 @@ function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::Abs
     MIN_j = zeros(Int, size(image))
     MIN_u = zeros(Int, size(image))
     MIN_v = zeros(Int, size(image))
-    for i = 1:im_xsiz
+    Threads.@threads for i = 1:im_xsiz
         for j = 1:im_ysiz
             pxmin = max(-i+1, -xc+1)
             pymin = max(-j+1, -yc+1)
