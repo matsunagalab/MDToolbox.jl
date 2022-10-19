@@ -31,38 +31,28 @@ function translate_tip_peak(P)
     return P_new
 end
 
-function translate_tip_mean(P; cutoff=10^(-8))
+function translate_tip_mean(P::AbstractMatrix{T}; cutoff=10^(-8)) where {T}
     tip_xsiz, tip_ysiz = size(P)
     xc, yc = MDToolbox.compute_xc_yc(P)
 
     p_min = minimum(P)
-
     weight = P .- p_min
-    #if all(weight .< 10.0^(1))
-    #    weight .= 1.0
-    #end
-    for ix = 1:tip_xsiz
-        for iy = 1:tip_ysiz
-            if weight[ix, iy] < cutoff
-                weight[ix, iy] = 0.0
-            end
-        end
-    end
+
+    id = weight .< cutoff
+    weight[id] .= zero(T)
 
     if all(weight .< 10^(-10))
-        weight .= 1.0
+        weight .= one(T)
     end
 
-    com_x = 0.0
-    com_y = 0.0
-    for ix = 1:tip_xsiz
-        for iy = 1:tip_ysiz
-            com_x += ix * weight[ix, iy]
-            com_y += iy * weight[ix, iy]
-        end
-    end
-    com_x = com_x / sum(weight)
-    com_y = com_y / sum(weight)
+    iy = similar(P, 1, tip_ysiz)
+    ix = similar(P, tip_xsiz, 1)
+    iy .= one(T)
+    ix .= one(T)
+    iy .= cumsum(iy, dims=2)
+    ix .= cumsum(ix, dims=1)
+    com_x = sum(ix .* weight) ./ sum(weight)
+    com_y = sum(iy .* weight) ./ sum(weight)
     id_x = round(Int, com_x, RoundNearestTiesUp)
     id_y = round(Int, com_y, RoundNearestTiesUp)
 
@@ -74,11 +64,9 @@ function translate_tip_mean(P; cutoff=10^(-8))
     pymin = max(1-yc, 1-id_y)
     pxmax = min(tip_xsiz-xc, tip_xsiz-id_x)
     pymax = min(tip_ysiz-yc, tip_ysiz-id_y)
-    for px = pxmin:pxmax
-        for py = pymin:pymax
-            P_new[xc+px, yc+py] = P[id_x+px, id_y+py] .- p_max
-        end
-    end
+
+    P_new[(xc+pxmin):(xc+pxmax), (yc+pymin):(yc+pymax)] .= P[(id_x+pxmin):(id_x+pxmax), (id_y+pymin):(id_y+pymax)] .- p_max
+
     return P_new
 end
 
