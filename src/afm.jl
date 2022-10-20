@@ -415,6 +415,143 @@ function ChainRulesCore.rrule(::typeof(ierosion), image::AbstractArray, tip::Abs
     return surface, ierosion_pullback
 end
 
+function ierosion(image::CuArray{T}, tip::CuArray{T}) where {T}
+    xc, yc = compute_xc_yc(tip)
+    surface = similar(image)
+    im_xsiz, im_ysiz = size(image)
+    nthreads = 256
+    @cuda blocks=ceil(Int, (im_xsiz*im_xsiz)/nthreads) threads=nthreads ierosion_kernel!(surface, image, tip)
+    return surface
+end
+
+
+function ierosion_kernel!(r::CuDeviceArray{T}, image::CuDeviceArray{T}, tip::CuDeviceArray{T}) where {T}
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid # global thread id in y
+
+    xc, yc = compute_xc_yc(tip)
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip)
+    j = ceil(Int, gtid/im_xsiz) 
+    i = (gtid - 1) % im_xsiz + 1
+
+    if (i <= im_xsiz) & (j <= im_ysiz)
+        pxmin = max(-i+1, -xc+1)
+        pymin = max(-j+1, -yc+1)
+        pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
+        pymax = min(-j+im_ysiz, -yc+tip_ysiz)
+        eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
+        for px = pxmin:pxmax
+            for py = pymin:pymax
+                temp = image[i+px, j+py] - tip[xc+px, yc+py]
+                eros_min = min(temp, eros_min)
+            end
+        end
+            r[i, j] = eros_min
+    end
+
+    return nothing
+end
+
+function ierosion_kernel!(r::CuDeviceArray{T}, image::CuDeviceArray{T}, tip::CuDeviceArray{T},
+      MIN_i::CuDeviceArray{U}, MIN_j::CuDeviceArray{U}, MIN_u::CuDeviceArray{U}, MIN_v::CuDeviceArray{U}) where {T, U}
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid # global thread id in y
+
+    xc, yc = compute_xc_yc(tip)
+    im_xsiz, im_ysiz = size(image)
+    tip_xsiz, tip_ysiz = size(tip)
+    j = ceil(Int, gtid/im_xsiz) 
+    i = (gtid - 1) % im_xsiz + 1
+
+    if (i <= im_xsiz) & (j <= im_ysiz)
+        pxmin = max(-i+1, -xc+1)
+        pymin = max(-j+1, -yc+1)
+        pxmax = min(-i+im_xsiz, -xc+tip_xsiz)
+        pymax = min(-j+im_ysiz, -yc+tip_ysiz)
+        eros_min = image[i+pxmin, j+pymin] - tip[xc+pxmin, yc+pymin]
+        i_min = i+pxmin
+        j_min = j+pymin
+        u_min = xc+pxmin
+        v_min = yc+pymin
+        for px = pxmin:pxmax
+            for py = pymin:pymax
+                temp = image[i+px, j+py] - tip[xc+px, yc+py]
+                if temp < eros_min
+                    eros_min = temp
+                    i_min = i+px
+                    j_min = j+py
+                    u_min = xc+px
+                    v_min = yc+py
+                end
+            end
+        end
+        if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
+              MIN_i[i, j] = i_min
+              MIN_j[i, j] = j_min
+              MIN_u[i, j] = u_min
+              MIN_v[i, j] = v_min
+        end
+        r[i, j] = eros_min
+    end
+
+    return nothing
+end
+
+function ChainRulesCore.rrule(::typeof(ierosion), image::CuArray{T}, tip::CuArray{T}) where {T}
+    xc, yc = compute_xc_yc(tip)
+    surface = similar(image)
+    U = Int32
+    MIN_i = similar(image, U)
+    MIN_i .= zero(U)
+    MIN_j = similar(image, U)
+    MIN_j .= zero(U)
+    MIN_u = similar(image, U)
+    MIN_u .= zero(U)
+    MIN_v = similar(image, U)
+    MIN_v .= zero(U)
+    im_xsiz, im_ysiz = size(image)
+    nthreads = 256
+    @cuda blocks=ceil(Int, (im_xsiz*im_xsiz)/nthreads) threads=nthreads ierosion_kernel!(surface, image, tip, MIN_i, MIN_j, MIN_u, MIN_v)
+
+    function ierosion_pullback(dS::CuArray{T2}) where {T2}
+        dI = similar(image)
+        dI .= zero(T)
+        dP = similar(tip)
+        dP .= zero(T)
+        #for i = 1:im_xsiz
+        #    for j = 1:im_ysiz
+        #        if MIN_i[i,j] != 0
+        #            dS[MIN_i[i,j], MIN_j[i,j]] += dI[i,j]
+        #            dP[MIN_u[i,j], MIN_v[i,j]] += dI[i,j]
+        #        end
+        #    end
+        #end
+        nthreads = 256
+        @cuda blocks=ceil(Int, (im_xsiz*im_xsiz)/nthreads) threads=nthreads ierosion_pullback_aux!(dS, dP, dI, MIN_i, MIN_j, MIN_u, MIN_v)
+        return NoTangent(), dI, dP
+    end
+    return surface, ierosion_pullback
+end
+
+function ierosion_pullback_aux!(dS::CuDeviceArray{T}, dP::CuDeviceArray{T}, dI::CuDeviceArray{T},
+      MIN_i::CuDeviceArray{U}, MIN_j::CuDeviceArray{U}, MIN_u::CuDeviceArray{U}, MIN_v::CuDeviceArray{U}) where {T, U}
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid # global thread id in y
+    im_xsiz, im_ysiz = size(MIN_i)
+    j = ceil(Int, gtid/im_xsiz) 
+    i = (gtid - 1) % im_xsiz + 1
+
+    if (i <= im_xsiz) & (j <= im_ysiz)
+        if MIN_i[i,j] != 0
+            CUDA.@atomic dI[MIN_i[i,j], MIN_j[i,j]] += dS[i,j]
+            CUDA.@atomic dP[MIN_u[i,j], MIN_v[i,j]] -= dS[i,j]
+        end
+    end
+
+    return nothing
+end
+
 function iopen(image, tip)
     r = ierosion(image, tip)
     r = idilation(r, tip)
