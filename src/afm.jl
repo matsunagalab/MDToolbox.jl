@@ -193,6 +193,143 @@ function ChainRulesCore.rrule(::typeof(idilation), surface::AbstractArray, tip::
     return image, idilation_pullback
 end
 
+function idilation(surface::CuArray{T}, tip::CuArray{T}) where {T}
+    xc, yc = compute_xc_yc(tip)
+    image = similar(surface)
+    surf_xsiz, surf_ysiz = size(surface)
+    nthreads = 256
+    @cuda blocks=ceil(Int, (surf_xsiz*surf_xsiz)/nthreads) threads=nthreads idilation_kernel!(image, surface, tip)
+    return image
+end
+
+
+function idilation_kernel!(r::CuDeviceArray{T}, surface::CuDeviceArray{T}, tip::CuDeviceArray{T}) where {T}
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid # global thread id in y
+
+    xc, yc = compute_xc_yc(tip)
+    surf_xsiz, surf_ysiz = size(surface)
+    tip_xsiz, tip_ysiz = size(tip)
+    j = ceil(Int, gtid/surf_xsiz)
+    i = (gtid - 1) % surf_xsiz + 1
+
+    if (i <= surf_xsiz) & (j <= surf_ysiz)
+        pxmin = max(i-surf_xsiz, -xc+1)
+        pymin = max(j-surf_ysiz, -yc+1)
+        pxmax = min(i-1, -xc+tip_xsiz)
+        pymax = min(j-1, -yc+tip_ysiz)
+        dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
+        for px = pxmin:pxmax
+            for py = pymin:pymax
+                temp = surface[i-px, j-py] + tip[xc+px, yc+py]
+                dil_max = max(temp, dil_max)
+            end
+        end
+        r[i, j] = dil_max
+    end
+
+    return nothing
+end
+
+function idilation_kernel!(r::CuDeviceArray{T}, surface::CuDeviceArray{T}, tip::CuDeviceArray{T},
+      MAX_i::CuDeviceArray{U}, MAX_j::CuDeviceArray{U}, MAX_u::CuDeviceArray{U}, MAX_v::CuDeviceArray{U}) where {T, U}
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid # global thread id in y
+
+    xc, yc = compute_xc_yc(tip)
+    surf_xsiz, surf_ysiz = size(surface)
+    tip_xsiz, tip_ysiz = size(tip)
+    j = ceil(Int, gtid/surf_xsiz)
+    i = (gtid - 1) % surf_xsiz + 1
+
+    if (i <= surf_xsiz) & (j <= surf_ysiz)
+        pxmin = max(i-surf_xsiz, -xc+1)
+        pymin = max(j-surf_ysiz, -yc+1)
+        pxmax = min(i-1, -xc+tip_xsiz)
+        pymax = min(j-1, -yc+tip_ysiz)
+        dil_max = surface[i-pxmin, j-pymin] + tip[xc+pxmin, yc+pymin]
+        i_max = i-pxmin
+        j_max = j-pymin
+        u_max = xc+pxmin
+        v_max = yc+pymin
+        for px = pxmin:pxmax
+            for py = pymin:pymax
+                temp = surface[i-px, j-py] + tip[xc+px, yc+py]
+                if temp > dil_max
+                    dil_max = temp
+                    i_max = i-px
+                    j_max = j-py
+                    u_max = xc+px
+                    v_max = yc+py
+                end
+            end
+        end
+        if (xc+pxmin) == 1 && (xc+pxmax) == tip_xsiz && (yc+pymin) == 1 && (yc+pymax) == tip_ysiz
+              MAX_i[i, j] = i_max
+              MAX_j[i, j] = j_max
+              MAX_u[i, j] = u_max
+              MAX_v[i, j] = v_max
+        end
+        r[i, j] = dil_max
+    end
+
+    return nothing
+end
+
+function ChainRulesCore.rrule(::typeof(idilation), surface::CuArray{T}, tip::CuArray{T}) where {T}
+    xc, yc = compute_xc_yc(tip)
+    image = similar(surface)
+    U = Int32
+    MAX_i = similar(surface, U)
+    MAX_i .= zero(U)
+    MAX_j = similar(surface, U)
+    MAX_j .= zero(U)
+    MAX_u = similar(surface, U)
+    MAX_u .= zero(U)
+    MAX_v = similar(surface, U)
+    MAX_v .= zero(U)
+    surf_xsiz, surf_ysiz = size(surface)
+    nthreads = 256
+    @cuda blocks=ceil(Int, (surf_xsiz*surf_xsiz)/nthreads) threads=nthreads idilation_kernel!(image, surface, tip, MAX_i, MAX_j, MAX_u, MAX_v)
+
+    function idilation_pullback(dI::CuArray{T2}) where {T2}
+        dS = similar(surface)
+        dS .= zero(T)
+        dP = similar(tip)
+        dP .= zero(T)
+        #for i = 1:surf_xsiz
+        #    for j = 1:surf_ysiz
+        #        if MAX_i[i,j] != 0
+        #            dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
+        #            dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
+        #        end
+        #    end
+        #end
+        nthreads = 256
+        @cuda blocks=ceil(Int, (surf_xsiz*surf_xsiz)/nthreads) threads=nthreads idilation_pullback_aux!(dS, dP, dI, MAX_i, MAX_j, MAX_u, MAX_v)
+        return NoTangent(), dS, dP
+    end
+    return image, idilation_pullback
+end
+
+function idilation_pullback_aux!(dS::CuDeviceArray{T}, dP::CuDeviceArray{T}, dI::CuDeviceArray{T},
+      MAX_i::CuDeviceArray{U}, MAX_j::CuDeviceArray{U}, MAX_u::CuDeviceArray{U}, MAX_v::CuDeviceArray{U}) where {T, U}
+    tid = threadIdx().x
+    gtid = (blockIdx().x - 1) * blockDim().x + tid # global thread id in y
+    surf_xsiz, surf_ysiz = size(MAX_i)
+    j = ceil(Int, gtid/surf_xsiz)
+    i = (gtid - 1) % surf_xsiz + 1
+
+    if (i <= surf_xsiz) & (j <= surf_ysiz)
+        if MAX_i[i,j] != 0
+            CUDA.@atomic dS[MAX_i[i,j], MAX_j[i,j]] += dI[i,j]
+            CUDA.@atomic dP[MAX_u[i,j], MAX_v[i,j]] += dI[i,j]
+        end
+    end
+
+    return nothing
+end
+
 function ierosion(image, tip)
     xc, yc = compute_xc_yc(tip)
     im_xsiz, im_ysiz = size(image)
