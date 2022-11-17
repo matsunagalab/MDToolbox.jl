@@ -580,7 +580,7 @@ julia> states, observations = msmgenerate(nframe, T, pi_i, emission)
 julia> states_estimated = msmviterbi(T, pi_i, emission, observation)
 ```
 """
-function viterbi(observation, T, pi_i, log_emission)
+function msmviterbi(observation, T, pi_i, log_emission)
     nframe = size(observation, 1)
     nstate = size(T, 1)
     P = zeros(eltype(T), nstate, nframe)
