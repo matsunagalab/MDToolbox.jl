@@ -565,14 +565,13 @@ function msmbaumwelch_missing(data_list, T0, pi_i0, emission0; TOLERANCE=10.0^(-
 end
 
 """
-    msmviterbi(observation, T, p, emission) -> states::Vector
+    msmviterbi(observation, T, p, log_emission) -> states::Vector
 
 Viterbi algorithm estimates the most probable hidden state sequence from the observation data.
 `observations` is a set of observed vectors. `T`, `p` are the transition probabilities and equilibrium probabilities, respectively. 
-`emission` is a matrix whose rows correspond to states, and columns correspond to observations. 
+`log_emission` is a matrix whose rows correspond to states, and columns correspond to observations. 
 
-Returns the transition probability matrix, the equilibrium probabilities of states, 
-and the emission probabilities (though the emission does not change). 
+Returns the maximum likelihood state sequence. 
 
 # Examples
 ```julia-repl
@@ -580,54 +579,30 @@ julia> nframe = 1000
 julia> states, observations = msmgenerate(nframe, T, pi_i, emission)
 julia> states_estimated = msmviterbi(T, pi_i, emission, observation)
 ```
-# References
-```
-The algorithm of this routines is based on the descriptions in PRML book by C. Bishop. 
-```
 """
-function msmviterbi(observation, T, pi_i, emission)
-    T2 = T .+ 10^(-100)
-    T2 .= T2 ./ sum(T2, dims=2)
-    pi_i2 = pi_i .+ 10^(-100)
-    pi_i2 = pi_i2 ./sum(pi_i2)
-    emission2 = emission .+ 10^(-100)
-    emission2 .= emission2 ./ sum(emission2, dims=1)
-
+function viterbi(observation, T, pi_i, log_emission)
     nframe = size(observation, 1)
-    nstate = size(T2, 1)
+    nstate = size(T, 1)
     P = zeros(eltype(T), nstate, nframe)
     I = zeros(eltype(T), nstate, nframe)
     state_estimated = zeros(eltype(observation), nframe)
 
     # initialization
-    if observation[1] === missing
-      P[:, 1] .= log.(pi_i2)
-    else
-      P[:, 1] .= log.(pi_i2) .+ log.(emission2[:, observation[1]])
-    end
-    I[:, 1] .= zeros(eltype(T2), nstate)
+    P[:, 1] .= log.(pi_i) .+ log_emission[:, observation[1]]
+    I[:, 1] .= zeros(eltype(T), nstate)
 
     # argmax forward
-    Z = zeros(eltype(T2), nstate, nstate)
+    Z = zeros(eltype(T), nstate, nstate)
     for t = 2:nframe
-        Z .= P[:, (t-1):(t-1)] .+ log.(T2)
-        #if observation[t] === missing
-        #  Z .= P[:, (t-1):(t-1)] .+ log.(T2)
-        #else
-        #  Z .= P[:, (t-1):(t-1)] .+ log.(T2) .+ log.(emission2[:, observation[t]:observation[t]]')
-        #end
+        Z .= P[:, t-1] .+ log.(T)
         I[:, t] .= getindex.(argmax(Z, dims=1), 1)[:]
-        if observation[t] === missing
-          P[:, t] .= maximum(Z, dims=1)[:]
-        else
-          P[:, t] .= maximum(Z, dims=1)[:] .+ log.(emission[:, observation[t]])
-        end
+        P[:, t] .= maximum(Z, dims=1)[:] .+ log_emission[:, observation[t]]
     end
 
     # termination
     P_star = maximum(P[:, nframe])
     state_estimated[nframe] = argmax(P[:, nframe])
-    #@show P[:, nframe]
+    #@show P
 
     # decoding
     for t = (nframe-1):-1:1
