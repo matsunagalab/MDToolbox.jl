@@ -1,7 +1,7 @@
 authors = ["Yasuhiro Matsunaga <ymatsunaga@mail.saitama-u.ac.jp>"]
 name = "MDToolbox"
 uuid = "7965e2f0-a35b-11e8-0207-19c030dd2def"
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"

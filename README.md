@@ -4,7 +4,7 @@
 <!-- [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://www.bio.ics.saitama-u.ac.jp/MDToolbox.jl/stable/) -->
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://www.bio.ics.saitama-u.ac.jp/MDToolbox.jl/dev/)
 
-A Julia package for molecular dynamics trajectories analysis and modeling of biomolecules
+A Julia package for molecular dynamics trajectories analysis and modeling of biomolecules. Note that this package is continually under development. 
 
 Some functions have been ported into Julia from our old MATLAB/Octave toolbox https://github.com/ymatsunaga/mdtoolbox
 
