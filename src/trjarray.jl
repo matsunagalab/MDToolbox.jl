@@ -484,9 +484,10 @@ function select_atom(ta::TrjArray, s::AbstractString)
     this code is licensed under the GNU LGPL version 2.1, or at your option a later version of the license.  (Copyright (c) R.T McGibbon et al.), see LICENSE.md
     """
     s = replace(s, "hydrogen" => "atomname 1H 2H 3H H1 H2 H3 H4 H5 H HA 1HA 2HA HB 1HB " *
-    "2HB 3HB HG 1HG 2HG 1HG1 2HG1 3HG1 1HG2 2HG2 3HG2 1HD 2HD 1HD1 2HD1 3HD1 1HD2 2HD2 " *
-    "3HD2 1HH1 2HH1 1HH2 2HH2 HE 1HE 2HE 3HE 1HE1 2HE1 1HE2 2HE2 HD1 HD2 HE1 HNZ1 HNZ2 " *
-    "HNZ3 HG1 HH HH1 HH2 ")
+    "2HB 3HB HG HG1 HG2 HG3 1HG 2HG 1HG1 2HG1 3HG1 1HG2 2HG2 3HG2 1HD 2HD 1HD1 2HD1 3HD1 1HD2 2HD2 " *
+    "3HD2 1HH1 2HH1 1HH2 2HH2 HE 1HE 2HE 3HE 1HE1 2HE1 1HE2 2HE2 HD1 HD2 HE1 HN HNZ1 HNZ2 " *
+    "HNZ3 HH HH1 HH2 HZ1 HZ2 HZ3 HG11 HG12 HG13 HG21 HG22 HG23 " *
+    "HA1 HA2 HA3 HB1 HB2 HB3 HC1 HC2 HC3 HD1 HD2 HD3 HE1 HE2 HE3 HT1 HT2 HT3")
 
     """
     this code is licensed under the GNU LGPL version 2.1, or at your option a later version of the license.  (Copyright (c) R.T McGibbon et al.), see LICENSE.md
