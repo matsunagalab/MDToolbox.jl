@@ -1142,6 +1142,9 @@ function readgenesislog(filename::String)
     return NamedTuple{tuple((Symbol.(ks))...)}(tuple([vs[:, i] for i = 1:length(ks)]...))
 end
 
+"""
+read AMBER coordinate files
+"""
 function readcrd(filename::String)
     lines = open(filename, "r" ) do fp
         readlines(fp)
@@ -1169,3 +1172,41 @@ function readcrd(filename::String)
 
     TrjArray{Float64, Int64}(xyz=xyz)
 end
+
+"""
+write NMD file used in Normal Mode Wizard in VMD
+"""
+function writenmd(filename::AbstractString, ta::TrjArray, F)
+    open(filename, "w") do io
+        natom = ta.natom
+        nframe = ta.nframe
+        nmode = size(F.mode, 2)
+
+        Printf.@printf io "coordinates"
+        for iatom = 1:natom
+            Printf.@printf io " %f" ta.xyz[1, 3 * (iatom-1) + 1]
+            Printf.@printf io " %f" ta.xyz[1, 3 * (iatom-1) + 2]
+            Printf.@printf io " %f" ta.xyz[1, 3 * (iatom-1) + 3]
+        end
+        Printf.@printf io "\n"
+
+        if !isempty(ta.chainname)
+            Printf.@printf io "chids"
+            for iatom = 1:natom
+                Printf.@printf io " %s" ta.chainname[iatom][end]
+            end
+            Printf.@printf io "\n"    
+        end
+
+        for imode = 1:10
+            Printf.@printf io "mode"
+            Printf.@printf io " %d" imode
+            Printf.@printf io " %f" 1.0
+            for i = 1:size(F.mode, 1)
+                Printf.@printf io " %s" F.mode[i, imode]
+            end
+            Printf.@printf io "\n"
+        end
+    end
+end
+
