@@ -158,12 +158,13 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
         seekend(io)
         file_size = position(io) # get file size in byte
         seekstart(io)
-        blocksize = read(io, Int32) # should be 84
+        blocksize1 = read(io, Int32) # should be 84
         # header (4 chars) either "CORD" or "VELD"; position(io) == 4 bytes
-        header_hdr = Array{Char, 1}(undef, 4)
-        for i in 1:4
-            header_hdr[i] = read(io, Char)
-        end
+        #header_hdr = Array{Char, 1}(undef, 4)
+        #for i in 1:4
+        #    header_hdr[i] = read(io, Char)
+        #end
+        header_hdr = String(read(io, 4))
         # the total # of frames (snapshots); position(io) == 8 bytes
         header_nset = read(io, Int32)
         # starting time-step; position(io) == 12 bytes
@@ -214,7 +215,8 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
             seek(io, cof)
         end
         # blocksize1; position(io) == 88 bytes
-        blocksize1 = read(io, Int32)
+        @assert read(io, Int32) == blocksize1 "blocksize1 values are not consistent"
+
         #### read block 2 (title)
         # blocksize2; position(io) == 92 bytes
         blocksize2 = read(io, Int32)
@@ -223,22 +225,27 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
         # title
         header_title = []
         for i in 1:header_ntitle
-            t = Array{Char, 1}(undef, 80)
-            for i in 1:80
-                t[i] = read(io, Char)
-            end
-            push!(header_title, String(t))
+            #t = Array{Char, 1}(undef, 80)
+            #for i in 1:80
+            #    t[i] = read(io, Char)
+            #end
+            t = String(read(io, 80))
+            push!(header_title, t)
         end
         # blocksize2
-        blocksize2 = read(io, Int32)
+        #seek(io, 260)
+        #blocksize2 = read(io, Int32)
+        @assert read(io, Int32) == blocksize2 "blocksize2 values are not consistent"
+
         #### read block 3 (natom)
         # blocksize3
         blocksize3 = read(io, Int32)
         # # of atoms
         header_natom = read(io, Int32)
         # blocksize3
-        blocksize3 = read(io, Int32)
-        ## read coordinates
+        @assert read(io, Int32) == blocksize3 "blocksize3 values are not consistent"
+
+        #### read coordinates
         header_size = position(io)
         if header_ischarmm_extrablock == true
             extrablocksize = 4*2 + 8*6
