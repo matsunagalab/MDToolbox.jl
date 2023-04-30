@@ -718,39 +718,26 @@ function superimpose_serial(ref::TrjArray{T, U}, ta::TrjArray{T, U};
     nframe = ta.nframe
     natom = ta.natom
 
-    if isempty(index)
-        index2 = collect(1:natom)
-    else
-        index2 = index
+    index2 = preprocess_index(natom, index)
+    if min(ref.natom, ta.natom) < maximum(index2)
+        @printf "Warning: some atom indices are larger than # of atoms, truncated.\n"
+        id = index2 .<= min(ref.natom, ta.natom)
+        index2 = index2[id]
     end
 
-    if isweight && length(ref.mass) == natom && length(ta.mass) == natom
-        isweight2 = true
-        weight = ta.mass
-    else
-        isweight2 = false
-    end
+    weight = preprocess_weight(min(ref.natom, ta.natom), isweight, ta.mass)
+    wsum_inv = one(T) / sum(weight)
 
-    if isweight2
-        weight2 = reshape(weight[index2], length(index2))
-        wsum_inv = one(T) / sum(weight2)
-    else
-        wsum_inv = one(T) / T(length(index2))
-    end
-
-    if isdecenter
-        ta2 = copy(ta)
-        ref2 = ref[1, :]
-    else
-        ta2, = decenter(ta, isweight=isweight2, index=index)
-        ref2, com = decenter(ref[1, :], isweight=isweight2, index=index)
+    if !isdecenter
+        com = decenter!(ref, isweight=isweight, index=index2)
+        decenter!(ta, isweight=isweight, index=index2)
     end
 
     x = Matrix{T}(undef, nframe, natom)
     y = Matrix{T}(undef, nframe, natom)
     z = Matrix{T}(undef, nframe, natom)
     for iframe in 1:nframe
-        A, E0 = innerproduct(iframe, ref2, ta2, index2, isweight2)
+        A, E0 = innerproduct(iframe, ref.xyz, ta.xyz, index2, isweight, weight)
         rmsd, rot = fastCalcRMSDAndRotation(A, E0, wsum_inv)
         applyrotation!(iframe, x, y, z, ta2.xyz, rot)
     end
@@ -890,7 +877,7 @@ function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where 
 end
 
 """
-    compute_distance(ta::TrjArray, index::Matrix)
+    compute_distance(ta::TrjArray{T, U}, index=[1 2]::AbstractMatrix{U})::Matrix{T} where {T, U}
 
 Calculates distances between two atom pairs specified by the Matrix object `index`. 
 Each row vector in `index` contains two column indices for calculating distance. 
@@ -901,10 +888,10 @@ Returns distances specified pairs in `index`.
 # Example
 ```julia-repl
 julia> ta = mdload("ak.dcd")
-julia> d = compute_distance(ta, [1 2; 1; 3])
+julia> d = compute_distance(ta, [1 2; 1 3])
 ```
 """
-function compute_distance(ta::TrjArray{T, U}, index=[1 2]::Matrix{U})::Matrix{T} where {T, U}
+function compute_distance(ta::TrjArray{T, U}, index::AbstractMatrix{U})::Matrix{T} where {T, U}
     xyz1 = view(ta.xyz, :, to3(index[:, 1]))
     xyz2 = view(ta.xyz, :, to3(index[:, 2]))
     dx = xyz1[:, 1:3:end] .- xyz2[:, 1:3:end]
@@ -935,7 +922,7 @@ julia> ta = mdload("ak.dcd", top=ta)
 julia> d = compute_distance(ta[:, "atomid 1"], ta[:, "atomid 9"])
 ```
 """
-function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index=[1 1]::Matrix{U})::Matrix{T} where {T, U}
+function compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index::AbstractMatrix{U})::Matrix{T} where {T, U}
     xyz1 = view(ta1.xyz, :, to3(index[:, 1]))
     xyz2 = view(ta2.xyz, :, to3(index[:, 2]))
     dx = xyz1[:, 1:3:end] .- xyz2[:, 1:3:end]
