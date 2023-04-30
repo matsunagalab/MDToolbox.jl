@@ -258,7 +258,7 @@ function readdcd(filename::String; index=nothing, stride=1, isbox=true)
         nframe_stride = length(1:stride:nframe)
         if typeof(index) <: AbstractVector{Bool}
             index2 = findall(index)
-        elseif index == nothing
+        elseif index === nothing
             index2 = collect(1:header_natom)
         else
             index2 = index
@@ -401,7 +401,7 @@ function readnetcdf(filename::String; index=nothing)
 
     if typeof(index) <: AbstractVector{Bool}
         index2 = findall(index)
-    elseif index == nothing
+    elseif index === nothing
         index2 = collect(1:natom)
     else
         index2 = index
@@ -487,10 +487,10 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
         ncvar_cell_lengths = NcVar("cell_lengths", [ncdim_cell_spatial, ncdim_frame], t=NetCDF.NC_FLOAT, atts=Dict("units" => "angstrom"))
         ncvar_cell_angles = NcVar("cell_angles", [ncdim_cell_angular, ncdim_frame], t=NetCDF.NC_FLOAT, atts=Dict("units" => "degree"))
     end
-    if velocity != nothing
+    if velocity !== nothing
         ncvar_velocities = NcVar("velocities", [ncdim_spatial, ncdim_atom, ncdim_frame], t=NetCDF.NC_FLOAT, atts=Dict("units" => "angstrom/picosecond"))
     end
-    if force != nothing
+    if force !== nothing
         ncvar_forces = NcVar("forces", [ncdim_spatial, ncdim_atom, ncdim_frame], t=NetCDF.NC_FLOAT, atts=Dict("units" => "amu*angstrom/picosecond^2"))
     end
     #ncvar_temp0 = NcVar("temp0", ncdim_frame, t=NetCDF.NC_FLOAT, atts=Dict("units" => "kelvin"))
@@ -503,10 +503,10 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
         push!(varlist, ncvar_cell_lengths)
         push!(varlist, ncvar_cell_angles)
     end
-    if velocity != nothing
+    if velocity !== nothing
         push!(varlist, ncvar_velocities)
     end
-    if force != nothing
+    if force !== nothing
         push!(varlist, ncvar_forces)
     end
 
@@ -539,7 +539,7 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
             NetCDF.putvar(nc, "cell_angles", d)
         end
 
-        if velocity != nothing
+        if velocity !== nothing
             for iframe in 1:nframe
                 for iatom in 1:natom
                     trj[1, iatom, iframe] = velocity.x[iframe, iatom]/scale_factor
@@ -549,7 +549,7 @@ function writenetcdf(filename::String, ta::TrjArray; velocity = nothing, force =
             end
             NetCDF.putvar(nc, "velocities", trj)
         end
-        if force != nothing
+        if force !== nothing
             for iframe in 1:nframe
                 for iatom in 1:natom
                     trj[1, iatom, iframe] = force.x[iframe, iatom]; #TODO: scale_factor?
@@ -926,13 +926,13 @@ function readpdb(filename::String)
     lines_clean = []
     for i = 1:length(lines)
         line = lines[i]
-        if match(r"^ATOM", line) != nothing
+        if match(r"^ATOM", line) !== nothing
             push!(lines_clean, line)
         end
-        if match(r"^HETATM", line) != nothing
+        if match(r"^HETATM", line) !== nothing
             push!(lines_clean, line)
         end
-        if match(r"^ENDMDL", line) != nothing || (i == length(lines) && !isempty(lines_clean))
+        if match(r"^ENDMDL", line) !== nothing || (i == length(lines) && !isempty(lines_clean))
             push!(model, lines_clean)
             lines_clean = []
         end
@@ -959,7 +959,7 @@ function readpdb(filename::String)
         num = parse_line(line, 7:12, String, "0")
         if iatom == 1 || pdb_serial[iatom-1] < 99999
             pdb_serial[iatom] = parse(Int64, num)
-        elseif match(r"\*", num) != nothing
+        elseif match(r"\*", num) !== nothing
             pdb_serial[iatom] = iatom == 1 ? 1 : pdb_serial[iatom-1]
         else
             pdb_serial[iatom] = parse(Int64, num)
@@ -1122,7 +1122,7 @@ function readgenesislog(filename::String)
     count = 0
     for line in lines
         r = findfirst("INFO:", line)
-        if r != nothing
+        if r !== nothing
             if is_first
                 is_first = false
                 ks = String.(split(line)[2:end])
@@ -1174,7 +1174,7 @@ function readcrd(filename::String)
 end
 
 """
-write NMD file used in Normal Mode Wizard in VMD
+write NMD file used in Normal Mode Wizard of VMD
 """
 function writenmd(filename::AbstractString, ta::TrjArray, F)
     open(filename, "w") do io
