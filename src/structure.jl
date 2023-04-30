@@ -877,11 +877,10 @@ function compute_rmsf(ta::TrjArray{T, U}; isweight::Bool=true)::Vector{T} where 
 end
 
 """
-    compute_distance(ta::TrjArray{T, U}, index=[1 2]::AbstractMatrix{U})::Matrix{T} where {T, U}
+    compute_distance(ta::TrjArray{T, U}, index::AbstractMatrix{U})::Matrix{T} where {T, U}
 
 Calculates distances between two atom pairs specified by the Matrix object `index`. 
 Each row vector in `index` contains two column indices for calculating distance. 
-Default of `index` is `[1 2]`. 
 
 Returns distances specified pairs in `index`. 
 
@@ -907,11 +906,10 @@ function compute_distance(ta::TrjArray{T, U}, index::AbstractMatrix{U})::Matrix{
 end
 
 """
-    compute_distance(ta1::TrjArray, ta2::TrjArray, index::Matrix)
+    compute_distance(ta1::TrjArray{T, U}, ta2::TrjArray{T, U}, index::AbstractMatrix{U})::Matrix{T} where {T, U}
 
 Calculates distances between two atom pairs in `ta1` and `ta2` specified by the Matrix object `index`. 
 Each row vector in `index` contains a column index of `ta1` and column index of `ta2` for calculating distance. 
-Default of `index` is `[1 1]`. 
 
 Returns distances specified pairs in `index`. 
 
