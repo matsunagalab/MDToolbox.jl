@@ -545,7 +545,7 @@ function select_atom(ta::TrjArray, s::AbstractString)
     "TPH TPL TPO TPQ TQI TQQ TRF TRG TRN TRO TRP TRQ TRW TRX TRY TST TTQ TTS TXY TY1 TY2 " *
     "TY3 TY5 TYB TYI TYJ TYN TYO TYQ TYR TYS TYT TYW TYX TYY TZB TZO UMA UN1 UN2 UNK VAD " *
     "VAF VAL VB1 VDL VLL VLM VMS VOL WLU WPA WRP WVL X2W XCN XCP XDT XPL XPR XSN XX1 YCM " *
-    "YOF YTH Z01 ZAL ZCL ZFB ZU0 ZZJ")
+    "YOF YTH Z01 ZAL ZCL ZFB ZU0 ZZJ HSD HSE HSP CYX")
 
     # attributes for selection
     s = replace(s, "chainid" => "match_query(chainid, \" ")
@@ -644,13 +644,13 @@ function vcat(ta_collection::TrjArray...)
             if !isempty(ta_collection[i].boxsize)
                 boxsize = [boxsize; ta_collection[i].boxsize]
             else
-                @printf "Warning: boxsize information discarded in some trajectories\n"
+                #@printf "Warning: boxsize information discarded in some trajectories\n"
                 is_box = false
                 boxsize = Matrix{T}(undef, 0, 0)
             end
         else
             if !isempty(ta_collection[i].boxsize)
-                @printf "Warning: boxsize information discarded in some trajectories\n"
+                #@printf "Warning: boxsize information discarded in some trajectories\n"
             end
         end
     end
