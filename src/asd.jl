@@ -232,11 +232,11 @@ function readHeaderV1(io::IOStream)
 end
 
 """
-ADのバイナリ－物理量の変換公式は
+ADのバイナリ-物理量の変換公式は
 物理量 = ボードのAD変換レンジ*(サンプリングバイナリデータ)/2^(分解能) - ボードのAD変換レンジの半分。
 また、PIDの信号を高さ情報として取り込んでいるので、
 
-バイナリデータが大きい　＝　PIDの出力電圧が高い　＝　試料に対して押し込んでいる　＝　高さが低い
+バイナリデータが大きい = PIDの出力電圧が高い = 試料に対して押し込んでいる = 高さが低い
 
 という関係になる。
 したがって、高さの最大最小は
@@ -262,8 +262,13 @@ function binaryToPhysicalQuantity!(data, header, chanelType)
         @assert false "invalid chanelType"
     end
 
-    # nm -> angstrom(要議論)
-    unitConversion = 10
+    if unit == "angstrom"
+        # nm -> angstrom(要議論)
+        unitConversion = 10.0
+    else
+        # nm
+        unitConversion = 1.0
+    end
 
     for y in 1:header.pixelY, x in 1:header.pixelX
         data[y, x] = (adUiniRange - data[y, x] * cc) * multiplier * unitConversion
@@ -289,13 +294,13 @@ function readFrameHeader(io::IOStream, header::Header)
     return FrameHeader(number, maxData, minData, offsetX, offsetY, tiltX, tiltY, isStimulated, booked1, booked2, booked3, booked4)
 end
 
-function readImage(io::IOStream, header, chanelType)
+function readImage(io::IOStream, header, chanelType, unit)
     data = zeros(header.pixelY, header.pixelX)
     # TODO: 平均化回数が1じゃないことがあるらしい(今は不必要？)
     for y in 1:header.pixelY, x in 1:header.pixelX
         data[y, x] = Int64(read(io, Int16))
     end
-    binaryToPhysicalQuantity!(data, header, chanelType)
+    binaryToPhysicalQuantity!(data, header, chanelType, unit)
     return data
 end
 
@@ -349,7 +354,25 @@ function makeExpandedAsd(header, readFrameRange, frameHeaders, datas, subDatas, 
     return Asd(Header(), frames)
 end
 
-function readasd(filePath; readFrameRange = nothing, translationSetting = nothing, maxFrameSize = 1000000)
+"""
+    readasd(filePath; readFrameRange=nothing, translationSetting=nothing, unit="angstrom", maxFrameSize=1000000) -> output::Asd
+
+Read a specified ASD file. The user can specify a range of frames to read by `readFrameRange` option.
+readFrameRange is a tuple of (startFrame, endFrame). The user can specify a translation setting by `translationSetting` option.
+If translationSetting is "expansion", images are expanded so as to cancel out the translational offset (moving of the focus) of each frame.
+The unit of output data is specified by `unit` option. If unit is "angstrom" (default), the unit is converted to angstrom.
+Otherwise, the unit is kept as the original unit (nanometer by default).
+
+Return a `Asd` object as output. The Asd objects contains header and (multiple) frame(s) information.
+
+# Example
+```julia-repl
+julia> asd = mdload("ak.asd")
+julia> asd.header
+julia> asd.frames[1]
+```
+"""
+function readasd(filePath; readFrameRange = nothing, translationSetting = nothing, unit = "angstrom", maxFrameSize = 1000000)
     open(filePath, "r") do io
         # io_pos = position(io)
         headerVersion = Int64(read(io, Int32))
@@ -388,7 +411,7 @@ function readasd(filePath; readFrameRange = nothing, translationSetting = nothin
             end
             seek(io, header.fileHeaderSize + oneFrameSize * (header.numFrames + i - 1))
             push!(subFrameHeaders, readFrameHeader(io, header))
-            push!(subDatas, readImage(io, header, header.dataType1ch))
+            push!(subDatas, readImage(io, header, header.dataType1ch, unit))
         end
 
         if translationSetting == "expansion"
