@@ -370,6 +370,8 @@ Return a `Asd` object as output. The Asd objects contains header and (multiple) 
 julia> asd = mdload("ak.asd")
 julia> asd.header
 julia> asd.frames[1]
+julia> using Plots
+julia> heatmap(asd.frames[1].data)
 ```
 """
 function readasd(filePath; readFrameRange = nothing, translationSetting = nothing, unit = "angstrom", maxFrameSize = 1000000)
