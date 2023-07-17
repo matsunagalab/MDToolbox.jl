@@ -244,7 +244,7 @@ ADのバイナリ-物理量の変換公式は
 高さ最値小 = バイナリ最大値から計算した高さ
 高さ最大値 = バイナリ最小値から計算した高さ
 """
-function binaryToPhysicalQuantity!(data, header, chanelType)
+function binaryToPhysicalQuantity!(data, header, chanelType, unit)
     # 電圧データに変換
     cc = header.adRange / header.AdResolution
     adUiniRange = header.adRange / 2
@@ -387,7 +387,7 @@ function readasd(filePath; readFrameRange = nothing, translationSetting = nothin
         
         header.fileHeaderSize = position(io)
         readFrameHeader(io, header)
-        readImage(io, header, header.dataType1ch)
+        readImage(io, header, header.dataType1ch, unit)
         oneFrameSize = position(io) - header.fileHeaderSize
         seek(io, header.fileHeaderSize)
 
@@ -401,7 +401,7 @@ function readasd(filePath; readFrameRange = nothing, translationSetting = nothin
         for i in readFrameRange[1]:readFrameRange[2]
             seek(io, header.fileHeaderSize + oneFrameSize * (i - 1))
             push!(frameHeaders, readFrameHeader(io, header))
-            push!(datas, readImage(io, header, header.dataType1ch))
+            push!(datas, readImage(io, header, header.dataType1ch, unit))
         end
 
         for i in readFrameRange[1]:readFrameRange[2]
