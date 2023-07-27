@@ -9,10 +9,12 @@ using FFTW
 #using Bio3DView
 using CUDA
 using ProgressMeter
-using MetaGraphs, Graphs, GraphRecipes, Plots
+using Plots
+using MetaGraphs, Graphs, GraphRecipes
 using ChainRulesCore
 import ChainRulesCore: rrule
-import BioStructures
+#import BioStructures
+import Chemfiles
 
 # standard library
 using Printf
@@ -26,7 +28,7 @@ using Base.Threads
 # package code goes here
 export KB_kcalpermol, KB_kjpermol
 export AbstractTrajectory, TrjArray, to3, select_atom
-export mdload, mdsave, readdcd, writedcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readnamdbin, writenamdbin, readcrd
+export mdload, mdsave, readdcd, writedcd, readnetcdf, writenetcdf, readpsf, writepsf, readpdb, writepdb, readnamdbin, writenamdbin, readcrd, writenmd
 export centerofmass, decenter, decenter!, orient!
 export rotate, rotate!, rotate_with_matrix, superimpose, superimpose_serial, compute_rmsd, meanstructure, compute_rmsf
 export compute_distance, compute_distancemap, compute_contactmap, compute_angle, compute_dihedral
@@ -35,7 +37,7 @@ export clusterkcenters, clusterkmeans, clustercutoff, compute_cov, rsvd, pca, ti
 export propagate_mcmc, propagate_md
 export ksdensity, ksdensity_serial, compute_pmf
 export wham, wham_iteration
-export mbar, mbar_weight
+export mbar, mbar_f, mbar_weight
 export msmplot, msmgenerate, msmcountmatrix, msmtransitionmatrix, msmforward, msmforward_missing, msmbackward, msmbackward_missing, msmbaumwelch, msmbaumwelch_missing, msmviterbi, msmimpliedtime
 export sp_delta_pmf_with_gaussian, sp_delta_pmf_with_kde, sp_design_matrix, sp_design_matrix_atom, sp_lsquares, sp_admm, sp_descent, sp_standardize!, sp_standardize, sp_cumulate_pmf, sp_cumulate_pmf_atom
 export idilation, ierosion, itip_estimate!, surfing, afmize, AfmizeConfig, translateafm, getafmposterior, getposterior_parallel
@@ -48,6 +50,7 @@ const KB_kjpermol = 0.0083144621 #Boltzmann constant taken from wikipedia
 
 # codes
 include("trjarray.jl")
+#include("conversion.jl")
 include("fileio.jl")
 include("structure.jl")
 include("reduction.jl")

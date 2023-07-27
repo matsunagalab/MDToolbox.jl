@@ -169,6 +169,85 @@ function mbar(u_kl; tol=1e-8, iterations_self=10)
 end
 
 """
+    mbar_f(u_kl, f_k, u_k=nothing)
+
+Calculate the free energy value at the target thermodynamics state (ensemble) 
+by using the Multistate Bennet Acceptance Ratio Method (MBAR). 
+Let K be # of thermodynamic states. `u_kl` is a K x K Array whose elements are reduced bias-factors or 
+potential energies of state k evaluated at state l. `f_k` is dimension dimensionless free energies `f_k` 
+obtained by prior MBAR calculation. If `u_k` (reduced potential energies of the target state) is given, 
+weights for that state are computed. By default `u_k = nothing`, in thise case zero potential 
+energies are used for computing weights (useful for umbrella sampling data). 
+
+Returns an estimated free energy value `f` computed at the target thermodynamic state. 
+
+# Example
+```julia-repl
+see Juypter notebooks in MDToolbox.jl/examples/
+```
+
+# References
+```
+M. R. Shirts and J. D. Chodera, J. Chem. Phys. 129, 124105 (2008).
+```
+"""
+function mbar_f(u_kl, f_k, u_k=nothing)
+    # K: number of umbrella windows
+    K, L = size(u_kl)
+
+    # N_k: number of data in k-th umbrella window
+    N_k = zeros(Int64, K)
+    for k = 1:K
+        N_k[k] = length(u_kl[k, 1])
+    end
+    N_max = maximum(N_k)
+    
+    # conversion from array of array (u_kl) to array (u_kln)
+    u_kln = zeros(Float64, K, K, N_max)
+    for k = 1:K
+        for l = 1:K
+            u_kln[k, l, 1:N_k[k]] .= u_kl[k, l]
+        end
+    end
+
+    # conversion from cell (u_k) to array (u_kn)
+    u_kn = zeros(Float64, K, N_max)
+    for k = 1:K
+        if u_k === nothing
+            u_kn[1, 1:N_k[k]] .= zero(Float64)
+        else
+            u_kn[k, 1:N_k[k]] .= u_k[k]
+        end
+    end
+
+    log_w_kn = zeros(Float64, K, N_max)
+    for k = 1:K
+      log_w_kn[k, 1:N_k[k]] .= 1.0
+    end
+    idx = log_w_kn .> 0.5;
+
+    log_w_kn = mbar_log_wi_jn(N_k, f_k, u_kln, u_kn, K, N_max)
+    f_hat = - logsumexp_1d(log_wi_jn[idx])
+
+    return f_hat
+end
+
+function ChainRulesCore.rrule(::typeof(mbar_f), u_kl, f_k, u_k)
+    f_hat = mbar_f(u_kl, f_k, u_k)
+    function mbar_f_pullback(df)
+        du_k = deepcopy(w_k)
+        exp_minus_f_hat = exp(-f_hat)
+        for k = 1:length(w_k)
+            for n = 1:length(w_k[k])
+                du_k[k][n] = exp_minus_f_hat * w_k[k][n] * df
+            end
+        end
+        return NoTangent(), ZeroTangent(), NoTangent(), du_k
+    end
+    return f_hat, mbar_f_pullback
+end
+
+"""
     mbar_weight(u_kl, f_k, u_k=nothing)
 
 Calculate weights for computing expectations at the target thermodynamics state (ensemble) 
