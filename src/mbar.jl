@@ -234,6 +234,7 @@ end
 
 function ChainRulesCore.rrule(::typeof(mbar_f), u_kl, f_k, u_k)
     f_hat = mbar_f(u_kl, f_k, u_k)
+    w_k = mbar_weight(u_kl, f_k, u_k)
     function mbar_f_pullback(df)
         du_k = deepcopy(w_k)
         exp_minus_f_hat = exp(-f_hat)
