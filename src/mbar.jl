@@ -324,7 +324,8 @@ function ChainRulesCore.rrule(::typeof(mbar_weight), u_kl, f_k, u_k)
         du_k = deepcopy(w_k)
         for k = 1:length(w_k)
             for n = 1:length(w_k[k])
-                du_k[k][n] = dw_k[k][n] * (- w_k[k][n])
+                #du_k[k][n] = dw_k[k][n] * (- w_k[k][n])
+                du_k[k][n] = dw_k[k][n] * (- w_k[k][n] + w_k[k][n]^2)
             end
         end
         return NoTangent(), ZeroTangent(), NoTangent(), du_k
