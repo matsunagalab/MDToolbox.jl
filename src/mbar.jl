@@ -227,7 +227,7 @@ function mbar_f(u_kl, f_k, u_k=nothing)
     idx = log_w_kn .> 0.5;
 
     log_w_kn = mbar_log_wi_jn(N_k, f_k, u_kln, u_kn, K, N_max)
-    f_hat = - logsumexp_1d(log_wi_jn[idx])
+    f_hat = - logsumexp_1d(log_w_kn[idx])
 
     return f_hat
 end
