@@ -23,231 +23,798 @@ function get_acescore()
     return ace_score
 end
 
+
+# function get_iface_ij()
+#     iface_ij = Array{Float64}(undef, 12, 12)
+#     iface_ij[]=[0.678, 0.133, -0.007, 0.727, 0.091, -0.742, -0.625, -0.064, -0.382, -0.302, 1.221, 0.187,
+#     0.133, 0.180, 0.065, 0.295,	0.057,	-0.631,	-0.663,	0.612,	0.342,	-0.275,	0.604, 0.248,
+#     -0.007,	0.065,	-0.145,	0.093,	-0.265,	-1.078,	-1.176,	0.636,	0.355,	-0.552,	0.483,	0.109,
+#     0.727,	0.295,	0.093,	0.696,	-0.016,	-0.735,	-0.804,	0.525,	0.144,	-0.202,	1.116,	0.477,
+#     0.091,	0.057,	-0.265,	-0.016,	-0.601,	-0.928,	-1.046,	0.644,	0.615,	-0.573,	0.062,	-0.034,
+#     -0.742,	-0.631,	-1.078,	-0.735,	-0.928,	-0.914,	-1.696,	-0.577,	-0.430,	-1.495,	-0.303,	-0.867
+#     -0.625,	-0.663,	-1.176,	-0.804,	-1.046,	-1.696,	-1.938,	-0.214,	0.015,	-1.771,	0.092,	-1.040
+#     -0.064,	0.612,	0.636,	0.525,	0.644,	-0.577,	-0.214,	1.620,	1.233,	-0.001,	0.368,	0.822,
+#     -0.382,	0.342,	0.355,	0.144	0.615,	-0.430,	0.015,	1.233,	1.090,	0.050,	-0.024,	0.757,
+#     -0.302,	-0.275,	-0.552,	-0.202,	-0.573,	-1.495,	-1.771,	-0.001,	0.050,	-1.606,	0.253,	-0.572,
+#     1.221,	0.604,	0.483,	1.116,	0.062,	-0.303,	0.092,	0.368,	-0.024,	0.253,	1.884,	0.731,
+#     0.187,	0.248,	0.109,	0.477,	-0.034,	-0.867,	-1.040,	0.822,	0.757,	-0.572,	0.731,	0.399
+#     ]
+
+
+#     return iface_ij
+# end
+
+# function get_ifacescore()
+#     iface_ij = Array{Float64}(undef, 12)
+#     iface_ij[1] = -0.004 # ATOM TYPE "R+"
+#     iface_ij[2] = 0.106 # ATOM TYPE "Polar"
+#     iface_ij[3] = -0.187 # ATOM TYPE mc"
+#     iface_ij[4] = -0.142 # ATOM TYPE "RHK_mc"
+#     iface_ij[5] = -0.268 # ATOM TYPE "CG"
+#     iface_ij[6] = -0.856 # ATOM TYPE "WY_sc"
+#     iface_ij[7] = -1.120 # ATOM TYPE "MFW_sc"
+#     iface_ij[8] = 0.346 # ATOM TYPE "DE-"
+#     iface_ij[9] = 0.199 # ATOM TYPE "DE_mc"
+#     iface_ij[10] = 0.830 # ATOM TYPE "ILV_sc"
+#     iface_ij[11] = 0.392 # ATOM TYPE "K+"
+#     iface_ij[12] = 0.018 # ATOM TYPE "AILMV_mc"
+
+#     return iface_ij
+# end
+
+function get_iface_ij()
+    iface_ij = Array{Float64}(undef, 12, 12)
+    iface_ij[1,1] = 0.678 # ATOM TYPE "R+"
+    iface_ij[1,2] = 0.133 # ATOM TYPE "R+"
+    iface_ij[1,3] = -0.007 # ATOM TYPE "R+"
+    iface_ij[1,4] = 0.727 # ATOM TYPE "R+"
+    iface_ij[1,5] = 0.091 # ATOM TYPE "R+"
+    iface_ij[1,6] = -0.742 # ATOM TYPE "R+"
+    iface_ij[1,7] = -0.625 # ATOM TYPE "R+"
+    iface_ij[1,8] = -0.064 # ATOM TYPE "R+"
+    iface_ij[1,9] = -0.382 # ATOM TYPE "R+"
+    iface_ij[1,10] = -0.302 # ATOM TYPE "R+"
+    iface_ij[1,11] = 1.221 # ATOM TYPE "R+"
+    iface_ij[1,12] = 0.187 # ATOM TYPE "R+"
+    iface_ij[2,1] = 0.133 # ATOM TYPE "Polar"
+    iface_ij[2,2] = 0.180 # ATOM TYPE "R+"
+    iface_ij[2,3] = 0.065 # ATOM TYPE "R+"
+    iface_ij[2,4] = 0.295 # ATOM TYPE "R+"
+    iface_ij[2,5] = 0.057 # ATOM TYPE "R+"
+    iface_ij[2,6] = -0.631 # ATOM TYPE "R+"
+    iface_ij[2,7] = -0.663 # ATOM TYPE "R+"
+    iface_ij[2,8] = 0.612 # ATOM TYPE "R+"
+    iface_ij[2,9] = 0.342 # ATOM TYPE "R+"
+    iface_ij[2,10] = -0.275 # ATOM TYPE "R+"
+    iface_ij[2,11] = 0.604 # ATOM TYPE "R+"
+    iface_ij[2,12] = 0.248 # ATOM TYPE "R+"
+    iface_ij[3,1] = -0.007 # ATOM TYPE mc"
+    iface_ij[3,2] = 0.065 # ATOM TYPE "R+"
+    iface_ij[3,3] = -0.145 # ATOM TYPE "R+"
+    iface_ij[3,4] = 0.093 # ATOM TYPE "R+"
+    iface_ij[3,5] = -0.265 # ATOM TYPE "R+"
+    iface_ij[3,6] = -1.078 # ATOM TYPE "R+"
+    iface_ij[3,7] = -1.176 # ATOM TYPE "R+"
+    iface_ij[3,8] = 0.636 # ATOM TYPE "R+"
+    iface_ij[3,9] = 0.355 # ATOM TYPE "R+"
+    iface_ij[3,10] = -0.552 # ATOM TYPE "R+"
+    iface_ij[3,11] = 0.483 # ATOM TYPE "R+"
+    iface_ij[3,12] = 0.109 # ATOM TYPE "R+"
+    iface_ij[4,1] = 0.727 # ATOM TYPE "RHK_mc"
+    iface_ij[4,2] = 0.295 # ATOM TYPE "R+"
+    iface_ij[4,3] = 0.093 # ATOM TYPE "R+"
+    iface_ij[4,4] = 0.696 # ATOM TYPE "R+"
+    iface_ij[4,5] = -0.016 # ATOM TYPE "R+"
+    iface_ij[4,6] = -0.735 # ATOM TYPE "R+"
+    iface_ij[4,7] = -0.804 # ATOM TYPE "R+"
+    iface_ij[4,8] = 0.525 # ATOM TYPE "R+"
+    iface_ij[4,9] = 0.144 # ATOM TYPE "R+"
+    iface_ij[4,10] = -0.202 # ATOM TYPE "R+"
+    iface_ij[4,11] = 1.116 # ATOM TYPE "R+"
+    iface_ij[4,12] = 0.477 # ATOM TYPE "R+"
+    iface_ij[5,1] = 0.091 # ATOM TYPE "CG"
+    iface_ij[5,2] = 0.057 # ATOM TYPE "R+"
+    iface_ij[5,3] = -0.265 # ATOM TYPE "R+"
+    iface_ij[5,4] = -0.016 # ATOM TYPE "R+"
+    iface_ij[5,5] = -0.601 # ATOM TYPE "R+"
+    iface_ij[5,6] = -0.928 # ATOM TYPE "R+"
+    iface_ij[5,7] = -1.046 # ATOM TYPE "R+"
+    iface_ij[5,8] = 0.644 # ATOM TYPE "R+"
+    iface_ij[5,9] = 0.615 # ATOM TYPE "R+"
+    iface_ij[5,10] = -0.573 # ATOM TYPE "R+"
+    iface_ij[5,11] = 0.062 # ATOM TYPE "R+"
+    iface_ij[5,12] = -0.034 # ATOM TYPE "R+"
+    iface_ij[6,1] = -0.742 # ATOM TYPE "WY_sc"
+    iface_ij[6,2] = -0.631 # ATOM TYPE "R+"
+    iface_ij[6,3] = -1.078 # ATOM TYPE "R+"
+    iface_ij[6,4] = -0.735 # ATOM TYPE "R+"
+    iface_ij[6,5] = -0.928 # ATOM TYPE "R+"
+    iface_ij[6,6] = -0.914 # ATOM TYPE "R+"
+    iface_ij[6,7] = -1.696 # ATOM TYPE "R+"
+    iface_ij[6,8] = -0.577 # ATOM TYPE "R+"
+    iface_ij[6,9] = -0.430 # ATOM TYPE "R+"
+    iface_ij[6,10] = -1.495 # ATOM TYPE "R+"
+    iface_ij[6,11] = -0.303 # ATOM TYPE "R+"
+    iface_ij[6,12] = -0.867 # ATOM TYPE "R+"
+    iface_ij[7,1] = -0.625 # ATOM TYPE "MFW_sc"
+    iface_ij[7,2] = -0.663 # ATOM TYPE "R+"
+    iface_ij[7,3] = -1.176 # ATOM TYPE "R+"
+    iface_ij[7,4] = -0.804 # ATOM TYPE "R+"
+    iface_ij[7,5] = -1.046 # ATOM TYPE "R+"
+    iface_ij[7,6] = -1.696 # ATOM TYPE "R+"
+    iface_ij[7,7] = -1.938 # ATOM TYPE "R+"
+    iface_ij[7,8] = -0.214 # ATOM TYPE "R+"
+    iface_ij[7,9] = 0.015 # ATOM TYPE "R+"
+    iface_ij[7,10] = -1.771 # ATOM TYPE "R+"
+    iface_ij[7,11] = 0.092 # ATOM TYPE "R+"
+    iface_ij[7,12] = -1.040 # ATOM TYPE "R+"
+    iface_ij[8,1] = -0.064 # ATOM TYPE "DE-"
+    iface_ij[8,2] = 0.612 # ATOM TYPE "R+"
+    iface_ij[8,3] = 0.636 # ATOM TYPE "R+"
+    iface_ij[8,4] = 0.525 # ATOM TYPE "R+"
+    iface_ij[8,5] = 0.644 # ATOM TYPE "R+"
+    iface_ij[8,6] = -0.577 # ATOM TYPE "R+"
+    iface_ij[8,7] = -0.214 # ATOM TYPE "R+"
+    iface_ij[8,8] = 1.620 # ATOM TYPE "R+"
+    iface_ij[8,9] = 1.233 # ATOM TYPE "R+"
+    iface_ij[8,10] = -0.001 # ATOM TYPE "R+"
+    iface_ij[8,11] = 0.368 # ATOM TYPE "R+"
+    iface_ij[8,12] = 0.822 # ATOM TYPE "R+"
+    iface_ij[9,1] = -0.382 # ATOM TYPE "DE_mc"
+    iface_ij[9,2] = 0.342 # ATOM TYPE "R+"
+    iface_ij[9,3] = 0.355 # ATOM TYPE "R+"
+    iface_ij[9,4] = 0.144 # ATOM TYPE "R+"
+    iface_ij[9,5] = 0.615 # ATOM TYPE "R+"
+    iface_ij[9,6] = -0.430 # ATOM TYPE "R+"
+    iface_ij[9,7] = 0.015 # ATOM TYPE "R+"
+    iface_ij[9,8] = 1.233 # ATOM TYPE "R+"
+    iface_ij[9,9] = 1.090 # ATOM TYPE "R+"
+    iface_ij[9,10] = 0.050 # ATOM TYPE "R+"
+    iface_ij[9,11] = -0.024 # ATOM TYPE "R+"
+    iface_ij[9,12] = 0.757 # ATOM TYPE "R+"
+    iface_ij[10,1] = -0.302 # ATOM TYPE "ILV_sc"
+    iface_ij[10,2] = -0.275 # ATOM TYPE "R+"
+    iface_ij[10,3] = -0.552 # ATOM TYPE "R+"
+    iface_ij[10,4] = -0.202 # ATOM TYPE "R+"
+    iface_ij[10,5] = -0.573 # ATOM TYPE "R+"
+    iface_ij[10,6] = -1.495 # ATOM TYPE "R+"
+    iface_ij[10,7] = -1.771 # ATOM TYPE "R+"
+    iface_ij[10,8] = -0.001 # ATOM TYPE "R+"
+    iface_ij[10,9] = 0.050 # ATOM TYPE "R+"
+    iface_ij[10,10] = -1.606 # ATOM TYPE "R+"
+    iface_ij[10,11] = 0.253 # ATOM TYPE "R+"
+    iface_ij[10,12] = -0.572 # ATOM TYPE "R+"
+    iface_ij[11,1] = 1.221 # ATOM TYPE "K+"
+    iface_ij[11,2] = 0.604 # ATOM TYPE "R+"
+    iface_ij[11,3] = 0.483 # ATOM TYPE "R+"
+    iface_ij[11,4] = 1.116 # ATOM TYPE "R+"
+    iface_ij[11,5] = 0.062 # ATOM TYPE "R+"
+    iface_ij[11,6] = -0.303 # ATOM TYPE "R+"
+    iface_ij[11,7] = 0.092 # ATOM TYPE "R+"
+    iface_ij[11,8] = 0.368 # ATOM TYPE "R+"
+    iface_ij[11,9] = -0.024 # ATOM TYPE "R+"
+    iface_ij[11,10] = 0.253 # ATOM TYPE "R+"
+    iface_ij[11,11] = 1.884 # ATOM TYPE "R+"
+    iface_ij[11,12] = 0.731 # ATOM TYPE "R+"
+    iface_ij[12,1] = 0.187 # ATOM TYPE "AILMV_mc"
+    iface_ij[12,2] = 0.248 # ATOM TYPE "R+"
+    iface_ij[12,3] = 0.109 # ATOM TYPE "R+"
+    iface_ij[12,4] = 0.477 # ATOM TYPE "R+"
+    iface_ij[12,5] = -0.034 # ATOM TYPE "R+"
+    iface_ij[12,6] = -0.867 # ATOM TYPE "R+"
+    iface_ij[12,7] = -1.040 # ATOM TYPE "R+"
+    iface_ij[12,8] = 0.822 # ATOM TYPE "R+"
+    iface_ij[12,9] = 0.757 # ATOM TYPE "R+"
+    iface_ij[12,10] = -0.572 # ATOM TYPE "R+"
+    iface_ij[12,11] = 0.731 # ATOM TYPE "R+"
+    iface_ij[12,12] = 0.399 # ATOM TYPE "R+"
+
+    return iface_ij
+end
+
+# function set_atomtype_id(ta::TrjArray{T,U}) where {T,U}
+#     atomtype_id = Array{Int64}(undef, ta.natom)
+
+#     for iatom = 1:ta.natom
+#         # ATOM TYPE "N"
+#         if ta.atomname[iatom] == "N"
+#             atomtype_id[iatom] = 1
+
+#             # ATOM TYPE "C"
+#         elseif ta.resname[iatom] == "C"
+#             atomtype_id[iatom] = 3
+
+#             # ATOM TYPE "O"
+#         elseif ta.resname[iatom] == "O" || ta.atomname[iatom] == "OXT"
+#             atomtype_id[iatom] = 4
+
+#             # ATOM TYPE "GCA"
+#         elseif ta.resname[iatom] == "GLY" && atomname[iatom] == "CA"
+#             atomtype_id[iatom] = 5
+
+#             # ATOM TYPE "CA"
+#         elseif ta.resname[iatom] == "CA"
+#             atomtype_id[iatom] = 2
+
+#             # ATOM TYPE "CB"
+#         elseif ta.resname[iatom] == "ALA" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CD"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "THR" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+#         elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 6
+
+#             # ATOM TYPE "KNZ"
+#         elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CE"
+#             atomtype_id[iatom] = 7
+#         elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "NZ"
+#             atomtype_id[iatom] = 7
+
+#             # ATOM TYPE "KCD"
+#         elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CD"
+#             atomtype_id[iatom] = 8
+
+#             # ATOM TYPE "DOD"
+#         elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 9
+#         elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "OD1"
+#             atomtype_id[iatom] = 9
+#         elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "OD2"
+#             atomtype_id[iatom] = 9
+#         elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CD"
+#             atomtype_id[iatom] = 9
+#         elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "OE1"
+#             atomtype_id[iatom] = 9
+#         elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "OE2"
+#             atomtype_id[iatom] = 9
+
+#             # ATOM TYPE "RNH"
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CZ"
+#             atomtype_id[iatom] = 10
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NH1"
+#             atomtype_id[iatom] = 10
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NH2"
+#             atomtype_id[iatom] = 10
+
+#             # ATOM TYPE "NND"
+#         elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 11
+#         elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "OD1"
+#             atomtype_id[iatom] = 11
+#         elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "ND2"
+#             atomtype_id[iatom] = 11
+#         elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CD"
+#             atomtype_id[iatom] = 11
+#         elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "OE1"
+#             atomtype_id[iatom] = 11
+#         elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "NE2"
+#             atomtype_id[iatom] = 11
+
+#             # ATOM TYPE "RNE"
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CD"
+#             atomtype_id[iatom] = 12
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NE"
+#             atomtype_id[iatom] = 12
+
+#             # ATOM TYPE "SOG"
+#         elseif ta.resname[iatom] == "SER" && atomname[iatom] == "CB"
+#             atomtype_id[iatom] = 13
+#         elseif ta.resname[iatom] == "SER" && atomname[iatom] == "OG"
+#             atomtype_id[iatom] = 13
+#         elseif ta.resname[iatom] == "THR" && atomname[iatom] == "OG1"
+#             atomtype_id[iatom] = 13
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "OH"
+#             atomtype_id[iatom] = 13
+
+#             # ATOM TYPE "HNE"
+#         elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 14
+#         elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "ND1"
+#             atomtype_id[iatom] = 14
+#         elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CD2"
+#             atomtype_id[iatom] = 14
+#         elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CE1"
+#             atomtype_id[iatom] = 14
+#         elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "NE2"
+#             atomtype_id[iatom] = 14
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "NE1"
+#             atomtype_id[iatom] = 14
+
+#             # ATOM TYPE "YCZ"
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CE1"
+#             atomtype_id[iatom] = 15
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CE2"
+#             atomtype_id[iatom] = 15
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CZ"
+#             atomtype_id[iatom] = 15
+
+#             # ATOM TYPE "FCZ"
+#         elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CG1"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "MET" && atomname[iatom] == "SD"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CD1"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CD2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CE1"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CE2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CZ"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "THR" && atomname[iatom] == "CG2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CD1"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CD2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CE2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CE3"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CZ2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CZ3"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CH2"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CG"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CD1"
+#             atomtype_id[iatom] = 16
+#         elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CD2"
+#             atomtype_id[iatom] = 16
+
+#             # ATOM TYPE "LCD"
+#         elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CG2"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CD"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CD1"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CD1"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CD2"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CE"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CG1"
+#             atomtype_id[iatom] = 17
+#         elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CG2"
+#             atomtype_id[iatom] = 17
+
+#             # ATOM TYPE "CSG"
+#         elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "SG"
+#             atomtype_id[iatom] = 18
+#         else
+#             error("error: faled to assign atom type " * ta.resname[iatom] * "-" * ta.atomname[iatom])
+#         end
+#     end
+
+#     return TrjArray(ta, atomtype_id=atomtype_id)
+# end
+
+# iface_ijでの分類
 function set_atomtype_id(ta::TrjArray{T,U}) where {T,U}
     atomtype_id = Array{Int64}(undef, ta.natom)
 
+    atomname = deepcopy(ta.atomname)
+    for i = 1:ta.natom
+        if atomname[i] == "OXT"
+            atomname[i] = "O"
+        end
+    end
+
     for iatom = 1:ta.natom
-        # ATOM TYPE "N"
-        if ta.atomname[iatom] == "N"
+        # ATOM TYPE "R+"
+        if ta.resname[iatom] == "ARG" && atomname[iatom] == "CZ"
+            atomtype_id[iatom] = 1
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NE"
+            atomtype_id[iatom] = 1
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NH1"
+            atomtype_id[iatom] = 1
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NH2"
+            atomtype_id[iatom] = 1
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CG"
             atomtype_id[iatom] = 1
 
-            # ATOM TYPE "C"
-        elseif ta.atomname[iatom] == "C"
-            atomtype_id[iatom] = 3
-
-            # ATOM TYPE "O"
-        elseif ta.atomname[iatom] == "O" || ta.atomname[iatom] == "OXT"
-            atomtype_id[iatom] = 4
-
-            # ATOM TYPE "GCA"
-        elseif ta.resname[iatom] == "GLY" && ta.atomname[iatom] == "CA"
-            atomtype_id[iatom] = 5
-
-            # ATOM TYPE "CA"
-        elseif ta.atomname[iatom] == "CA"
+            # ATOM TYPE "Polar"
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "ND2"
+            atomtype_id[iatom] = 2        
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "ASN" && atomname[iatom] == "OD1"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CD"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "NE2"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "OE1"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "SER" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "SER" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "SER" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "SER" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "SER" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "SER" && atomname[iatom] == "OG"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "CG2"
+            atomtype_id[iatom] = 2        
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 2
+        elseif ta.resname[iatom] == "THR" && atomname[iatom] == "OG1"
             atomtype_id[iatom] = 2
 
-            # ATOM TYPE "CB"
-        elseif ta.resname[iatom] == "ALA" && ta.atomname[iatom] == "CB"
+            # ATOM TYPE "mc"
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "GLN" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CD"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CD2"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 3
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 3
+
+            # ATOM TYPE "RHK_mc"
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CD"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CD2"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CE1"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "ND1"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "HIS" && atomname[iatom] == "NE2"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 4
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 4
+
+            # ATOM TYPE "CG"
+        elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "CYS" && atomname[iatom] == "SG"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "GLY" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "GLY" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "GLY" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 5
+        elseif ta.resname[iatom] == "GLY" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 5
+
+            # ATOM TYPE "WY_sc"
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CD1"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CE2"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "ASN" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CZ2"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "ASP" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "NE1"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "CYS" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CD1"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "GLN" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CD2"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CE1"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "HIS" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CE2"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "ILE" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "CZ"
             atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "LEU" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "LYS" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "MET" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "PRO" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "PRO" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "PRO" && ta.atomname[iatom] == "CD"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "THR" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 6
-        elseif ta.resname[iatom] == "VAL" && ta.atomname[iatom] == "CB"
+        elseif ta.resname[iatom] == "TYR" && atomname[iatom] == "OH"
             atomtype_id[iatom] = 6
 
-            # ATOM TYPE "KNZ"
-        elseif ta.resname[iatom] == "LYS" && ta.atomname[iatom] == "CE"
+            # ATOM TYPE "MFW_sc"
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CB"
             atomtype_id[iatom] = 7
-        elseif ta.resname[iatom] == "LYS" && ta.atomname[iatom] == "NZ"
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CE"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "SD"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CD1"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CD2"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CE1"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CE2"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "PHE" && atomname[iatom] == "CZ"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CE3"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CH2"
+            atomtype_id[iatom] = 7
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CZ3"
             atomtype_id[iatom] = 7
 
-            # ATOM TYPE "KCD"
-        elseif ta.resname[iatom] == "LYS" && ta.atomname[iatom] == "CD"
+            # ATOM TYPE "DE-"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 8
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "O"
             atomtype_id[iatom] = 8
 
-            # ATOM TYPE "DOD"
-        elseif ta.resname[iatom] == "ASP" && ta.atomname[iatom] == "CG"
+            # ATOM TYPE "DE_mc"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "CA"
             atomtype_id[iatom] = 9
-        elseif ta.resname[iatom] == "ASP" && ta.atomname[iatom] == "OD1"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "CB"
             atomtype_id[iatom] = 9
-        elseif ta.resname[iatom] == "ASP" && ta.atomname[iatom] == "OD2"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "CG"
             atomtype_id[iatom] = 9
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "CD"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "OD1"
             atomtype_id[iatom] = 9
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "OE1"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "OD2"
             atomtype_id[iatom] = 9
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "OE2"
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "CD"
+            atomtype_id[iatom] = 9
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "OE1"
+            atomtype_id[iatom] = 9
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "OE2"
             atomtype_id[iatom] = 9
 
             # ATOM TYPE "RNH"
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "CZ"
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CB"
             atomtype_id[iatom] = 10
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "NH1"
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CD1"
             atomtype_id[iatom] = 10
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "NH2"
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CG1"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CG2"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CD1"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CD2"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CG"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CG1"
+            atomtype_id[iatom] = 10
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CG2"
             atomtype_id[iatom] = 10
 
-            # ATOM TYPE "NND"
-        elseif ta.resname[iatom] == "ASN" && ta.atomname[iatom] == "CG"
+            # ATOM TYPE "K+"
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CD"
             atomtype_id[iatom] = 11
-        elseif ta.resname[iatom] == "ASN" && ta.atomname[iatom] == "OD1"
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "CE"
             atomtype_id[iatom] = 11
-        elseif ta.resname[iatom] == "ASN" && ta.atomname[iatom] == "ND2"
-            atomtype_id[iatom] = 11
-        elseif ta.resname[iatom] == "GLN" && ta.atomname[iatom] == "CD"
-            atomtype_id[iatom] = 11
-        elseif ta.resname[iatom] == "GLN" && ta.atomname[iatom] == "OE1"
-            atomtype_id[iatom] = 11
-        elseif ta.resname[iatom] == "GLN" && ta.atomname[iatom] == "NE2"
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "NZ"
             atomtype_id[iatom] = 11
 
             # ATOM TYPE "RNE"
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "CD"
+        elseif ta.resname[iatom] == "ALA" && atomname[iatom] == "C"
             atomtype_id[iatom] = 12
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "NE"
+        elseif ta.resname[iatom] == "ALA" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "ALA" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "ALA" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "ALA" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 12 
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "ILE" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "LEU" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "MET" && atomname[iatom] == "O"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "CB"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "TRP" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "C"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "CA"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "N"
+            atomtype_id[iatom] = 12
+        elseif ta.resname[iatom] == "VAL" && atomname[iatom] == "O"
             atomtype_id[iatom] = 12
 
-            # ATOM TYPE "SOG"
-        elseif ta.resname[iatom] == "SER" && ta.atomname[iatom] == "CB"
-            atomtype_id[iatom] = 13
-        elseif ta.resname[iatom] == "SER" && ta.atomname[iatom] == "OG"
-            atomtype_id[iatom] = 13
-        elseif ta.resname[iatom] == "THR" && ta.atomname[iatom] == "OG1"
-            atomtype_id[iatom] = 13
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "OH"
-            atomtype_id[iatom] = 13
-
-            # ATOM TYPE "HNE"
-        elseif ta.resname[iatom] == "HIS" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 14
-        elseif ta.resname[iatom] == "HIS" && ta.atomname[iatom] == "ND1"
-            atomtype_id[iatom] = 14
-        elseif ta.resname[iatom] == "HIS" && ta.atomname[iatom] == "CD2"
-            atomtype_id[iatom] = 14
-        elseif ta.resname[iatom] == "HIS" && ta.atomname[iatom] == "CE1"
-            atomtype_id[iatom] = 14
-        elseif ta.resname[iatom] == "HIS" && ta.atomname[iatom] == "NE2"
-            atomtype_id[iatom] = 14
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "NE1"
-            atomtype_id[iatom] = 14
-
-            # ATOM TYPE "YCZ"
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CE1"
-            atomtype_id[iatom] = 15
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CE2"
-            atomtype_id[iatom] = 15
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CZ"
-            atomtype_id[iatom] = 15
-
-            # ATOM TYPE "FCZ"
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "GLN" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "ILE" && ta.atomname[iatom] == "CG1"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "LEU" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "LYS" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "MET" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "MET" && ta.atomname[iatom] == "SD"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CD1"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CD2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CE1"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CE2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "PHE" && ta.atomname[iatom] == "CZ"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "THR" && ta.atomname[iatom] == "CG2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CD1"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CD2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CE2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CE3"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CZ2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CZ3"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TRP" && ta.atomname[iatom] == "CH2"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CG"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CD1"
-            atomtype_id[iatom] = 16
-        elseif ta.resname[iatom] == "TYR" && ta.atomname[iatom] == "CD2"
-            atomtype_id[iatom] = 16
-
-            # ATOM TYPE "LCD"
-        elseif ta.resname[iatom] == "ILE" && ta.atomname[iatom] == "CG2"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "ILE" && ta.atomname[iatom] == "CD"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "ILE" && ta.atomname[iatom] == "CD1"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "LEU" && ta.atomname[iatom] == "CD1"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "LEU" && ta.atomname[iatom] == "CD2"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "MET" && ta.atomname[iatom] == "CE"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "VAL" && ta.atomname[iatom] == "CG1"
-            atomtype_id[iatom] = 17
-        elseif ta.resname[iatom] == "VAL" && ta.atomname[iatom] == "CG2"
-            atomtype_id[iatom] = 17
-
-            # ATOM TYPE "CSG"
-        elseif ta.resname[iatom] == "CYS" && ta.atomname[iatom] == "SG"
-            atomtype_id[iatom] = 18
         else
             error("error: faled to assign atom type " * ta.resname[iatom] * "-" * ta.atomname[iatom])
         end
@@ -255,6 +822,8 @@ function set_atomtype_id(ta::TrjArray{T,U}) where {T,U}
 
     return TrjArray(ta, atomtype_id=atomtype_id)
 end
+
+
 
 function set_radius(ta::TrjArray{T,U}) where {T,U}
     radius = Array{T}(undef, ta.natom)
@@ -303,26 +872,26 @@ function set_charge(ta)
             end
 
             # ATOM TYPE "O"
-        elseif ta.atomname[iatom] == "O"
+        elseif ta.resname[iatom] == "O"
             charge[iatom] = -0.5
-        elseif ta.atomname[iatom] == "OXT"
+        elseif ta.resname[iatom] == "OXT"
             charge[iatom] = -1.0
 
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "NH1"
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NH1"
             charge[iatom] = 0.5
-        elseif ta.resname[iatom] == "ARG" && ta.atomname[iatom] == "NH2"
+        elseif ta.resname[iatom] == "ARG" && atomname[iatom] == "NH2"
             charge[iatom] = 0.5
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "OE1"
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "OE1"
             charge[iatom] = -0.5
-        elseif ta.resname[iatom] == "GLU" && ta.atomname[iatom] == "OE2"
+        elseif ta.resname[iatom] == "GLU" && atomname[iatom] == "OE2"
             charge[iatom] = -0.5
-        elseif ta.resname[iatom] == "ASP" && ta.atomname[iatom] == "OD1"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "OD1"
             charge[iatom] = -0.5
-        elseif ta.resname[iatom] == "ASP" && ta.atomname[iatom] == "OD2"
+        elseif ta.resname[iatom] == "ASP" && atomname[iatom] == "OD2"
             charge[iatom] = -0.5
-        elseif ta.resname[iatom] == "LYS" && ta.atomname[iatom] == "NZ"
+        elseif ta.resname[iatom] == "LYS" && atomname[iatom] == "NZ"
             charge[iatom] = 1.0
-        elseif ta.resname[iatom] == "PRO" && ta.atomname[iatom] == "N"
+        elseif ta.resname[iatom] == "PRO" && atomname[iatom] == "N"
             charge[iatom] = -0.1
 
         else
@@ -845,7 +1414,35 @@ function assign_sc_ligand!(grid_real::AbstractArray{T}, grid_imag::AbstractArray
     weight_c .= T(9.0)
     spread_neighbors_substitute!(grid_imag, x_c, y_c, z_c, x_grid, y_grid, z_grid, weight_c, radius_c .* T(sqrt(1.5)))
 
-    check_neighbors_ligand!(grid_real, grid_imag)
+    # check_neighbors_ligand!(grid_real, grid_imag)
+
+    return nothing
+end
+
+function assign_Rij!(grid_real::AbstractArray{T}, 
+    x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T},
+    x_grid::AbstractVector{T}, y_grid::AbstractVector{T}, z_grid::AbstractVector{T},
+    iface_ij::AbstractVector{T}) where {T}
+
+    grid_real .= zero(T)
+
+    radius = similar(iface_ij)
+    radius .= T(6.0)
+    spread_neighbors_add!(grid_real, x, y, z, x_grid, y_grid, z_grid, iface_ij, radius)
+
+    return nothing
+end
+
+function assign_Li!(grid_real::AbstractArray{T}, 
+    x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T},
+    x_grid::AbstractVector{T}, y_grid::AbstractVector{T}, z_grid::AbstractVector{T}
+    ) where {T}
+
+    grid_real .= zero(T)
+
+    radius = similar(x)
+    radius .= T(1.0)
+    spread_nearest_substitute!(grid_real, x, y, z, x_grid, y_grid, z_grid, radius)
 
     return nothing
 end
@@ -853,14 +1450,14 @@ end
 function assign_ds!(grid_real::AbstractArray{T}, grid_imag::AbstractArray{T},
     x::AbstractVector{T}, y::AbstractVector{T}, z::AbstractVector{T},
     x_grid::AbstractVector{T}, y_grid::AbstractVector{T}, z_grid::AbstractVector{T},
-    ace_score::AbstractVector{T}) where {T}
+    iface_ij::AbstractVector{T}) where {T}
 
     grid_real .= zero(T)
     grid_imag .= zero(T)
 
-    radius = similar(ace_score)
+    radius = similar(iface_ij)
     radius .= T(6.0)
-    spread_neighbors_add!(grid_real, x, y, z, x_grid, y_grid, z_grid, ace_score, radius)
+    spread_neighbors_add!(grid_real, x, y, z, x_grid, y_grid, z_grid, iface_ij, radius)
 
     radius .= T(1.0)
     spread_nearest_substitute!(grid_imag, x, y, z, x_grid, y_grid, z_grid, radius)
@@ -1070,8 +1667,8 @@ function docking(receptor_org::TrjArray{T,U}, ligand_org::TrjArray{T,U}, q::Abst
     return score_tops[1:ntop], receptor, ligand_return
 end
 
-function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, alpha::T, ace_score::AbstractVector{T}) where {T,U}
-    spacing = 1.5
+function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, alpha::T, iface_ij::AbstractArray{T}) where {T,U}
+    spacing = 3.0
     receptor = deepcopy(receptor_org)
     ligands = deepcopy(ligands_org)
 
@@ -1081,9 +1678,6 @@ function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, 
     grid_real, grid_imag, x_grid, y_grid, z_grid = generate_grid(receptor, ligands, spacing=spacing)
     nxyz = T(prod(size(grid_real)))
 
-    receptor = deepcopy(receptor_org)
-    ligands = deepcopy(ligands_org)
-
     com = centerofmass(receptor)
     receptor.xyz[:, 1:3:end] .= receptor.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
     receptor.xyz[:, 2:3:end] .= receptor.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
@@ -1092,8 +1686,8 @@ function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, 
     ligands.xyz[:, 2:3:end] .= ligands.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
     ligands.xyz[:, 3:3:end] .= ligands.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
 
-    receptor.mass .= ace_score[receptor.atomtype_id]
-    ligands.mass .= ace_score[ligands.atomtype_id]
+    # receptor.mass .= iface_ij[receptor.atomtype_id]
+    # ligands.mass .= iface_ij[ligands.atomtype_id]
 
     x = receptor.xyz[1, 1:3:end]
     y = receptor.xyz[1, 2:3:end]
@@ -1103,18 +1697,25 @@ function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, 
     assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
     grid_sc_receptor = grid_real .+ im .* grid_imag
 
-    assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
-    grid_ds_receptor = grid_real .+ im .* grid_imag
+    # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
+    # grid_ds_receptor = grid_real .+ im .* grid_imag
 
     x = ligands.xyz[1, 1:3:end]
     y = ligands.xyz[1, 2:3:end]
     z = ligands.xyz[1, 3:3:end]
+
+    x2 = receptor.xyz[1, 1:3:end]
+    y2 = receptor.xyz[1, 2:3:end]
+    z2 = receptor.xyz[1, 3:3:end]
+
     id_surface = ligands.sasa .> 1.0
 
     grid_sc_ligand = deepcopy(grid_sc_receptor)
-    grid_ds_ligand = deepcopy(grid_ds_receptor)
+    # grid_iface_ligand = deepcopy(grid_real)
+    # grid_iface_receptor = deepcopy(grid_real)
     score_sc = similar(grid_real, ligands.nframe)
-    score_ds = similar(grid_real, ligands.nframe)
+    score_iface = similar(grid_real, ligands.nframe)
+    score_iface .= zero(T)
     score_total = similar(grid_real, ligands.nframe)
 
     @showprogress for iframe = 1:ligands.nframe
@@ -1127,18 +1728,185 @@ function docking_score(receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, 
         multi = grid_sc_receptor .* grid_sc_ligand
         score_sc[iframe] = sum(real.(multi)) - sum(imag.(multi))
 
-        assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
-        grid_ds_ligand .= grid_real .+ im .* grid_imag
-        multi = grid_ds_receptor .* grid_ds_ligand
-        score_ds[iframe] = T(0.5) * sum(imag(multi))
+        # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
+        # grid_ds_ligand .= grid_real .+ im .* grid_imag
+        # multi = grid_ds_receptor .* grid_ds_ligand
+        # score_ds[iframe] = T(0.5) * sum(imag(multi))
 
-        score_total[iframe] = alpha .* score_sc[iframe] .+ score_ds[iframe]
+        for i = 1:12
+            idx = ligands.atomtype_id .== i 
+            assign_Li!(grid_real, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid)
+            for j = 1:12
+                k = 12 * (j-1) + i 
+                receptor.mass .= iface_ij[k]
+                idx = receptor.atomtype_id .== j
+                assign_Rij!(grid_imag, x2[idx], y2[idx], z2[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
+                score_iface[iframe] += sum(grid_real .* grid_imag)
+            end
+        end 
+
+
+        score_total[iframe] = alpha .* score_sc[iframe] .+ score_iface[iframe]
     end
 
     return score_total
 end
 
-function ChainRulesCore.rrule(::typeof(docking_score), receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, alpha::T, ace_score::AbstractVector{T}) where {T,U}
+# function ChainRulesCore.rrule(::typeof(docking_score), receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, alpha::T, iface_ij::AbstractVector{T}) where {T,U}
+#     spacing = 3.0
+#     receptor = deepcopy(receptor_org)
+#     ligands = deepcopy(ligands_org)
+
+#     decenter!(receptor)
+#     decenter!(ligands)
+
+#     grid_real, grid_imag, x_grid, y_grid, z_grid = generate_grid(receptor, ligands, spacing=spacing)
+#     nxyz = T(prod(size(grid_real)))
+
+#     com = centerofmass(receptor)
+#     receptor.xyz[:, 1:3:end] .= receptor.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
+#     receptor.xyz[:, 2:3:end] .= receptor.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
+#     receptor.xyz[:, 3:3:end] .= receptor.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
+#     ligands.xyz[:, 1:3:end] .= ligands.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
+#     ligands.xyz[:, 2:3:end] .= ligands.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
+#     ligands.xyz[:, 3:3:end] .= ligands.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
+
+#     # receptor.mass .= iface_ij[receptor.atomtype_id]
+#     # ligands.mass .= iface_ij[ligands.atomtype_id]
+
+#     x = receptor.xyz[1, 1:3:end]
+#     y = receptor.xyz[1, 2:3:end]
+#     z = receptor.xyz[1, 3:3:end]
+#     id_surface = receptor.sasa .> 1.0
+
+#     assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
+#     grid_sc_receptor = grid_real .+ im .* grid_imag
+
+#     # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
+#     # grid_ds_receptor = grid_real .+ im .* grid_imag
+
+#     x = ligands.xyz[1, 1:3:end]
+#     y = ligands.xyz[1, 2:3:end]
+#     z = ligands.xyz[1, 3:3:end]
+
+#     x2 = receptor.xyz[1, 1:3:end]
+#     y2 = receptor.xyz[1, 2:3:end]
+#     z2 = receptor.xyz[1, 3:3:end]
+
+#     id_surface = ligands.sasa .> 1.0
+
+#     grid_sc_ligand = deepcopy(grid_sc_receptor)
+#     # grid_iface_ligand = deepcopy(grid_real)
+#     # grid_iface_receptor = deepcopy(grid_real)
+#     score_sc = similar(grid_real, ligands.nframe)
+#     score_iface = similar(grid_real, ligands.nframe)
+#     score_iface .= zero(T)
+#     score_total = similar(grid_real, ligands.nframe)
+
+#     @showprogress for iframe = 1:ligands.nframe
+#         x .= ligands.xyz[iframe, 1:3:end]
+#         y .= ligands.xyz[iframe, 2:3:end]
+#         z .= ligands.xyz[iframe, 3:3:end]
+
+#         assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.radius, id_surface)
+#         grid_sc_ligand .= grid_real .+ im .* grid_imag
+#         multi = grid_sc_receptor .* grid_sc_ligand
+#         score_sc[iframe] = sum(real.(multi)) - sum(imag.(multi))
+
+#         # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
+#         # grid_ds_ligand .= grid_real .+ im .* grid_imag
+#         # multi = grid_ds_receptor .* grid_ds_ligand
+#         # score_ds[iframe] = T(0.5) * sum(imag(multi))
+
+#         for i = 1:12
+#             idx = ligands.atomtype_id .== i 
+#             assign_Li!(grid_real, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid)
+#             for j = 1:12
+#                 k = 12 * (j-1) + i 
+#                 receptor.mass .= iface_ij[k]
+#                 idx = receptor.atomtype_id .== j
+#                 assign_Rij!(grid_imag, x2[idx], y2[idx], z2[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
+#                 score_iface[iframe] += sum(grid_real .* grid_imag)
+#             end
+#         end 
+
+
+#         score_total[iframe] = alpha .* score_sc[iframe] .+ score_iface[iframe]
+#     end
+
+#     score_sc_old = deepcopy(score_sc)
+
+#     score_for_ifacescore = similar(grid_real, length(iface_ij), ligands.nframe)
+
+#     @showprogress for itype = 1:length(iface_ij)
+#         receptor.mass .= zero(T)
+#         ligands.mass .= zero(T)
+#         idx = receptor.atomtype_id .== iface_ij[itype]
+#         receptor.mass[idx] .= one(T)
+
+#         x = receptor.xyz[1, 1:3:end]
+#         y = receptor.xyz[1, 2:3:end]
+#         z = receptor.xyz[1, 3:3:end]
+#         id_surface = receptor.sasa .> 1.0
+    
+#         assign_Rij!(grid_imag, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
+
+#         # assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
+#         # grid_sc_receptor = grid_real .+ im .* grid_imag
+    
+#         # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
+#         # grid_ds_receptor = grid_real .+ im .* grid_imag
+
+#         idx = ligands.atomtype_id .== iface_ij[itype]
+#         ligands.mass[idx] .= one(T)
+
+#         x = ligands.xyz[1, 1:3:end]
+#         y = ligands.xyz[1, 2:3:end]
+#         z = ligands.xyz[1, 3:3:end]
+#         id_surface = ligands.sasa .> 1.0
+
+#         score_for_ifacescore = zeros(T, 12 * 12, ligands.nframe)
+
+#         for iframe = 1:ligands.nframe
+#             x .= ligands.xyz[iframe, 1:3:end]
+#             y .= ligands.xyz[iframe, 2:3:end]
+#             z .= ligands.xyz[iframe, 3:3:end]
+    
+#             # assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.radius, id_surface)
+#             # grid_sc_ligand .= grid_real .+ im .* grid_imag
+#             # multi = grid_sc_receptor .* grid_sc_ligand
+#             # score_sc[iframe] = sum(real.(multi)) - sum(imag.(multi))
+    
+#             # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
+#             # grid_ds_ligand .= grid_real .+ im .* grid_imag
+#             # multi = grid_ds_receptor .* grid_ds_ligand
+#             # score_ds[iframe] = T(0.5) * sum(imag(multi))
+
+#             for i = 1:12
+#                 idx = ligands.atomtype_id .== i 
+#                 assign_Li!(grid_real, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid)
+#                 for j = 1:12
+#                     k = 12 * (j-1) + i 
+#                     receptor.mass .= one(T)
+#                     idx = receptor.atomtype_id .== j
+#                     assign_Rij!(grid_imag, x2[idx], y2[idx], z2[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
+#                     score_iface[iframe] += sum(grid_real .* grid_imag)
+#                 end
+#             end 
+    
+#             # score_for_acescore[iscore, iframe] = alpha .* score_sc[iframe] .+ score_ds[iframe]
+#             score_for_ifacescore[itype, iframe] = score_iface[iframe]
+#         end
+#     end
+
+#     function docking_score_pullback(ybar)
+#         return NoTangent(), NoTangent(), NoTangent(), sum(score_sc_old .* ybar), score_for_ifacescore * ybar
+#     end
+
+#     return score_total, docking_score_pullback
+# end
+
+function ChainRulesCore.rrule(::typeof(MDToolbox.docking_score), receptor_org::TrjArray{T,U}, ligands_org::TrjArray{T,U}, alpha::T, iface_ij::AbstractVector{T}) where {T,U}
     spacing = 1.5
     receptor = deepcopy(receptor_org)
     ligands = deepcopy(ligands_org)
@@ -1146,11 +1914,8 @@ function ChainRulesCore.rrule(::typeof(docking_score), receptor_org::TrjArray{T,
     decenter!(receptor)
     decenter!(ligands)
 
-    grid_real, grid_imag, x_grid, y_grid, z_grid = generate_grid(receptor, ligands, spacing=spacing)
+    grid_real, grid_imag, x_grid, y_grid, z_grid = MDToolbox.generate_grid(receptor, ligands, spacing=spacing)
     nxyz = T(prod(size(grid_real)))
-
-    receptor = deepcopy(receptor_org)
-    ligands = deepcopy(ligands_org)
 
     com = centerofmass(receptor)
     receptor.xyz[:, 1:3:end] .= receptor.xyz[:, 1:3:end] .- com.xyz[:, 1:1]
@@ -1160,97 +1925,97 @@ function ChainRulesCore.rrule(::typeof(docking_score), receptor_org::TrjArray{T,
     ligands.xyz[:, 2:3:end] .= ligands.xyz[:, 2:3:end] .- com.xyz[:, 2:2]
     ligands.xyz[:, 3:3:end] .= ligands.xyz[:, 3:3:end] .- com.xyz[:, 3:3]
 
-    receptor.mass .= ace_score[receptor.atomtype_id]
-    ligands.mass .= ace_score[ligands.atomtype_id]
+    # receptor.mass .= iface_ij[receptor.atomtype_id]
+    # ligands.mass .= iface_ij[ligands.atomtype_id]
 
     x = receptor.xyz[1, 1:3:end]
     y = receptor.xyz[1, 2:3:end]
     z = receptor.xyz[1, 3:3:end]
     id_surface = receptor.sasa .> 1.0
 
-    assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
+    MDToolbox.assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
     grid_sc_receptor = grid_real .+ im .* grid_imag
 
-    assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
-    grid_ds_receptor = grid_real .+ im .* grid_imag
+    # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
+    # grid_ds_receptor = grid_real .+ im .* grid_imag
 
     x = ligands.xyz[1, 1:3:end]
     y = ligands.xyz[1, 2:3:end]
     z = ligands.xyz[1, 3:3:end]
+
+    x2 = receptor.xyz[1, 1:3:end]
+    y2 = receptor.xyz[1, 2:3:end]
+    z2 = receptor.xyz[1, 3:3:end]
+
     id_surface = ligands.sasa .> 1.0
 
     grid_sc_ligand = deepcopy(grid_sc_receptor)
-    grid_ds_ligand = deepcopy(grid_ds_receptor)
+
     score_sc = similar(grid_real, ligands.nframe)
-    score_ds = similar(grid_real, ligands.nframe)
+    score_iface = similar(grid_real, ligands.nframe)
+    score_iface .= zero(T)
     score_total = similar(grid_real, ligands.nframe)
 
-    for iframe = 1:ligands.nframe
+    @showprogress for iframe = 1:ligands.nframe
         x .= ligands.xyz[iframe, 1:3:end]
         y .= ligands.xyz[iframe, 2:3:end]
         z .= ligands.xyz[iframe, 3:3:end]
 
-        assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.radius, id_surface)
+        MDToolbox.assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.radius, id_surface)
         grid_sc_ligand .= grid_real .+ im .* grid_imag
         multi = grid_sc_receptor .* grid_sc_ligand
         score_sc[iframe] = sum(real.(multi)) - sum(imag.(multi))
 
-        assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
-        grid_ds_ligand .= grid_real .+ im .* grid_imag
-        multi = grid_ds_receptor .* grid_ds_ligand
-        score_ds[iframe] = T(0.5) * sum(imag(multi))
+        # assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
+        # grid_ds_ligand .= grid_real .+ im .* grid_imag
+        # multi = grid_ds_receptor .* grid_ds_ligand
+        # score_ds[iframe] = T(0.5) * sum(imag(multi))
 
-        score_total[iframe] = alpha .* score_sc[iframe] .+ score_ds[iframe]
+        for i = 1:12
+            idx = ligands.atomtype_id .== i
+            if any(idx)
+                MDToolbox.assign_Li!(grid_real, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid)
+                for j = 1:12
+                    k = 12 * (j-1) + i 
+                    receptor.mass .= iface_ij[k]
+                    idx = receptor.atomtype_id .== j
+                    if any(idx)
+                        MDToolbox.assign_Rij!(grid_imag, x2[idx], y2[idx], z2[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
+                        score_iface[iframe] += sum(grid_real .* grid_imag)
+                    end
+                end
+            end
+        end 
+        score_total[iframe] = alpha .* score_sc[iframe] .+ score_iface[iframe]
     end
     score_sc_old = deepcopy(score_sc)
 
-    score_for_acescore = similar(grid_real, length(ace_score), ligands.nframe)
-
-    @showprogress for iscore = 1:length(ace_score)
-        receptor.mass .= zero(T)
-        ligands.mass .= zero(T)
-        id = receptor.atomtype_id .== iscore
-        receptor.mass[id] .= one(T)
-        id = ligands.atomtype_id .== iscore
-        ligands.mass[id] .= one(T)
-
-        x = receptor.xyz[1, 1:3:end]
-        y = receptor.xyz[1, 2:3:end]
-        z = receptor.xyz[1, 3:3:end]
-        id_surface = receptor.sasa .> 1.0
+    score_for_ifacescore = similar(grid_real, length(iface_ij), ligands.nframe)
+    receptor.mass .= one(T)
     
-        assign_sc_receptor!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.radius, id_surface)
-        grid_sc_receptor = grid_real .+ im .* grid_imag
+    for iframe = 1:ligands.nframe
+        x .= ligands.xyz[iframe, 1:3:end]
+        y .= ligands.xyz[iframe, 2:3:end]
+        z .= ligands.xyz[iframe, 3:3:end]
     
-        assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, receptor.mass)
-        grid_ds_receptor = grid_real .+ im .* grid_imag
-
-        x = ligands.xyz[1, 1:3:end]
-        y = ligands.xyz[1, 2:3:end]
-        z = ligands.xyz[1, 3:3:end]
-        id_surface = ligands.sasa .> 1.0
-
-        for iframe = 1:ligands.nframe
-            x .= ligands.xyz[iframe, 1:3:end]
-            y .= ligands.xyz[iframe, 2:3:end]
-            z .= ligands.xyz[iframe, 3:3:end]
-    
-            assign_sc_ligand!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.radius, id_surface)
-            grid_sc_ligand .= grid_real .+ im .* grid_imag
-            multi = grid_sc_receptor .* grid_sc_ligand
-            score_sc[iframe] = sum(real.(multi)) - sum(imag.(multi))
-    
-            assign_ds!(grid_real, grid_imag, x, y, z, x_grid, y_grid, z_grid, ligands.mass)
-            grid_ds_ligand .= grid_real .+ im .* grid_imag
-            multi = grid_ds_receptor .* grid_ds_ligand
-            score_ds[iframe] = T(0.5) * sum(imag(multi))
-    
-            score_for_acescore[iscore, iframe] = alpha .* score_sc[iframe] .+ score_ds[iframe]
-        end
+        for i = 1:12
+            idx = ligands.atomtype_id .== i
+            if any(idx)
+                MDToolbox.assign_Li!(grid_real, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid)
+                for j = 1:12
+                    k = 12 * (j-1) + i 
+                    idx = receptor.atomtype_id .== j
+                    if any(idx)
+                        MDToolbox.assign_Rij!(grid_imag, x2[idx], y2[idx], z2[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
+                        score_for_ifacescore[k, iframe] = sum(grid_real .* grid_imag)
+                    end
+                end
+            end
+        end 
     end
 
     function docking_score_pullback(ybar)
-        return NoTangent(), NoTangent(), NoTangent(), sum(score_sc_old .* ybar), score_for_acescore * ybar
+        return NoTangent(), NoTangent(), NoTangent(), sum(score_sc_old .* ybar), score_for_ifacescore * ybar
     end
 
     return score_total, docking_score_pullback
