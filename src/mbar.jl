@@ -237,10 +237,9 @@ function ChainRulesCore.rrule(::typeof(mbar_f), u_kl, f_k, u_k)
     w_k = mbar_weight(u_kl, f_k, u_k)
     function mbar_f_pullback(df)
         du_k = deepcopy(w_k)
-        exp_minus_f_hat = exp(-f_hat)
         for k = 1:length(w_k)
             for n = 1:length(w_k[k])
-                du_k[k][n] = exp_minus_f_hat * w_k[k][n] * df
+                du_k[k][n] = exp(f_hat) * w_k[k][n] * df
             end
         end
         return NoTangent(), ZeroTangent(), NoTangent(), du_k
