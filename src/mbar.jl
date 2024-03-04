@@ -323,14 +323,89 @@ function ChainRulesCore.rrule(::typeof(mbar_weight), u_kl, f_k, u_k)
         du_k = deepcopy(w_k)
         for k = 1:length(w_k)
             for n = 1:length(w_k[k])
-                #du_k[k][n] = dw_k[k][n] * (- w_k[k][n])
-                #du_k[k][n] = dw_k[k][n] * (- w_k[k][n] + w_k[k][n]^2)
-                du_k[k][n] = dw_k[k][n] * w_k[k][n]
+                du_k[k][n] = dw_k[k][n] * (- w_k[k][n])
             end
         end
         return NoTangent(), ZeroTangent(), NoTangent(), du_k
     end
     return w_k, mbar_weight_pullback
+end
+
+function mbar_weight_gpu(u_kl::AbstractArray{<:CuArray}, f_k::AbstractArray{T}, u_k::AbstractArray{<:CuArray{T}}) where {T}
+    K, L = size(u_kl)
+
+    # N_k: number of data in k-th umbrella window
+    N_k = zeros(Int64, K)
+    for k = 1:K
+        N_k[k] = length(u_kl[k, 1])
+    end
+    N_max = maximum(N_k)
+    
+    # conversion from array of array (u_kl) to array (u_kln)
+    u_kln = adapt(CuArray, zeros(T, K, K, N_max))
+    for k = 1:K
+        for l = 1:K
+            u_kln[k, l, 1:N_k[k]] .= u_kl[k, l]
+        end
+    end
+    
+    u_kn = adapt(CuArray, zeros(T, K, N_max))
+    for k = 1:K
+        if u_k === nothing
+            u_kn[1, 1:N_k[k]] .= adapt(CuArray, zero(Float64))
+        else
+            u_kn[k, 1:N_k[k]] .= u_k[k]
+        end
+    end
+    
+    log_w_kn = adapt(CuArray, zeros(T, K, N_max))
+    for k = 1:K
+        log_w_kn[k, 1:N_k[k]] .= 1.0
+    end
+    idx = log_w_kn .> 0.5
+    
+    log_w_kn = mbar_log_wi_jn_gpu(N_k, f_k, u_kln, u_kn, K, N_max)
+    log_w_n  = log_w_kn[idx]
+
+    s = MDToolbox.logsumexp_1d(log_w_n)
+    w_k = Vector{CuArray{Float64}}(undef, K)
+    for k = 1:K
+        w_k[k] = exp.((log_w_kn[k, 1:N_k[k]] .- s))
+    end
+
+    return w_k
+end
+
+function ChainRulesCore.rrule(::typeof(mbar_weight_gpu), 
+        u_kl::AbstractArray{<:CuArray}, f_k::AbstractArray{T}, u_k::AbstractArray{<:CuArray{T}}) where {T}
+    w_k = mbar_weight_gpu(u_kl, f_k, u_k)
+    K = size(u_kl, 1)
+    du_k = deepcopy(w_k)
+    N_k = zeros(Int64, K)
+    for k = 1:K
+        N_k[k] = length(u_kl[k, 1])
+    end
+    function mbar_weight_gpu_pullback(dw_k)
+        for k = 1:K
+            nthreads = 256
+            nblocks = ceil(Int, N_k[k] / nthreads)
+            @cuda threads=nthreads blocks=nblocks mbar_weight_pullback_aux!(w_k[k], dw_k[k], du_k[k])
+        end
+        return NoTangent(), ZeroTangent(), NoTangent(), du_k
+    end
+    return w_k, mbar_weight_gpu_pullback
+end
+
+function mbar_weight_pullback_aux!(w::CuDeviceArray{T}, dw::CuDeviceArray{T}, du::CuDeviceArray{T}) where {T}
+    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    stride = gridDim().x * blockDim().x
+
+    N = length(w)
+    for i = index:stride:N
+        du[i] = dw[i] * (-w[i])
+    end
+
+    return nothing
 end
 
 # MATLAB-style coding
@@ -339,6 +414,17 @@ function mbar_log_wi_jn(N_k, f_k, u_kln, u_kn, K, N_max)
     for k = 1:K
         x = repeat(log.(N_k), 1, N_k[k]) .+ repeat(f_k, 1, N_k[k]) .- (u_kln[k, :, 1:N_k[k]] .- repeat(u_kn[k:k, 1:N_k[k]], K, 1))
         log_wi_jn[k:k, 1:N_k[k]] .= - logsumexp_over_row(x)
+    end
+    return log_wi_jn
+end
+
+function mbar_log_wi_jn_gpu(N_k::AbstractArray{U}, f_k::AbstractArray{T}, 
+        u_kln::CuArray{T}, u_kn::CuArray{T}, K::Int64, N_max::Int64) where {T, U}
+    log_wi_jn = adapt(CuArray, zeros(Float64, (K, N_max)))
+    for k = 1:K
+        tmp = adapt(CuArray, repeat(log.(N_k), 1, N_k[k]) .+ repeat(f_k, 1, N_k[k]))
+        x = tmp .- (u_kln[k, :, 1:N_k[k]] .- repeat(u_kn[k:k, 1:N_k[k]], K, 1))
+        log_wi_jn[k:k, 1:N_k[k]] .= - MDToolbox.logsumexp_over_row(x)
     end
     return log_wi_jn
 end
