@@ -2003,11 +2003,14 @@ function ChainRulesCore.rrule(::typeof(MDToolbox.docking_score), receptor_org::T
             if any(idx)
                 MDToolbox.assign_Li!(grid_real, x[idx], y[idx], z[idx], x_grid, y_grid, z_grid)
                 for j = 1:12
-                    k = 12 * (j-1) + i 
+                    k = 12 * (j-1) + i
+                    k_dual = 12 * (i-1) + j
                     idx = receptor.atomtype_id .== j
                     if any(idx)
                         MDToolbox.assign_Rij!(grid_imag, x2[idx], y2[idx], z2[idx], x_grid, y_grid, z_grid, receptor.mass[idx])
-                        score_for_ifacescore[k, iframe] = sum(grid_real .* grid_imag)
+                        tmp = sum(grid_real .* grid_imag)
+                        score_for_ifacescore[k, iframe] = tmp
+                        score_for_ifacescore[k_dual, iframe] = tmp
                     end
                 end
             end
