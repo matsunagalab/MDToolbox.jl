@@ -305,10 +305,10 @@ function mbar_weight(u_kl, f_k, u_k=nothing)
     end
     idx = log_w_kn .> 0.5;
 
-    log_w_kn = mbar_log_wi_jn(N_k, f_k, u_kln, u_kn, K, N_max)
+    log_w_kn = MDToolbox.mbar_log_wi_jn(N_k, f_k, u_kln, u_kn, K, N_max)
     log_w_n  = log_w_kn[idx]
 
-    s = logsumexp_1d(log_w_n)
+    s = MDToolbox.logsumexp_1d(log_w_n)
     w_k = Vector{Vector{Float64}}(undef, K)
     for k = 1:K
       w_k[k] = exp.((log_w_kn[k, 1:N_k[k]] .- s))
@@ -319,15 +319,31 @@ end
 
 function ChainRulesCore.rrule(::typeof(mbar_weight), u_kl, f_k, u_k)
     w_k = mbar_weight(u_kl, f_k, u_k)
+
     function mbar_weight_pullback(dw_k)
-        du_k = deepcopy(w_k)
-        for k = 1:length(w_k)
-            for n = 1:length(w_k[k])
-                du_k[k][n] = dw_k[k][n] * (- w_k[k][n])
+        # まず dw_k .* w_k を総和したスカラー T を計算
+        T = 0.0
+        for i in eachindex(w_k)
+            for j in eachindex(w_k[i])
+                T += dw_k[i][j] * w_k[i][j]
             end
         end
+
+        # du_k の領域を用意し、各要素をまとめて計算
+        du_k = similar(w_k)  # w_k と同じ「配列の配列」構造をもつ
+
+        for i in eachindex(w_k)
+            du_k[i] = similar(w_k[i])  # 内側の配列部分も同様に確保
+            for j in eachindex(w_k[i])
+                # du_k[i][j] = w_k[i][j] * (T - dw_k[i][j])
+                du_k[i][j] = w_k[i][j] * (T - dw_k[i][j])
+            end
+        end
+
+        # 戻り値は ( ∂u_kl無関係, ∂f_k無関係, ∂u_k無関係, du_k )
         return NoTangent(), ZeroTangent(), NoTangent(), du_k
     end
+
     return w_k, mbar_weight_pullback
 end
 
